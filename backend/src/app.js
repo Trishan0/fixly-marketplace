@@ -23,6 +23,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', process.env.UPLOAD
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/workers', require('./routes/workers'));
+app.use('/api/customers', require('./routes/customers'));
 
 // Job routes with nested proposals/invites
 const jobsRouter = require('./routes/jobs');
