@@ -24,6 +24,21 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 199 89% 48%;
     --radius: 0.75rem;
+
+    --app-bg: 210 40% 98%;
+    --page-bg: 0 0% 100%;
+    --surface: 0 0% 100%;
+    --surface-muted: 210 40% 98%;
+    --surface-soft: 210 40% 96.8%;
+    --text-strong: 222 47% 11%;
+    --text-default: 215 25% 27%;
+    --text-muted: 215 16% 47%;
+    --border-soft: 214 32% 91%;
+    --border-strong: 214 24% 86%;
+    --accent-primary: 199 89% 48%;
+    --accent-success: 160 84% 39%;
+    --accent-warning: 36 92% 50%;
+    --accent-danger: 0 84% 60%;
   }
 
   * {
@@ -31,7 +46,8 @@
   }
 
   body {
-    @apply bg-slate-50 text-foreground;
+    background-color: hsl(var(--app-bg));
+    color: hsl(var(--text-default));
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
@@ -43,11 +59,27 @@
 
 @layer components {
   .fixly-card {
-    @apply bg-white rounded-3xl border border-slate-100 shadow-sm;
+    background-color: hsl(var(--surface));
+    border: 1px solid hsl(var(--border-soft));
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    @apply rounded-3xl;
   }
 
   .fixly-page {
     @apply w-full mx-auto px-5 py-5 md:px-6 md:py-6 xl:px-8;
+  }
+
+  .fixly-surface-muted {
+    background-color: hsl(var(--surface-muted));
+    border: 1px solid hsl(var(--border-soft));
+    @apply rounded-3xl;
+  }
+
+  .fixly-panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.96) 100%);
+    border: 1px solid hsl(var(--border-soft));
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+    @apply rounded-3xl;
   }
 
   .fixly-btn-primary {
@@ -59,7 +91,10 @@
   }
 
   .fixly-input {
-    @apply w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all;
+    background-color: hsl(var(--surface));
+    border-color: hsl(var(--border-strong));
+    color: hsl(var(--text-strong));
+    @apply w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all;
   }
 
   .status-badge {
