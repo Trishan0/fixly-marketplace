@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Briefcase, FileText, Tag, BarChart3, Shield, Search, CheckCircle, XCircle, AlertTriangle, Ban } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Users, Briefcase, FileText, Tag, BarChart3, Shield, Search, CheckCircle, XCircle, AlertTriangle, Ban, ArrowRight, Clock3 } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { StatCard, Card, Button, Badge, PageHeader, Spinner, Input, Select, Modal, Avatar, EmptyState } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
@@ -15,32 +16,215 @@ export function AdminDashboard() {
     refetchInterval: 60000,
   })
 
+  const { data: workers = [] } = useQuery({
+    queryKey: ['admin-workers-dashboard'],
+    queryFn: () => api.get('/admin/workers').then(r => r.data),
+    refetchInterval: 60000,
+  })
+
+  const { data: reports = [] } = useQuery({
+    queryKey: ['admin-reports-dashboard'],
+    queryFn: () => api.get('/admin/reports').then(r => r.data),
+    refetchInterval: 60000,
+  })
+
+  const pendingWorkers = workers.filter(w => w.nic_image_path && !w.is_nic_verified)
+  const openReports = reports.filter(r => r.status === 'open')
+  const reviewedReports = reports.filter(r => r.status !== 'open')
+  const actionCards = [
+    {
+      to: '/admin/users',
+      icon: Users,
+      title: 'Manage Users',
+      desc: 'Search accounts, suspend abuse, and adjust verification flags.',
+      accent: 'sky',
+    },
+    {
+      to: '/admin/workers',
+      icon: Shield,
+      title: 'Verify Workers',
+      desc: `${pendingWorkers.length} worker${pendingWorkers.length === 1 ? '' : 's'} currently waiting for NIC review.`,
+      accent: 'emerald',
+    },
+    {
+      to: '/admin/reports',
+      icon: FileText,
+      title: 'Review Reports',
+      desc: `${openReports.length} report${openReports.length === 1 ? '' : 's'} still need moderation action.`,
+      accent: 'rose',
+    },
+    {
+      to: '/admin/categories',
+      icon: Tag,
+      title: 'Manage Categories',
+      desc: 'Keep marketplace services clean, active, and easy to browse.',
+      accent: 'amber',
+    },
+  ]
+
+  const accentClasses = {
+    sky: 'bg-sky-50 text-sky-600 border-sky-100',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    rose: 'bg-rose-50 text-rose-600 border-rose-100',
+    amber: 'bg-amber-50 text-amber-600 border-amber-100',
+  }
+
   return (
     <AppShell>
       <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <PageHeader title="Admin Dashboard" description="Platform overview" />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard icon={Users} label="Total Users" value={stats?.total_users} color="sky" />
-          <StatCard icon={Shield} label="Workers" value={stats?.total_workers} color="violet" />
-          <StatCard icon={Briefcase} label="Total Jobs" value={stats?.total_jobs} color="emerald" />
-          <StatCard icon={Briefcase} label="Open Jobs" value={stats?.open_jobs} color="amber" />
-          <StatCard icon={FileText} label="Open Reports" value={stats?.open_reports} color="rose" />
+        <PageHeader title="Admin Dashboard" description="Marketplace operations at a glance" />
+
+        <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+          <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-500">Operations Overview</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Keep the marketplace healthy and moving.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                Review queue pressure, worker verification demand, and platform activity from one place so the admin workspace feels like an operations console instead of a blank report page.
+              </p>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Users</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{stats?.total_users ?? 0}</p>
+                  <p className="mt-1 text-sm text-slate-500">{stats?.total_workers ?? 0} workers active</p>
+                </div>
+                <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Open Jobs</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{stats?.open_jobs ?? 0}</p>
+                  <p className="mt-1 text-sm text-slate-500">{stats?.total_jobs ?? 0} total jobs created</p>
+                </div>
+                <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Risk Queue</p>
+                  <p className="mt-2 text-2xl font-bold text-slate-950">{openReports.length}</p>
+                  <p className="mt-1 text-sm text-slate-500">{pendingWorkers.length} workers pending verification</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50/80 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Attention Needed</p>
+                  <h3 className="mt-2 text-xl font-bold text-slate-950">Live moderation snapshot</h3>
+                </div>
+                <div className="rounded-2xl bg-white p-3 shadow-sm">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Pending NIC review</p>
+                      <p className="mt-1 text-sm text-slate-500">Workers waiting for manual verification.</p>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-950">{pendingWorkers.length}</span>
+                  </div>
+                </div>
+                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Open reports</p>
+                      <p className="mt-1 text-sm text-slate-500">Reported issues that still need resolution.</p>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-950">{openReports.length}</span>
+                  </div>
+                </div>
+                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Resolved reports</p>
+                      <p className="mt-1 text-sm text-slate-500">Moderation actions already completed.</p>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-950">{reviewedReports.length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+          <StatCard icon={Users} label="Total Users" value={stats?.total_users} sub="Platform accounts" color="sky" className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]" />
+          <StatCard icon={Shield} label="Workers" value={stats?.total_workers} sub="Service providers" color="violet" className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]" />
+          <StatCard icon={Briefcase} label="Total Jobs" value={stats?.total_jobs} sub="Jobs ever posted" color="emerald" className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]" />
+          <StatCard icon={Briefcase} label="Open Jobs" value={stats?.open_jobs} sub="Currently awaiting workers" color="amber" className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]" />
+          <StatCard icon={FileText} label="Open Reports" value={stats?.open_reports} sub="Needs moderation action" color="rose" className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]" />
         </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card className="p-6">
-            <h3 className="font-semibold text-slate-800 mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              {[
-                { href: '/admin/users', icon: Users, label: 'Manage Users' },
-                { href: '/admin/workers', icon: Shield, label: 'Verify Workers' },
-                { href: '/admin/reports', icon: FileText, label: 'Review Reports' },
-                { href: '/admin/categories', icon: Tag, label: 'Manage Categories' },
-              ].map(({ href, icon: Icon, label }) => (
-                <a key={href} href={href} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                  <Icon className="w-4 h-4 text-sky-600" />
-                  <span className="text-sm font-medium text-slate-700">{label}</span>
-                </a>
+
+        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+          <Card className="p-6 shadow-[0_16px_44px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Quick Actions</p>
+                <h3 className="mt-2 text-xl font-bold text-slate-950">Common admin tasks</h3>
+              </div>
+              <BarChart3 className="h-5 w-5 text-slate-300" />
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {actionCards.map(({ to, icon: Icon, title, desc, accent }) => (
+                <Link key={to} to={to} className="group rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl border', accentClasses[accent])}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-semibold text-slate-900">{title}</p>
+                        <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" />
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">{desc}</p>
+                    </div>
+                  </div>
+                </Link>
               ))}
+            </div>
+          </Card>
+
+          <Card className="p-6 shadow-[0_16px_44px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Queue Summary</p>
+                <h3 className="mt-2 text-xl font-bold text-slate-950">What needs attention now</h3>
+              </div>
+              <Clock3 className="h-5 w-5 text-slate-300" />
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">Worker verification queue</p>
+                    <p className="mt-1 text-sm text-slate-500">Pending NIC reviews waiting for an admin decision.</p>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-950">{pendingWorkers.length}</span>
+                </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">Open moderation reports</p>
+                    <p className="mt-1 text-sm text-slate-500">User and job issues still waiting to be processed.</p>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-950">{openReports.length}</span>
+                </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">Operational health</p>
+                    <p className="mt-1 text-sm text-slate-500">Open jobs relative to total jobs on the platform.</p>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-950">
+                    {stats?.total_jobs ? `${Math.round(((stats?.open_jobs || 0) / stats.total_jobs) * 100)}%` : '0%'}
+                  </span>
+                </div>
+              </div>
             </div>
           </Card>
         </div>
