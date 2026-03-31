@@ -47,14 +47,16 @@ export default function CustomerProfile() {
   const recentJobs = customer.recent_jobs || []
   const completionRate = customer.jobs_posted ? Math.round(((customer.jobs_completed || 0) / customer.jobs_posted) * 100) : 0
   const isOwnProfile = !!user && user.role === 'customer' && String(user.id) === String(id)
+  const useShell = !!user
 
   const content = (
     <>
-      {isOwnProfile ? (
+      {useShell ? (
         <div className="p-6">
           <ProfilePageIntro
-            ownView
-            subtitle="This is the profile workers see before sending proposals or accepting your jobs."
+            ownView={isOwnProfile}
+            title={isOwnProfile ? 'Public Profile' : customer.full_name}
+            subtitle={isOwnProfile ? 'This is the profile workers see before sending proposals or accepting your jobs.' : 'Customer profile inside your Fixly workspace.'}
           />
           <CustomerProfileBody customer={customer} recentJobs={recentJobs} completionRate={completionRate} />
         </div>
@@ -72,7 +74,7 @@ export default function CustomerProfile() {
     </>
   )
 
-  if (isOwnProfile) {
+  if (useShell) {
     return (
       <AppShell>
         <div className="min-h-full bg-slate-50">{content}</div>

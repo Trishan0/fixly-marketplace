@@ -15,9 +15,6 @@ const customerNav = [
   { href: '/customer-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/jobs', icon: Briefcase, label: 'My Jobs' },
   { href: '/find-workers', icon: Users, label: 'Find Workers' },
-  { href: '/notifications', icon: Bell, label: 'Notifications' },
-  { href: '/profile', icon: User, label: 'Profile' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const workerNav = [
@@ -26,9 +23,6 @@ const workerNav = [
   { href: '/invites', icon: MessageSquare, label: 'Invites' },
   { href: '/jobs/assigned', icon: Wrench, label: 'My Work' },
   { href: '/earnings', icon: DollarSign, label: 'Earnings' },
-  { href: '/notifications', icon: Bell, label: 'Notifications' },
-  { href: '/profile', icon: User, label: 'Profile' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const workerNavSimplified = [
@@ -37,9 +31,6 @@ const workerNavSimplified = [
   { href: '/invites', icon: MessageSquare, label: 'Invites' },
   { href: '/jobs/assigned', icon: Wrench, label: 'My Jobs' },
   { href: '/earnings', icon: DollarSign, label: 'Earnings' },
-  { href: '/notifications', icon: Bell, label: 'Notifications' },
-  { href: '/profile', icon: User, label: 'Profile' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const adminNav = [
@@ -48,7 +39,6 @@ const adminNav = [
   { href: '/admin/workers', icon: Shield, label: 'Workers' },
   { href: '/admin/reports', icon: FileText, label: 'Reports' },
   { href: '/admin/categories', icon: Tag, label: 'Categories' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 function AccountMenu({ unread }) {
@@ -260,13 +250,18 @@ export function AppShell({ children }) {
   }
 
   // Inject unread badge on notifications link
-  const navItems = baseNav.map(item =>
-    item.href === '/notifications'
-      ? { ...item, badge: unread > 0 ? unread : null }
-      : item
-  )
+  const navItems = baseNav
 
   const currentSection = useMemo(() => {
+    if (
+      location.pathname === '/profile' ||
+      location.pathname.startsWith('/profile/') ||
+      location.pathname === `/workers/${user?.id}` ||
+      location.pathname === `/customers/${user?.id}`
+    ) return 'Profile'
+    if (location.pathname.startsWith('/settings')) return 'Settings'
+    if (location.pathname.startsWith('/notifications')) return 'Notifications'
+
     const activeItem = navItems.find(item => {
       if (item.href === '/profile') {
         return location.pathname === '/profile' ||
@@ -324,14 +319,6 @@ export function AppShell({ children }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link to="/notifications" className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900">
-              <Bell className="h-4 w-4" />
-              {unread > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
-                  {unread > 9 ? '9+' : unread}
-                </span>
-              )}
-            </Link>
             <AccountMenu unread={unread} />
           </div>
         </header>
@@ -350,14 +337,6 @@ export function AppShell({ children }) {
             </div>
             <span className="font-bold text-slate-900" style={{ fontFamily: 'Syne, sans-serif' }}>Fixly</span>
           </div>
-          {unread > 0 && (
-            <Link to="/notifications" className="ml-auto relative">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                {unread > 9 ? '9+' : unread}
-              </span>
-            </Link>
-          )}
         </header>
 
         {/* Page content */}

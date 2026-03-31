@@ -71,14 +71,16 @@ export default function WorkerProfile() {
   const reviewCount = reviews.length
   const averageRating = Number(worker.avg_rating || 0).toFixed(1)
   const isOwnProfile = !!user && user.role === 'worker' && String(user.id) === String(id)
+  const useShell = !!user
 
   const content = (
     <>
-      {isOwnProfile ? (
+      {useShell ? (
         <div className="p-6">
           <ProfilePageIntro
-            ownView
-            subtitle="This is how customers see your profile across Fixly."
+            ownView={isOwnProfile}
+            title={isOwnProfile ? 'Public Profile' : worker.full_name}
+            subtitle={isOwnProfile ? 'This is how customers see your profile across Fixly.' : 'Worker profile inside your Fixly workspace.'}
           />
           <WorkerProfileBody worker={worker} reviews={reviews} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
         </div>
@@ -126,7 +128,7 @@ export default function WorkerProfile() {
     </>
   )
 
-  if (isOwnProfile) {
+  if (useShell) {
     return (
       <AppShell>
         <div className="min-h-full bg-slate-50">{content}</div>
