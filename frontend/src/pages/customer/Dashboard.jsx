@@ -28,6 +28,13 @@ export default function CustomerDashboard() {
   const completedJobs = jobs.filter(j => ['completed','payment_recorded','reviewed'].includes(j.status))
   const totalSpent = completedJobs.reduce((s, j) => s + parseFloat(j.final_price || 0), 0)
   const unreadNotifs = notifs?.notifications?.filter(n => !n.is_read) || []
+  const jobsAwaitingProposalReview = jobs.filter(j => j.status === 'proposals_received' && Number(j.proposal_count || 0) > 0)
+  const prioritizedJobs = [...jobs].sort((a, b) => {
+    const aPriority = a.status === 'proposals_received' && Number(a.proposal_count || 0) > 0 ? 0 : 1
+    const bPriority = b.status === 'proposals_received' && Number(b.proposal_count || 0) > 0 ? 0 : 1
+    if (aPriority !== bPriority) return aPriority - bPriority
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
 
   return (
     <AppShell>
@@ -63,8 +70,24 @@ export default function CustomerDashboard() {
           <StatCard icon={Briefcase} label="Active Jobs" value={activeJobs.length} color="sky" />
           <StatCard icon={CheckCircle} label="Completed" value={completedJobs.length} color="emerald" />
           <StatCard icon={DollarSign} label="Total Spent" value={formatCurrency(totalSpent)} color="violet" />
-          <StatCard icon={Bell} label="Unread" value={unreadNotifs.length} color="amber" />
+          <StatCard icon={Users} label="Need Proposal Review" value={jobsAwaitingProposalReview.length} color="amber" />
         </div>
+
+        {jobsAwaitingProposalReview.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-slate-900">Review Proposals First</h2>
+              <Link to="/jobs" className="text-sm text-sky-600 hover:underline font-medium">View all jobs →</Link>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {jobsAwaitingProposalReview.slice(0, 2).map(job => (
+                <Link key={job.id} to={`/jobs/${job.id}`}>
+                  <JobCard job={job} role="customer" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick actions mobile */}
         <div className="sm:hidden">
@@ -92,7 +115,7 @@ export default function CustomerDashboard() {
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {jobs.slice(0, 4).map(job => (
+              {prioritizedJobs.slice(0, 4).map(job => (
                 <Link key={job.id} to={`/jobs/${job.id}`}>
                   <JobCard job={job} role="customer" />
                 </Link>

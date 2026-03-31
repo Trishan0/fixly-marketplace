@@ -31,6 +31,12 @@ export default function MyJobs() {
     if (tab === 'cancelled') return j.status === 'cancelled'
     return true
   })
+  const sorted = [...filtered].sort((a, b) => {
+    const aPriority = a.status === 'proposals_received' && Number(a.proposal_count || 0) > 0 ? 0 : 1
+    const bPriority = b.status === 'proposals_received' && Number(b.proposal_count || 0) > 0 ? 0 : 1
+    if (aPriority !== bPriority) return aPriority - bPriority
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
 
   return (
     <AppShell>
@@ -62,7 +68,7 @@ export default function MyJobs() {
             action={<Link to="/jobs/new"><Button variant="primary">Post a Job</Button></Link>} />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {filtered.map(job => (
+            {sorted.map(job => (
               <Link key={job.id} to={`/jobs/${job.id}`}>
                 <JobCard job={job} role="customer" />
               </Link>

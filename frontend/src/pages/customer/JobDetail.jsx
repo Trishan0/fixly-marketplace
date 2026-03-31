@@ -17,8 +17,10 @@ export default function JobDetail() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [payModal, setPayModal] = useState(false)
+  const [priceModal, setPriceModal] = useState(false)
   const [reviewModal, setReviewModal] = useState(false)
   const [payment, setPayment] = useState({ amount: '', method: 'cash', note: '' })
+  const [agreedPrice, setAgreedPrice] = useState('')
   const [review, setReview] = useState({ rating: 5, feedback: '' })
 
   const { data: job, isLoading } = useQuery({
@@ -62,7 +64,45 @@ export default function JobDetail() {
 
   const recordPayment = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/payment`, payment),
-    onSuccess: () => { setPayModal(false); toast({ title: 'Payment recorded!', variant: 'success' }); refetch() },
+    onSuccess: () => {
+      setPayModal(false)
+      toast({ title: 'Payment recorded!', description: 'The worker can now confirm receipt.', variant: 'success' })
+      refetch()
+      qc.invalidateQueries(['earnings'])
+      qc.invalidateQueries(['assigned-jobs'])
+    },
+    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+  })
+
+  const confirmPayment = useMutation({
+    mutationFn: () => api.put(`/payments/${job.payment_id}/confirm`),
+    onSuccess: () => {
+      toast({ title: 'Payment confirmed!', variant: 'success' })
+      refetch()
+      qc.invalidateQueries(['earnings'])
+      qc.invalidateQueries(['assigned-jobs'])
+    },
+    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+  })
+
+  const disputePayment = useMutation({
+    mutationFn: () => api.put(`/payments/${job.payment_id}/dispute`),
+    onSuccess: () => {
+      toast({ title: 'Payment disputed' })
+      refetch()
+      qc.invalidateQueries(['earnings'])
+      qc.invalidateQueries(['assigned-jobs'])
+    },
+    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+  })
+
+  const setFinalPrice = useMutation({
+    mutationFn: () => api.put(`/jobs/${id}/final-price`, { final_price: agreedPrice }),
+    onSuccess: () => {
+      setPriceModal(false)
+      toast({ title: 'Agreed price saved!', variant: 'success' })
+      refetch()
+    },
     onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
   })
 
@@ -86,6 +126,7 @@ export default function JobDetail() {
   const canMarkStarted = isAssignedWorker && job.status === 'assigned'
   const canMarkDone = isAssignedWorker && job.status === 'in_progress'
   const canSendProposal = isWorker && !isAssignedWorker && ['posted', 'proposals_received'].includes(job.status) && !myProposal
+  const canSetFinalPrice = isOwner && ['assigned', 'in_progress', 'completed'].includes(job.status) && job.pricing_mode !== 'fixed'
 
   return (
     <AppShell>
@@ -146,8 +187,25 @@ export default function JobDetail() {
             )}
             {myProposal && (
               <Link to={`/jobs/${job.id}/propose`}>
-                <Button variant="outline">Proposal Sent</Button>
+                <Button variant="outline">
+                  {myProposal.status === 'declined' ? 'Proposal Rejected' : myProposal.status === 'accepted' ? 'Proposal Accepted' : 'Proposal Sent'}
+                </Button>
               </Link>
+            )}
+            {canSetFinalPrice && (
+              <Button variant="outline" onClick={() => { setAgreedPrice(job.final_price || ''); setPriceModal(true) }}>
+                {job.final_price ? 'Update Agreed Price' : 'Set Agreed Price'}
+              </Button>
+            )}
+            {isAssignedWorker && job.status === 'payment_recorded' && job.payment_id && !job.payment_worker_confirmed && !job.payment_disputed && (
+              <>
+                <Button variant="success" onClick={() => confirmPayment.mutate()} loading={confirmPayment.isPending}>
+                  Confirm Payment Received
+                </Button>
+                <Button variant="outline" onClick={() => disputePayment.mutate()} loading={disputePayment.isPending}>
+                  Dispute Payment
+                </Button>
+              </>
             )}
             {canMarkStarted && (
               <Button variant="primary" onClick={() => updateStatus.mutate('in_progress')} loading={updateStatus.isPending}>
@@ -160,7 +218,7 @@ export default function JobDetail() {
               </Button>
             )}
             {canRecordPayment && (
-              <Button variant="primary" onClick={() => setPayModal(true)}>
+              <Button variant="primary" onClick={() => { setPayment(p => ({ ...p, amount: job.final_price || p.amount })); setPayModal(true) }}>
                 <CreditCard className="w-4 h-4" /> Record Payment
               </Button>
             )}
@@ -176,6 +234,26 @@ export default function JobDetail() {
             )}
           </div>
         </Card>
+
+        {myProposal && (
+          <Card className="p-5">
+            <h3 className="font-semibold text-slate-800 mb-3">Your Proposal</h3>
+            <div className="flex items-center gap-3 mb-3">
+              <Badge status={myProposal.status} />
+              {myProposal.proposed_price && <span className="text-sm font-semibold text-sky-700">{formatCurrency(myProposal.proposed_price)}</span>}
+              {myProposal.inspection_needed && <span className="text-sm text-amber-600 font-medium">Inspection needed</span>}
+            </div>
+            {myProposal.availability && <p className="text-sm text-slate-500">Availability: {myProposal.availability}</p>}
+            {myProposal.message && <p className="text-sm text-slate-600 mt-2">{myProposal.message}</p>}
+          </Card>
+        )}
+
+        {job.final_price && (
+          <Card className="p-5">
+            <h3 className="font-semibold text-slate-800 mb-2">Agreed Price</h3>
+            <p className="text-xl font-bold text-emerald-600">{formatCurrency(job.final_price)}</p>
+          </Card>
+        )}
 
         {job.customer_id && (
           <Card className="p-5">
@@ -256,6 +334,16 @@ export default function JobDetail() {
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" onClick={() => setPayModal(false)} className="flex-1">Cancel</Button>
             <Button variant="primary" onClick={() => recordPayment.mutate()} loading={recordPayment.isPending} className="flex-1">Record Payment</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={priceModal} onClose={() => setPriceModal(false)} title="Set Agreed Price">
+        <div className="space-y-4">
+          <Input label="Agreed Price (LKR) *" type="number" value={agreedPrice} onChange={e => setAgreedPrice(e.target.value)} placeholder="5000" />
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setPriceModal(false)} className="flex-1">Cancel</Button>
+            <Button variant="primary" onClick={() => setFinalPrice.mutate()} loading={setFinalPrice.isPending} className="flex-1">Save Price</Button>
           </div>
         </div>
       </Modal>

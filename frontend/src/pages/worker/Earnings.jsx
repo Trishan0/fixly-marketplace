@@ -28,8 +28,8 @@ export default function Earnings() {
 
   const payments = data?.payments || []
   const total = data?.total || 0
-  const confirmed = payments.filter(p => p.worker_confirmed).reduce((s, p) => s + parseFloat(p.amount), 0)
-  const pending = payments.filter(p => !p.worker_confirmed && !p.disputed).reduce((s, p) => s + parseFloat(p.amount), 0)
+  const confirmed = data?.confirmedTotal || 0
+  const pending = data?.pendingTotal || 0
 
   return (
     <AppShell>
@@ -37,7 +37,7 @@ export default function Earnings() {
         <PageHeader title="Earnings" description="Track your payments and income" />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard icon={DollarSign} label="Total Earned" value={formatCurrency(total)} color="emerald" />
+          <StatCard icon={DollarSign} label="Total Recorded" value={formatCurrency(total)} color="emerald" />
           <StatCard icon={CheckCircle} label="Confirmed" value={formatCurrency(confirmed)} color="sky" />
           <StatCard icon={AlertCircle} label="Pending Confirmation" value={formatCurrency(pending)} color="amber" />
         </div>

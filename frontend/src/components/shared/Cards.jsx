@@ -76,6 +76,9 @@ export function JobCard({ job, role, onAction }) {
                 <Briefcase className="w-3 h-3" />{job.proposal_count} proposal{job.proposal_count !== 1 ? 's' : ''}
               </span>
             )}
+            {job.has_my_proposal && (
+              <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Proposal sent</span>
+            )}
           </div>
           {job.fixed_budget && job.pricing_mode === 'fixed' && (
             <p className="text-sm font-semibold text-sky-700 mt-2">Budget: {formatCurrency(job.fixed_budget)}</p>
@@ -97,6 +100,12 @@ export function JobCard({ job, role, onAction }) {
         <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2">
           <Avatar name={job.assigned_worker_name} src={job.assigned_worker_photo} size="sm" />
           <p className="text-xs text-slate-500">Assigned to <span className="font-medium text-slate-700">{job.assigned_worker_name}</span></p>
+        </div>
+      )}
+
+      {!isWorker && job.status === 'proposals_received' && Number(job.proposal_count || 0) > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-50">
+          <p className="text-sm font-medium text-violet-700">Review proposals from workers now</p>
         </div>
       )}
 

@@ -76,7 +76,7 @@ router.get('/feed', verifyToken, requireRole('worker'), async (req, res) => {
   
   let conditions = ["j.status IN ('posted','proposals_received')", "j.is_active = true"];
   let params = [];
-  let idx = 1;
+  let idx = 2;
 
   if (category) {
     conditions.push(`c.name ILIKE $${idx}`);
@@ -95,17 +95,66 @@ router.get('/feed', verifyToken, requireRole('worker'), async (req, res) => {
     const result = await pool.query(
       `SELECT j.*, c.name as category_name, c.icon as category_icon,
               u.full_name as customer_name,
-              (SELECT COUNT(*) FROM proposals p WHERE p.job_id = j.id) as proposal_count
+              (SELECT COUNT(*) FROM proposals p WHERE p.job_id = j.id) as proposal_count,
+              EXISTS(
+                SELECT 1 FROM proposals myp
+                WHERE myp.job_id = j.id AND myp.worker_id = $1
+              ) as has_my_proposal,
+              (
+                SELECT myp.status
+                FROM proposals myp
+                WHERE myp.job_id = j.id AND myp.worker_id = $1
+                ORDER BY myp.created_at DESC
+                LIMIT 1
+              ) as my_proposal_status
        FROM jobs j
        LEFT JOIN categories c ON c.id = j.category_id
        LEFT JOIN users u ON u.id = j.customer_id
        ${where}
        ORDER BY j.created_at DESC
        LIMIT $${idx} OFFSET $${idx+1}`,
-      [...params, parseInt(limit), offset]
+      [req.user.id, ...params, parseInt(limit), offset]
     );
 
     res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// PUT /api/jobs/:id/final-price
+router.put('/:id/final-price', verifyToken, requireRole('customer'), async (req, res) => {
+  const { final_price } = req.body;
+
+  if (!final_price || Number(final_price) <= 0) {
+    return res.status(400).json({ error: 'Valid final price required' });
+  }
+
+  try {
+    const jobResult = await pool.query(
+      'SELECT * FROM jobs WHERE id = $1 AND customer_id = $2',
+      [req.params.id, req.user.id]
+    );
+    const job = jobResult.rows[0];
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.assigned_worker_id) return res.status(400).json({ error: 'Assign a worker first' });
+    if (job.status === 'cancelled') return res.status(400).json({ error: 'Cannot update a cancelled job' });
+
+    await pool.query(
+      'UPDATE jobs SET final_price = $1, updated_at = NOW() WHERE id = $2',
+      [final_price, req.params.id]
+    );
+
+    await createNotification(
+      job.assigned_worker_id,
+      'payment_recorded',
+      'Agreed Price Updated',
+      `Customer updated the agreed price for: ${job.title}`,
+      { job_id: job.id, final_price: Number(final_price) }
+    );
+
+    res.json({ message: 'Final price updated' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed' });
@@ -173,11 +222,14 @@ router.get('/:id', verifyToken, async (req, res) => {
               u.full_name as customer_name, u.phone as customer_phone,
               u.profile_photo as customer_photo,
               aw.full_name as assigned_worker_name, aw.phone as assigned_worker_phone,
-              aw.profile_photo as assigned_worker_photo
+              aw.profile_photo as assigned_worker_photo,
+              p.id as payment_id, p.amount as payment_amount, p.method as payment_method,
+              p.worker_confirmed as payment_worker_confirmed, p.disputed as payment_disputed
        FROM jobs j
        LEFT JOIN categories c ON c.id = j.category_id
        LEFT JOIN users u ON u.id = j.customer_id
        LEFT JOIN users aw ON aw.id = j.assigned_worker_id
+       LEFT JOIN payments p ON p.job_id = j.id
        WHERE j.id = $1`,
       [req.params.id]
     );

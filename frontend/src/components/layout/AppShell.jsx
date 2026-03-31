@@ -26,6 +26,7 @@ const workerNav = [
   { href: '/invites', icon: MessageSquare, label: 'Invites' },
   { href: '/jobs/assigned', icon: Wrench, label: 'My Work' },
   { href: '/earnings', icon: DollarSign, label: 'Earnings' },
+  { href: '/notifications', icon: Bell, label: 'Notifications' },
   { href: '/profile', icon: User, label: 'Profile' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ]
@@ -36,6 +37,7 @@ const workerNavSimplified = [
   { href: '/invites', icon: MessageSquare, label: 'Invites' },
   { href: '/jobs/assigned', icon: Wrench, label: 'My Jobs' },
   { href: '/earnings', icon: DollarSign, label: 'Earnings' },
+  { href: '/notifications', icon: Bell, label: 'Notifications' },
   { href: '/profile', icon: User, label: 'Profile' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ]

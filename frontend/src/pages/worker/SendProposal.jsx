@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Button, Card, Input, Textarea, PageHeader } from '../../components/shared/UI'
-import { useAuth } from '../../context/AuthContext'
+import { Button, Card, PageHeader } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, URGENCY_LABELS } from '../../lib/utils'
 import api from '../../lib/api'
@@ -12,7 +11,6 @@ import api from '../../lib/api'
 export default function SendProposal() {
   const { jobId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
   const { toast } = useToast()
 
   const [form, setForm] = useState({
@@ -46,15 +44,26 @@ export default function SendProposal() {
   })
 
   if (existing) {
+    const proposalTitle =
+      existing.status === 'declined'
+        ? 'Proposal Rejected'
+        : existing.status === 'accepted'
+          ? 'Proposal Accepted'
+          : 'Proposal Already Sent'
+    const proposalDescription =
+      existing.status === 'declined'
+        ? 'The customer declined your proposal for this job.'
+        : existing.status === 'accepted'
+          ? 'Your proposal was accepted for this job.'
+          : "You've already submitted a proposal for this job. The customer will review it."
+
     return (
       <AppShell>
         <div className="p-6 max-w-xl mx-auto">
           <Card className="p-8 text-center">
-            <div className="text-4xl mb-3">✅</div>
-            <h2 className="font-bold text-slate-900 mb-2">Proposal Already Sent</h2>
-            <p className="text-slate-500 text-sm mb-6">
-              You've already submitted a proposal for this job. The customer will review it.
-            </p>
+            <div className="text-4xl mb-3">{existing.status === 'declined' ? '!' : existing.status === 'accepted' ? '+' : '*'}</div>
+            <h2 className="font-bold text-slate-900 mb-2">{proposalTitle}</h2>
+            <p className="text-slate-500 text-sm mb-6">{proposalDescription}</p>
             <Button variant="primary" onClick={() => navigate(`/jobs/${jobId}`)}>
               View Job Details
             </Button>
@@ -81,7 +90,7 @@ export default function SendProposal() {
             </p>
             <h2 className="font-bold text-slate-900">{job.title}</h2>
             <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
-              {job.district && <span>📍 {job.district}</span>}
+              {job.district && <span>Location: {job.district}</span>}
               {job.urgency && <span>{URGENCY_LABELS[job.urgency]}</span>}
               {job.fixed_budget && job.pricing_mode === 'fixed' && (
                 <span className="text-sky-600 font-semibold">
@@ -95,7 +104,6 @@ export default function SendProposal() {
         <PageHeader title="Send Proposal" description="Make a strong first impression" />
 
         <Card className="p-6 space-y-5">
-          {/* Inspection toggle */}
           <div>
             <label className="flex items-center gap-3 cursor-pointer">
               <div
@@ -128,7 +136,7 @@ export default function SendProposal() {
                 />
               </div>
               <p className="text-xs text-slate-400">
-                💡 Your price is only visible to the job poster, not other workers
+                Your price is only visible to the job poster, not other workers
               </p>
             </div>
           )}
