@@ -70,9 +70,9 @@ export function ProfilePage() {
   return (
     <AppShell>
       <div className="p-6 max-w-3xl mx-auto space-y-6">
-        <PageHeader title="My Profile" description="Manage your public profile information" />
+        <PageHeader title="Edit Profile" description="Update the information shown on your public profile" />
         <div className="flex justify-end">
-          <Link to={user?.role === 'worker' ? `/workers/${user?.id}` : `/customers/${user?.id}`}>
+          <Link to="/profile">
             <Button variant="outline">View Public Profile</Button>
           </Link>
         </div>

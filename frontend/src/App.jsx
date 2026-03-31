@@ -30,6 +30,14 @@ function DashboardRedirect() {
   return <Navigate to="/customer-dashboard" replace />
 }
 
+function ProfileRedirect() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/auth" replace />
+  if (user.role === 'worker') return <Navigate to={`/workers/${user.id}`} replace />
+  if (user.role === 'customer') return <Navigate to={`/customers/${user.id}`} replace />
+  return <Navigate to="/settings" replace />
+}
+
 function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -65,7 +73,8 @@ export default function App() {
             <Route path="/earnings" element={<RoleRoute role="worker"><Earnings /></RoleRoute>} />
             <Route path="/jobs/:jobId/propose" element={<RoleRoute role="worker"><SendProposal /></RoleRoute>} />
             <Route path="/jobs/:id" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProfileRedirect /></ProtectedRoute>} />
+            <Route path="/profile/edit" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />

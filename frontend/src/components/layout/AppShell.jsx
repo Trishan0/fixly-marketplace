@@ -99,7 +99,15 @@ function SidebarContent({ navItems, onClose }) {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ href, icon: Icon, label, badge }) => {
-          const isActive = location.pathname === href ||
+          const isProfileRoute = href === '/profile' && (
+            location.pathname === '/profile' ||
+            location.pathname.startsWith('/profile/') ||
+            location.pathname === `/workers/${user?.id}` ||
+            location.pathname === `/customers/${user?.id}`
+          )
+
+          const isActive = isProfileRoute ||
+            location.pathname === href ||
             (href.length > 1 && !['/', '/admin', '/worker-dashboard', '/customer-dashboard'].includes(href) && location.pathname.startsWith(href))
             || location.pathname === href
 
