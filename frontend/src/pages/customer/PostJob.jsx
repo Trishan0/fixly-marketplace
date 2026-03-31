@@ -38,9 +38,7 @@ export default function PostJob() {
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => api.get('/admin/categories').then(r => r.data).catch(() =>
-      api.get('/workers').then(() => [])
-    ),
+    queryFn: () => api.get('/jobs/categories').then(r => r.data),
   })
 
   const createJob = useMutation({

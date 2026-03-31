@@ -15,9 +15,29 @@ const VALID_TRANSITIONS = {
   payment_recorded: ['reviewed'],
 };
 
+// GET /api/jobs/categories
+router.get('/categories', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM categories WHERE is_active = true ORDER BY name'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load categories' });
+  }
+});
+
 // POST /api/jobs
 router.post('/', verifyToken, requireRole('customer'), requireEmailVerified, async (req, res) => {
   const { title, description, category_id, subcategory_id, district, town, address, urgency, pricing_mode, fixed_budget } = req.body;
+  const normalizedSubcategoryId = subcategory_id || null;
+  const normalizedDistrict = district || null;
+  const normalizedTown = town || null;
+  const normalizedAddress = address || null;
+  const normalizedUrgency = urgency || null;
+  const normalizedPricingMode = pricing_mode || null;
+  const normalizedFixedBudget = fixed_budget || null;
   
   if (!title || !category_id) {
     return res.status(400).json({ error: 'Title and category required' });
@@ -28,7 +48,19 @@ router.post('/', verifyToken, requireRole('customer'), requireEmailVerified, asy
       `INSERT INTO jobs (customer_id, title, description, category_id, subcategory_id,
         district, town, address, urgency, pricing_mode, fixed_budget)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [req.user.id, title, description, category_id, subcategory_id, district, town, address, urgency, pricing_mode, fixed_budget || null]
+      [
+        req.user.id,
+        title,
+        description,
+        category_id,
+        normalizedSubcategoryId,
+        normalizedDistrict,
+        normalizedTown,
+        normalizedAddress,
+        normalizedUrgency,
+        normalizedPricingMode,
+        normalizedFixedBudget,
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
