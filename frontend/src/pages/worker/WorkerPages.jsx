@@ -15,6 +15,7 @@ export function OpenJobs() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [district, setDistrict] = useState('')
+  const [tab, setTab] = useState('open')
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -29,12 +30,30 @@ export function OpenJobs() {
     onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
   })
 
-  const filtered = feed.filter(j => !search || j.title.toLowerCase().includes(search.toLowerCase()))
+  const filtered = feed.filter(j => {
+    if (search && !j.title.toLowerCase().includes(search.toLowerCase())) return false
+    if (tab === 'open') return !j.has_my_proposal
+    if (tab === 'sent') return j.has_my_proposal && j.my_proposal_status === 'pending'
+    if (tab === 'rejected') return j.my_proposal_status === 'declined'
+    return true
+  })
 
   return (
     <AppShell>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         <PageHeader title="Open Jobs" description="Browse jobs looking for workers" />
+        <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 w-fit">
+          {[
+            ['open', 'Open Jobs'],
+            ['sent', 'Proposal Sent'],
+            ['rejected', 'Rejected'],
+          ].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={cn('px-4 py-2 rounded-xl text-sm font-semibold transition-all', tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
@@ -69,6 +88,8 @@ export function OpenJobs() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       {job.category_name && <span className="text-xs bg-sky-50 text-sky-600 px-2 py-0.5 rounded-full">{job.category_name}</span>}
+                      {job.has_my_proposal && <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Proposal sent</span>}
+                      {job.my_proposal_status === 'declined' && <span className="text-xs bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-medium">Proposal rejected</span>}
                       {job.urgency && <span className="text-xs text-slate-500">{URGENCY_LABELS[job.urgency]}</span>}
                     </div>
                     <h3 className="font-semibold text-slate-900">{job.title}</h3>
@@ -92,8 +113,10 @@ export function OpenJobs() {
                   <Link to={`/jobs/${job.id}`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">View Details</Button>
                   </Link>
-                  <Link to={`/jobs/${job.id}/propose`}>
-                    <Button variant="primary" size="sm">Send Proposal</Button>
+                  <Link to={job.has_my_proposal ? `/jobs/${job.id}` : `/jobs/${job.id}/propose`}>
+                    <Button variant={job.has_my_proposal ? 'secondary' : 'primary'} size="sm">
+                      {job.has_my_proposal ? 'View Proposal Status' : 'Send Proposal'}
+                    </Button>
                   </Link>
                 </div>
               </Card>
@@ -196,6 +219,7 @@ function InviteCard({ invite, onRespond, loading, past }) {
 }
 
 export function AssignedJobs() {
+  const [tab, setTab] = useState('active')
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -210,16 +234,36 @@ export function AssignedJobs() {
     onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
   })
 
+  const filteredJobs = jobs.filter(job => {
+    if (tab === 'active') return ['assigned', 'in_progress'].includes(job.status)
+    if (tab === 'awaiting_payment') return ['completed', 'payment_recorded'].includes(job.status)
+    if (tab === 'finished') return job.status === 'reviewed'
+    return true
+  })
+
   return (
     <AppShell>
       <div className="p-6 max-w-4xl mx-auto space-y-6">
         <PageHeader title="My Work" description="Jobs assigned to you" />
+        <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 w-fit">
+          {[
+            ['active', 'Active'],
+            ['awaiting_payment', 'Awaiting Payment'],
+            ['finished', 'Finished'],
+            ['all', 'All'],
+          ].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={cn('px-4 py-2 rounded-xl text-sm font-semibold transition-all', tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
+              {label}
+            </button>
+          ))}
+        </div>
         {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
-          jobs.length === 0 ? (
+          filteredJobs.length === 0 ? (
             <EmptyState icon={Briefcase} title="No assigned jobs" description="Accept proposals or invites to get started" />
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {jobs.map(job => (
+              {filteredJobs.map(job => (
                 <Card key={job.id} className="p-5">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="font-semibold text-slate-900">{job.title}</h3>
@@ -244,6 +288,11 @@ export function AssignedJobs() {
                         loading={updateStatus.isPending}>
                         <CheckCircle className="w-3.5 h-3.5" /> Complete
                       </Button>
+                    )}
+                    {job.status === 'payment_recorded' && (
+                      <Link to={`/jobs/${job.id}`} className="flex-1">
+                        <Button variant="success" size="sm" className="w-full">Confirm Payment</Button>
+                      </Link>
                     )}
                     <Link to={`/jobs/${job.id}`}>
                       <Button variant="outline" size="sm">Details</Button>
