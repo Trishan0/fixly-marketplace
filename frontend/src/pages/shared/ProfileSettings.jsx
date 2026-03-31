@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
 import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
+import { ThemeModeSelector } from '../../components/shared/ThemeToggle'
 
 const CATEGORIES = ['Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
@@ -202,6 +203,12 @@ export function SettingsPage() {
               </span>
             </div>
           </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-800 mb-1">Appearance</h3>
+          <p className="text-sm text-slate-500 mb-4">Choose how Fixly should look on this device</p>
+          <ThemeModeSelector />
         </Card>
 
         {user?.role === 'worker' && (

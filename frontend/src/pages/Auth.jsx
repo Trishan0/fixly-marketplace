@@ -5,8 +5,9 @@ import { Wrench, Eye, EyeOff, ShieldCheck, Briefcase, ArrowRight } from 'lucide-
 import { useAuth } from '../context/AuthContext'
 import { Input, Select, Button } from '../components/shared/UI'
 import { DISTRICTS } from '../lib/utils'
+import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
 
-const CATEGORIES = ['Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
+const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
 
 export default function Auth() {
   const [params] = useSearchParams()
@@ -50,7 +51,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)]">
+    <div className="fixly-page-shell min-h-screen">
       <div className="mx-auto max-w-6xl px-6 py-8 md:px-10 md:py-12">
         <div className="mb-8 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
@@ -59,9 +60,12 @@ export default function Auth() {
             </div>
             <span className="text-2xl font-bold text-slate-900">Fixly</span>
           </Link>
-          <Link to="/" className="text-sm font-medium text-slate-500 hover:text-slate-900">
-            Back to Home
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggleIconButton />
+            <Link to="/" className="text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+              Back to Home
+            </Link>
+          </div>
         </div>
 
         <div className="grid items-start gap-8 lg:grid-cols-[0.95fr_1.05fr]">
@@ -70,9 +74,9 @@ export default function Auth() {
             animate={{ opacity: 1, y: 0 }}
             className="fixly-panel p-6 md:p-8"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-1.5 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <ShieldCheck className="h-3.5 w-3.5 text-sky-500" />
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">
                 Trusted local service marketplace
               </span>
             </div>
@@ -87,9 +91,9 @@ export default function Auth() {
             </p>
 
             <div className="mt-8 space-y-4">
-              <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4">
+              <div className="fixly-elevated p-4">
                 <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-sky-50 p-2.5 text-sky-600">
+                  <div className="rounded-2xl bg-sky-50 p-2.5 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
                     <Briefcase className="h-4 w-4" />
                   </div>
                   <div>
@@ -99,9 +103,9 @@ export default function Auth() {
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4">
+              <div className="fixly-elevated p-4">
                 <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-emerald-50 p-2.5 text-emerald-600">
+                  <div className="rounded-2xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
                     <ArrowRight className="h-4 w-4" />
                   </div>
                   <div>
@@ -118,13 +122,13 @@ export default function Auth() {
             animate={{ opacity: 1, y: 0 }}
             className="fixly-card overflow-hidden"
           >
-            <div className="flex border-b border-slate-100">
+            <div className="flex border-b border-slate-100 dark:border-slate-800">
               {['login', 'register'].map(t => (
                 <button
                   key={t}
                   onClick={() => { setTab(t); setError('') }}
                   className={`flex-1 py-4 text-sm font-semibold capitalize transition-all ${
-                    tab === t ? 'border-b-2 border-sky-600 text-sky-600' : 'text-slate-400 hover:text-slate-600'
+                    tab === t ? 'border-b-2 border-sky-600 text-sky-600 dark:text-sky-300' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
                 >
                   {t === 'login' ? 'Sign In' : 'Create Account'}
@@ -134,7 +138,7 @@ export default function Auth() {
 
             <div className="p-6 md:p-8">
               {error && (
-                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
                   {error}
                 </div>
               )}
@@ -143,7 +147,7 @@ export default function Auth() {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <Input label="Email" type="email" placeholder="you@example.com" value={form.email} onChange={set('email')} required />
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-700">Password</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
                     <div className="relative">
                       <input
                         type={showPass ? 'text' : 'password'}
@@ -153,12 +157,12 @@ export default function Auth() {
                         onChange={set('password')}
                         required
                       />
-                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+                        {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
-                  <Link to="/forgot-password" className="block text-right text-xs text-sky-600 hover:underline -mt-2">
+                  <Link to="/forgot-password" className="block -mt-2 text-right text-xs text-sky-600 hover:underline dark:text-sky-300">
                     Forgot password?
                   </Link>
                   <Button type="submit" variant="primary" size="lg" className="w-full" loading={loading}>
@@ -171,7 +175,7 @@ export default function Auth() {
               ) : (
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">I am a...</label>
+                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">I am a...</label>
                     <div className="grid grid-cols-2 gap-2">
                       {['customer', 'worker'].map(r => (
                         <button
@@ -179,7 +183,7 @@ export default function Auth() {
                           type="button"
                           onClick={() => setRole(r)}
                           className={`rounded-xl border py-2.5 text-sm font-semibold transition-all ${
-                            role === r ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-200 text-slate-600 hover:border-sky-300'
+                            role === r ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-200 text-slate-600 hover:border-sky-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500'
                           }`}
                         >
                           {r === 'customer' ? 'Customer' : 'Worker'}
@@ -191,7 +195,7 @@ export default function Auth() {
                   <Input label="Full Name" placeholder="Kasun Perera" value={form.full_name} onChange={set('full_name')} required />
                   <Input label="Email" type="email" placeholder="you@example.com" value={form.email} onChange={set('email')} required />
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-slate-700">Password</label>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
                     <div className="relative">
                       <input
                         type={showPass ? 'text' : 'password'}
@@ -202,8 +206,8 @@ export default function Auth() {
                         required
                         minLength={6}
                       />
-                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+                        {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
@@ -220,7 +224,7 @@ export default function Auth() {
                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </Select>
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700">Dashboard Mode</label>
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Dashboard Mode</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[['standard', 'Standard'], ['simplified', 'Simplified']].map(([v, l]) => (
                             <button
@@ -228,7 +232,7 @@ export default function Auth() {
                               type="button"
                               onClick={() => setForm(f => ({ ...f, dashboard_mode: v }))}
                               className={`rounded-xl border py-2 text-xs font-semibold transition-all ${
-                                form.dashboard_mode === v ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-200 text-slate-600'
+                                form.dashboard_mode === v ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'
                               }`}
                             >
                               {l}

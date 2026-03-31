@@ -30,7 +30,7 @@ export default function CustomerProfile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <Spinner />
       </div>
     )
@@ -38,7 +38,7 @@ export default function CustomerProfile() {
 
   if (!customer) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <p className="text-slate-500">Customer not found</p>
       </div>
     )
@@ -64,7 +64,7 @@ export default function CustomerProfile() {
         <>
           <PublicPageChrome crumbLabel="Customers" currentLabel={customer.full_name} />
           <div className="fixly-page max-w-7xl">
-            <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
+            <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <CustomerProfileBody customer={customer} recentJobs={recentJobs} completionRate={completionRate} />
@@ -77,12 +77,12 @@ export default function CustomerProfile() {
   if (useShell) {
     return (
       <AppShell>
-        <div className="min-h-full bg-slate-50">{content}</div>
+        <div className="min-h-full bg-slate-50 dark:bg-slate-950">{content}</div>
       </AppShell>
     )
   }
 
-  return <div className="min-h-screen bg-slate-50">{content}</div>
+  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}</div>
 }
 
 function CustomerProfileBody({ customer, recentJobs, completionRate }) {
@@ -95,7 +95,7 @@ function CustomerProfileBody({ customer, recentJobs, completionRate }) {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{customer.full_name}</h1>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">Customer</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">Customer</span>
             </div>
             <div className="mt-3 flex flex-wrap gap-6 text-sm text-slate-600">
               {(customer.district || customer.area) && (
@@ -130,25 +130,25 @@ function CustomerProfileBody({ customer, recentJobs, completionRate }) {
         asideTitle="Trust Snapshot"
         asideContent={(
           <>
-            <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5 dark:border-sky-900/50 dark:bg-slate-900">
               <div className="flex items-start gap-2 text-sm text-slate-600">
                 <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-500" />
                 <span>{customer.jobs_posted || 0} jobs posted on Fixly</span>
               </div>
             </div>
-            <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-emerald-100 bg-white p-5 dark:border-emerald-900/50 dark:bg-slate-900">
               <div className="flex items-start gap-2 text-sm text-slate-600">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                 <span>{customer.jobs_completed || 0} completed jobs so far</span>
               </div>
             </div>
-            <div className="rounded-[1.5rem] border border-violet-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-violet-100 bg-white p-5 dark:border-violet-900/50 dark:bg-slate-900">
               <div className="flex items-start gap-2 text-sm text-slate-600">
                 <MessageSquare className="mt-0.5 h-4 w-4 flex-shrink-0 text-violet-500" />
                 <span>{customer.reviews_given || 0} worker review{customer.reviews_given === 1 ? '' : 's'} written</span>
               </div>
             </div>
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Why This Matters</p>
               <p className="mt-3 text-sm leading-7 text-slate-600">
                 Workers want to know the customer is active, finishes jobs properly, and leaves a reliable communication trail.

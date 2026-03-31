@@ -8,6 +8,7 @@ import { Button, Spinner, EmptyState } from '../../components/shared/UI'
 import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { ThemeToggleIconButton } from '../../components/shared/ThemeToggle'
 
 const CATEGORIES = ['All','Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
@@ -45,7 +46,7 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
         {CATEGORIES.map(c => (
           <button key={c} onClick={() => setCategory(c === 'All' ? '' : c)}
             className={cn('px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all',
-              (c === 'All' ? !category : category === c) ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+              (c === 'All' ? !category : category === c) ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700')}>
             {c}
           </button>
         ))}
@@ -53,12 +54,12 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
 
       {/* Advanced filters */}
       {showFilters && (
-        <div className="bg-slate-50 rounded-2xl p-4 flex flex-wrap gap-3">
-          <select className="fixly-input w-40 bg-white text-sm" value={district} onChange={e => setDistrict(e.target.value)}>
+        <div className="bg-slate-50 rounded-2xl p-4 flex flex-wrap gap-3 dark:bg-slate-900/60">
+          <select className="fixly-input w-40 bg-white text-sm dark:bg-slate-900" value={district} onChange={e => setDistrict(e.target.value)}>
             <option value="">All Districts</option>
             {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
-          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer dark:text-slate-300">
             <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} className="rounded" />
             Verified only
           </label>
@@ -88,16 +89,17 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
   if (embedded) return content
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Navbar */}
-      <nav className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+      <nav className="fixly-topbar border-b border-slate-100 px-6 py-4 flex items-center justify-between dark:border-slate-800">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-7 h-7 bg-sky-600 rounded-lg flex items-center justify-center">
             <Wrench className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-black text-slate-900" style={{ fontFamily: 'Syne, sans-serif' }}>Fixly</span>
+          <span className="font-black text-slate-900 dark:text-white" style={{ fontFamily: 'Syne, sans-serif' }}>Fixly</span>
         </Link>
         <div className="flex gap-2">
+          <ThemeToggleIconButton />
           {user ? (
             <Link to="/dashboard"><Button variant="primary" size="sm">Dashboard</Button></Link>
           ) : (

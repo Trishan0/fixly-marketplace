@@ -54,7 +54,7 @@ export default function WorkerProfile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <Spinner />
       </div>
     )
@@ -62,7 +62,7 @@ export default function WorkerProfile() {
 
   if (!worker) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <p className="text-slate-500">Worker not found</p>
       </div>
     )
@@ -131,12 +131,12 @@ export default function WorkerProfile() {
   if (useShell) {
     return (
       <AppShell>
-        <div className="min-h-full bg-slate-50">{content}</div>
+        <div className="min-h-full bg-slate-50 dark:bg-slate-950">{content}</div>
       </AppShell>
     )
   }
 
-  return <div className="min-h-screen bg-slate-50">{content}</div>
+  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}</div>
 }
 
 function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, onInvite }) {
@@ -219,7 +219,7 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
         asideTitle="Professional Snapshot"
         asideContent={(
           <>
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-end gap-4">
                 <span className="text-5xl font-black leading-none text-slate-950">{averageRating}</span>
                 <div className="pb-1">
@@ -229,12 +229,12 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5 dark:border-sky-900/50 dark:bg-slate-900">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Starting Price</p>
               <p className="mt-3 text-2xl font-black text-slate-950">{worker.starting_price || 'Ask for quote'}</p>
             </div>
 
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5">
+            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Trust Signals</p>
               <div className="mt-4 space-y-3 text-sm text-slate-600">
                 <div className="flex items-start gap-2">
@@ -266,7 +266,7 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
           {worker.portfolio_photos?.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {worker.portfolio_photos.map(photo => (
-                <div key={photo.id} className="group overflow-hidden rounded-[1.5rem] bg-slate-100">
+                <div key={photo.id} className="group overflow-hidden rounded-[1.5rem] bg-slate-100 dark:bg-slate-800">
                   <img src={photo.path} alt="" className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                 </div>
               ))}
