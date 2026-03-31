@@ -35,7 +35,7 @@ export default function WorkersPage() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="fixly-page max-w-7xl">
         <PageHeader
           title="Find Workers"
           description="Browse verified local professionals and invite them to your jobs"

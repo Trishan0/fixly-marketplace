@@ -130,7 +130,7 @@ export default function JobDetail() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="fixly-page max-w-6xl space-y-5">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>

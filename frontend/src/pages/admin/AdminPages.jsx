@@ -71,7 +71,7 @@ export function AdminDashboard() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="fixly-page max-w-7xl space-y-5">
         <PageHeader title="Admin Dashboard" description="Marketplace operations at a glance" />
 
         <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
@@ -260,7 +260,7 @@ export function AdminUsers() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="fixly-page max-w-7xl space-y-5">
         <PageHeader title="User Management" description={`${data?.total || 0} users`} />
 
         <div className="flex gap-3 flex-wrap">
@@ -384,7 +384,7 @@ export function AdminWorkers() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="fixly-page max-w-6xl space-y-5">
         <PageHeader title="Worker Management" description="Manage NIC verification" />
 
         {pending.length > 0 && (
@@ -493,7 +493,7 @@ export function AdminReports() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="fixly-page max-w-6xl space-y-5">
         <PageHeader title="Reports Queue" description={`${reports.filter(r => r.status === 'open').length} open reports`} />
 
         {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
@@ -586,7 +586,7 @@ export function AdminCategories() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="fixly-page max-w-5xl space-y-5">
         <PageHeader
           title="Categories"
           action={<Button variant="primary" size="sm" onClick={() => setAdding(true)}>+ Add Category</Button>}

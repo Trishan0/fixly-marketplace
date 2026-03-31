@@ -59,7 +59,7 @@ export default function SendProposal() {
 
     return (
       <AppShell>
-        <div className="p-6 max-w-xl mx-auto">
+        <div className="fixly-page max-w-2xl">
           <Card className="p-8 text-center">
             <div className="text-4xl mb-3">{existing.status === 'declined' ? '!' : existing.status === 'accepted' ? '+' : '*'}</div>
             <h2 className="font-bold text-slate-900 mb-2">{proposalTitle}</h2>
@@ -75,7 +75,7 @@ export default function SendProposal() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-xl mx-auto space-y-6">
+      <div className="fixly-page max-w-2xl space-y-5">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"

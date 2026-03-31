@@ -38,7 +38,7 @@ export default function CustomerDashboard() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <div className="fixly-page max-w-7xl space-y-5">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>

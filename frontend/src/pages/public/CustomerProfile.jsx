@@ -63,7 +63,7 @@ export default function CustomerProfile() {
       ) : (
         <>
           <PublicPageChrome crumbLabel="Customers" currentLabel={customer.full_name} />
-          <div className="mx-auto max-w-6xl px-6 py-8">
+          <div className="fixly-page max-w-7xl">
             <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>

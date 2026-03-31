@@ -108,7 +108,7 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
           )}
         </div>
       </nav>
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="fixly-page max-w-7xl">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Find Workers</h1>
           <p className="text-slate-500">Browse {data?.total || 0} skilled professionals across Sri Lanka</p>

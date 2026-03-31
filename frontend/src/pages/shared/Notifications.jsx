@@ -45,7 +45,7 @@ export default function Notifications() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="fixly-page max-w-5xl space-y-5">
         <PageHeader
           title={`Notifications ${unread > 0 ? `(${unread} unread)` : ''}`}
           action={unread > 0 && (

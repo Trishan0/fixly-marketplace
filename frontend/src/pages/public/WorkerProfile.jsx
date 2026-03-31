@@ -87,7 +87,7 @@ export default function WorkerProfile() {
       ) : (
         <>
           <PublicPageChrome crumbLabel="Workers" crumbTo="/workers" currentLabel={worker.full_name} />
-          <div className="mx-auto max-w-6xl px-6 py-8">
+          <div className="fixly-page max-w-7xl">
             <WorkerProfileBody worker={worker} reviews={reviews} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
           </div>
         </>

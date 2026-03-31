@@ -46,6 +46,10 @@
     @apply bg-white rounded-3xl border border-slate-100 shadow-sm;
   }
 
+  .fixly-page {
+    @apply w-full mx-auto px-5 py-5 md:px-6 md:py-6 xl:px-8;
+  }
+
   .fixly-btn-primary {
     @apply bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
   }

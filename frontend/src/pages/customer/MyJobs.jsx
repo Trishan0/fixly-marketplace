@@ -40,7 +40,7 @@ export default function MyJobs() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="fixly-page max-w-7xl">
         <PageHeader
           title="My Jobs"
           description="Track all your posted jobs"

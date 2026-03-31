@@ -172,7 +172,7 @@ export default function PostJob() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="fixly-page max-w-3xl">
         <div className="mb-8">
           <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4">
             <ChevronLeft className="w-4 h-4" /> Back

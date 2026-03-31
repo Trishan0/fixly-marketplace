@@ -107,7 +107,7 @@ export function Spinner({ className }) {
 
 export function EmptyState({ icon: Icon, title, description, action }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+    <div className="flex flex-col items-center justify-center py-12 text-center px-4">
       <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
         <Icon className="w-7 h-7 text-slate-400" />
       </div>
@@ -120,9 +120,9 @@ export function EmptyState({ icon: Icon, title, description, action }) {
 
 export function PageHeader({ title, description, action }) {
   return (
-    <div className="flex items-start justify-between mb-6">
+    <div className="mb-5 flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
         {description && <p className="text-sm text-slate-500 mt-1">{description}</p>}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}

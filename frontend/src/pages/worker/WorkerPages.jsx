@@ -40,7 +40,7 @@ export function OpenJobs() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="fixly-page max-w-7xl space-y-5">
         <PageHeader title="Open Jobs" description="Browse jobs looking for workers" />
         <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 w-fit">
           {[
@@ -151,7 +151,7 @@ export function Invites() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="fixly-page max-w-5xl space-y-5">
         <PageHeader title="Job Invites" description="Customers have personally invited you to their jobs" />
 
         {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
@@ -243,7 +243,7 @@ export function AssignedJobs() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="fixly-page max-w-6xl space-y-5">
         <PageHeader title="My Work" description="Jobs assigned to you" />
         <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 w-fit">
           {[

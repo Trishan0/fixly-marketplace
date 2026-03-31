@@ -33,7 +33,7 @@ export default function Earnings() {
 
   return (
     <AppShell>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="fixly-page max-w-6xl space-y-5">
         <PageHeader title="Earnings" description="Track your payments and income" />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

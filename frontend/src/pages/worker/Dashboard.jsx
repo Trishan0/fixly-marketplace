@@ -36,7 +36,7 @@ function SimpleDashboard() {
   })
 
   return (
-    <div className="p-4 space-y-6 max-w-lg mx-auto">
+    <div className="fixly-page max-w-xl space-y-5">
       <div className="pt-2">
         <h1 className="text-3xl font-black text-slate-900">Hello, {user?.full_name?.split(' ')[0]}!</h1>
         <p className="text-slate-500 mt-1 text-lg">What do you want to do?</p>
@@ -128,7 +128,7 @@ function StandardDashboard() {
   const pendingInvites = invites.filter(i => i.status === 'pending')
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="fixly-page max-w-7xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           Welcome back, {user?.full_name?.split(' ')[0]}! 👷
