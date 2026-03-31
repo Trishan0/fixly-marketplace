@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Upload, Camera, Trash2, Save } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
@@ -70,6 +71,11 @@ export function ProfilePage() {
     <AppShell>
       <div className="p-6 max-w-3xl mx-auto space-y-6">
         <PageHeader title="My Profile" description="Manage your public profile information" />
+        <div className="flex justify-end">
+          <Link to={user?.role === 'worker' ? `/workers/${user?.id}` : `/customers/${user?.id}`}>
+            <Button variant="outline">View Public Profile</Button>
+          </Link>
+        </div>
 
         {/* Photo */}
         <Card className="p-6">
