@@ -31,11 +31,13 @@ const workerNav = [
 ]
 
 const workerNavSimplified = [
+  { href: '/worker-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/jobs/feed', icon: Briefcase, label: 'New Jobs' },
   { href: '/invites', icon: MessageSquare, label: 'Invites' },
   { href: '/jobs/assigned', icon: Wrench, label: 'My Jobs' },
   { href: '/earnings', icon: DollarSign, label: 'Earnings' },
   { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const adminNav = [

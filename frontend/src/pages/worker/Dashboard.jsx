@@ -40,6 +40,9 @@ function SimpleDashboard() {
       <div className="pt-2">
         <h1 className="text-3xl font-black text-slate-900">Hello, {user?.full_name?.split(' ')[0]}!</h1>
         <p className="text-slate-500 mt-1 text-lg">What do you want to do?</p>
+        <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-sky-600 font-medium mt-3">
+          Open settings and switch dashboard mode <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
 
       {/* Big action buttons */}

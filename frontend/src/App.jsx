@@ -8,6 +8,7 @@ import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import WorkerCatalogPublic from './pages/public/WorkerCatalog'
 import WorkerProfile from './pages/public/WorkerProfile'
+import CustomerProfile from './pages/public/CustomerProfile'
 import CustomerDashboard from './pages/customer/Dashboard'
 import PostJob from './pages/customer/PostJob'
 import MyJobs from './pages/customer/MyJobs'
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/auth" element={<GuestRoute><Auth /></GuestRoute>} />
             <Route path="/workers" element={<WorkerCatalogPublic />} />
             <Route path="/workers/:id" element={<WorkerProfile />} />
+            <Route path="/customers/:id" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
             <Route path="/customer-dashboard" element={<RoleRoute role="customer"><CustomerDashboard /></RoleRoute>} />
             <Route path="/jobs/new" element={<RoleRoute role="customer"><PostJob /></RoleRoute>} />
