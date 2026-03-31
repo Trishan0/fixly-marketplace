@@ -39,6 +39,10 @@ export const STATUS_LABELS = {
   payment_recorded: 'Payment Recorded',
   reviewed: 'Reviewed',
   cancelled: 'Cancelled',
+  pending: 'Proposal Sent',
+  accepted: 'Proposal Accepted',
+  declined: 'Proposal Rejected',
+  withdrawn: 'Proposal Withdrawn',
 }
 
 export const STATUS_COLORS = {
@@ -50,6 +54,10 @@ export const STATUS_COLORS = {
   payment_recorded: 'bg-teal-100 text-teal-700',
   reviewed: 'bg-sky-100 text-sky-700',
   cancelled: 'bg-slate-100 text-slate-500',
+  pending: 'bg-amber-100 text-amber-700',
+  accepted: 'bg-emerald-100 text-emerald-700',
+  declined: 'bg-rose-100 text-rose-700',
+  withdrawn: 'bg-slate-100 text-slate-500',
 }
 
 export const URGENCY_LABELS = {
