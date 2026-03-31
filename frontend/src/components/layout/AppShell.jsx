@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Briefcase, Users, Bell, User, Settings,
   LogOut, Menu, X, ChevronRight, MessageSquare, DollarSign,
-  Wrench, BarChart3, Shield, FileText, Tag
+  Wrench, BarChart3, Shield, FileText, Tag, PanelLeftClose, PanelLeftOpen, ChevronDown
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { cn, getInitials, formatRelativeTime } from '../../lib/utils'
+import { cn, getInitials } from '../../lib/utils'
 import api from '../../lib/api'
 
 const customerNav = [
@@ -51,7 +51,74 @@ const adminNav = [
   { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
-function SidebarContent({ navItems, onClose }) {
+function AccountMenu({ unread }) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const close = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/auth')
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-slate-300"
+      >
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-sky-100 text-sm font-bold text-sky-700">
+          {user?.profile_photo
+            ? <img src={user.profile_photo} alt="" className="h-full w-full object-cover" />
+            : getInitials(user?.full_name)
+          }
+        </div>
+        <div className="hidden min-w-0 sm:block">
+          <p className="truncate text-sm font-semibold text-slate-900">{user?.full_name}</p>
+          <p className="text-xs capitalize text-slate-500">{user?.role}</p>
+        </div>
+        {(unread || 0) > 0 && (
+          <span className="hidden rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white sm:inline-flex">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+        <ChevronDown className="h-4 w-4 text-slate-400" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-14 z-30 w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.14)]">
+          <Link to="/profile" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+            <User className="h-4 w-4" /> View Profile
+          </Link>
+          <Link to="/profile/edit" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+            <User className="h-4 w-4" /> Edit Profile
+          </Link>
+          <Link to="/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+            <Settings className="h-4 w-4" /> Settings
+          </Link>
+          <Link to="/notifications" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+            <Bell className="h-4 w-4" /> Notifications
+          </Link>
+          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50">
+            <LogOut className="h-4 w-4" /> Log Out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SidebarContent({ navItems, onClose, collapsed = false }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -62,16 +129,18 @@ function SidebarContent({ navItems, onClose }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-white w-64">
+    <div className={cn('flex h-full flex-col bg-slate-950 text-white transition-all duration-200', collapsed ? 'w-20' : 'w-64')}>
       {/* Logo */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+      <div className={cn('flex items-center border-b border-white/10 py-5', collapsed ? 'justify-center px-3' : 'justify-between px-6')}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center">
             <Wrench className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
-            Fixly
-          </span>
+          {!collapsed && (
+            <span className="font-bold text-xl tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
+              Fixly
+            </span>
+          )}
         </div>
         {onClose && (
           <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-white p-1">
@@ -81,18 +150,20 @@ function SidebarContent({ navItems, onClose }) {
       </div>
 
       {/* User info */}
-      <div className="px-4 py-4 border-b border-white/10">
-        <div className="flex items-center gap-3 px-2">
+      <div className={cn('border-b border-white/10 py-4', collapsed ? 'px-2' : 'px-4')}>
+        <div className={cn('flex px-2', collapsed ? 'justify-center' : 'items-center gap-3')}>
           <div className="w-9 h-9 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-400 text-sm font-bold flex-shrink-0 overflow-hidden">
             {user?.profile_photo
               ? <img src={user.profile_photo} alt="" className="w-9 h-9 object-cover" />
               : getInitials(user?.full_name)
             }
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold truncate">{user?.full_name}</p>
-            <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{user?.full_name}</p>
+              <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -116,21 +187,23 @@ function SidebarContent({ navItems, onClose }) {
               key={href}
               to={href}
               onClick={onClose}
+              title={collapsed ? label : undefined}
               className={cn(
-                'flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-150 font-medium text-sm relative',
+                'flex items-center rounded-xl transition-all duration-150 font-medium text-sm relative',
+                collapsed ? 'justify-center px-3 py-3' : 'gap-3 px-4 py-2.5',
                 isActive
                   ? 'bg-sky-600 text-white'
                   : 'text-slate-400 hover:text-white hover:bg-white/10'
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="flex-1">{label}</span>
+              {!collapsed && <span className="flex-1">{label}</span>}
               {badge && (
-                <span className="bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className={cn('bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0', collapsed ? 'absolute right-1 top-1 h-4 min-w-4 px-1' : 'w-5 h-5')}>
                   {badge > 9 ? '9+' : badge}
                 </span>
               )}
-              {isActive && <ChevronRight className="w-3 h-3 opacity-60 flex-shrink-0" />}
+              {!collapsed && isActive && <ChevronRight className="w-3 h-3 opacity-60 flex-shrink-0" />}
             </Link>
           )
         })}
@@ -140,10 +213,11 @@ function SidebarContent({ navItems, onClose }) {
       <div className="px-3 pb-6 pt-2 border-t border-white/10">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all text-sm font-medium"
+          title={collapsed ? 'Sign Out' : undefined}
+          className={cn('w-full flex rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all text-sm font-medium', collapsed ? 'justify-center px-3 py-3' : 'items-center gap-3 px-4 py-2.5')}
         >
           <LogOut className="w-4 h-4" />
-          Sign Out
+          {!collapsed && 'Sign Out'}
         </button>
       </div>
     </div>
@@ -153,6 +227,13 @@ function SidebarContent({ navItems, onClose }) {
 export function AppShell({ children }) {
   const { user } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('fixly_sidebar_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
   const location = useLocation()
 
   const { data: notifData } = useQuery({
@@ -162,6 +243,14 @@ export function AppShell({ children }) {
     enabled: !!user,
   })
   const unread = notifData?.unread || 0
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fixly_sidebar_collapsed', String(desktopCollapsed))
+    } catch {
+      // ignore storage issues
+    }
+  }, [desktopCollapsed])
 
   let baseNav = customerNav
   if (user?.role === 'worker') {
@@ -177,11 +266,24 @@ export function AppShell({ children }) {
       : item
   )
 
+  const currentSection = useMemo(() => {
+    const activeItem = navItems.find(item => {
+      if (item.href === '/profile') {
+        return location.pathname === '/profile' ||
+          location.pathname.startsWith('/profile/') ||
+          location.pathname === `/workers/${user?.id}` ||
+          location.pathname === `/customers/${user?.id}`
+      }
+      return location.pathname === item.href || (item.href.length > 1 && location.pathname.startsWith(item.href))
+    })
+    return activeItem?.label || 'Fixly'
+  }, [location.pathname, navItems, user?.id])
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col flex-shrink-0 w-64 shadow-lg">
-        <SidebarContent navItems={navItems} />
+      <aside className={cn('hidden lg:flex flex-col flex-shrink-0 shadow-lg transition-all duration-200', desktopCollapsed ? 'w-20' : 'w-64')}>
+        <SidebarContent navItems={navItems} collapsed={desktopCollapsed} />
       </aside>
 
       {/* Mobile overlay */}
@@ -206,6 +308,34 @@ export function AppShell({ children }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-4 backdrop-blur-xl">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setDesktopCollapsed(v => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+              aria-label={desktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {desktopCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Workspace</p>
+              <h1 className="text-lg font-bold text-slate-900">{currentSection}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link to="/notifications" className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900">
+              <Bell className="h-4 w-4" />
+              {unread > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
+            </Link>
+            <AccountMenu unread={unread} />
+          </div>
+        </header>
+
         {/* Mobile top bar */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0">
           <button
