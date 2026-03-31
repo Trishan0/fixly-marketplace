@@ -17,8 +17,6 @@ Sri Lanka's platform connecting residents with trusted local skilled workers.
 # Create the database
 psql -U postgres -c "CREATE DATABASE fixly;"
 
-# Or if using the default odoo user from .env:
-psql -U odoo -c "CREATE DATABASE fixly;"
 ```
 
 ---
@@ -44,7 +42,7 @@ npm run dev
 ### Backend Environment Variables (`.env`)
 
 ```env
-DATABASE_URL=postgresql://odoo:odoo@localhost:5432/fixly
+DATABASE_URL=postgresql://username:password@localhost:5432/fixly
 JWT_SECRET=fixly_jwt_secret_change_in_production
 JWT_EXPIRES_IN=7d
 
