@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, MapPin, Clock, DollarSign, Star, Phone, PhoneCall, Trash2, CreditCard } from 'lucide-react'
+import { ChevronLeft, MapPin, Clock, DollarSign, Star, Phone, Trash2, CreditCard, Send } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Badge, Card, Avatar, Modal, Input, Select, Textarea, Spinner, StarRating } from '../../components/shared/UI'
 import { ProposalCard } from '../../components/shared/Cards'
@@ -34,6 +34,8 @@ export default function JobDetail() {
 
   const isOwner = user?.id === job?.customer_id
   const isAssignedWorker = user?.id === job?.assigned_worker_id
+  const isWorker = user?.role === 'worker'
+  const myProposal = isWorker ? proposals[0] : null
 
   const refetch = () => {
     qc.invalidateQueries(['job', id])
@@ -83,6 +85,7 @@ export default function JobDetail() {
   const canReview = isOwner && ['completed','payment_recorded'].includes(job.status)
   const canMarkStarted = isAssignedWorker && job.status === 'assigned'
   const canMarkDone = isAssignedWorker && job.status === 'in_progress'
+  const canSendProposal = isWorker && !isAssignedWorker && ['posted', 'proposals_received'].includes(job.status) && !myProposal
 
   return (
     <AppShell>
@@ -134,6 +137,18 @@ export default function JobDetail() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-100">
+            {canSendProposal && (
+              <Link to={`/jobs/${job.id}/propose`}>
+                <Button variant="primary">
+                  <Send className="w-4 h-4" /> Send Proposal
+                </Button>
+              </Link>
+            )}
+            {myProposal && (
+              <Link to={`/jobs/${job.id}/propose`}>
+                <Button variant="outline">Proposal Sent</Button>
+              </Link>
+            )}
             {canMarkStarted && (
               <Button variant="primary" onClick={() => updateStatus.mutate('in_progress')} loading={updateStatus.isPending}>
                 ▶ Mark Started
@@ -161,6 +176,26 @@ export default function JobDetail() {
             )}
           </div>
         </Card>
+
+        {job.customer_id && (
+          <Card className="p-5">
+            <h3 className="font-semibold text-slate-800 mb-3">Posted By</h3>
+            <div className="flex items-center gap-3">
+              <Avatar name={job.customer_name} src={job.customer_photo} size="lg" />
+              <div>
+                <p className="font-semibold text-slate-900">{job.customer_name}</p>
+                {(job.district || job.town) && (
+                  <p className="text-sm text-slate-500">
+                    {[job.district, job.town].filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
+              <Link to={`/customers/${job.customer_id}`} className="ml-auto">
+                <Button variant="outline" size="sm">View Profile</Button>
+              </Link>
+            </div>
+          </Card>
+        )}
 
         {/* Assigned worker contact reveal */}
         {job.assigned_worker_id && (

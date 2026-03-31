@@ -73,6 +73,7 @@ export function OpenJobs() {
                     </div>
                     <h3 className="font-semibold text-slate-900">{job.title}</h3>
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                      {job.customer_name && <span>Posted by {job.customer_name}</span>}
                       {job.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.district}</span>}
                       <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{job.proposal_count} proposals</span>
                     </div>
@@ -91,7 +92,7 @@ export function OpenJobs() {
                   <Link to={`/jobs/${job.id}`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">View Details</Button>
                   </Link>
-                  <Link to={`/jobs/${job.id}`}>
+                  <Link to={`/jobs/${job.id}/propose`}>
                     <Button variant="primary" size="sm">Send Proposal</Button>
                   </Link>
                 </div>
