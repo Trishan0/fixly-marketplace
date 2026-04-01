@@ -96,14 +96,36 @@
     @apply rounded-3xl;
   }
 
+  .dark .fixly-card {
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.94) 100%);
+    box-shadow:
+      0 18px 44px rgba(2, 6, 23, 0.34),
+      inset 0 1px 0 rgba(148, 163, 184, 0.05);
+  }
+
   .fixly-page {
     @apply w-full mx-auto px-5 py-5 md:px-6 md:py-6 xl:px-8;
+  }
+
+  .fixly-app-page {
+    background:
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 22%),
+      radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 18%),
+      linear-gradient(180deg, hsl(var(--page-bg)) 0%, hsl(var(--surface-muted)) 100%);
+    min-height: 100%;
   }
 
   .fixly-surface-muted {
     background-color: hsl(var(--surface-muted));
     border: 1px solid hsl(var(--border-soft));
     @apply rounded-3xl;
+  }
+
+  .dark .fixly-surface-muted {
+    background:
+      linear-gradient(180deg, rgba(30, 41, 59, 0.68) 0%, rgba(15, 23, 42, 0.82) 100%);
+    box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.04);
   }
 
   .fixly-panel {
@@ -136,6 +158,73 @@
     border: 1px solid hsl(var(--border-soft));
     box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
     @apply rounded-3xl;
+  }
+
+  .fixly-glow-panel {
+    border: 1px solid hsl(var(--border-soft));
+    background:
+      radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 28%),
+      linear-gradient(180deg, hsl(var(--surface)) 0%, hsl(var(--surface-muted)) 100%);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    @apply rounded-[1.75rem];
+  }
+
+  .dark .fixly-glow-panel {
+    background:
+      radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 28%),
+      linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 100%);
+    box-shadow:
+      0 22px 50px rgba(2, 6, 23, 0.36),
+      inset 0 1px 0 rgba(148, 163, 184, 0.04);
+  }
+
+  .fixly-tab-strip {
+    @apply flex gap-1 rounded-2xl p-1 w-fit;
+    background-color: hsl(var(--surface-muted));
+    border: 1px solid hsl(var(--border-soft));
+  }
+
+  .fixly-tab {
+    @apply px-4 py-2 rounded-xl text-sm font-semibold transition-all;
+    color: hsl(var(--text-muted));
+  }
+
+  .fixly-tab:hover {
+    color: hsl(var(--text-strong));
+  }
+
+  .fixly-tab.active {
+    background-color: hsl(var(--surface));
+    color: hsl(var(--text-strong));
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  }
+
+  .dark .fixly-tab.active {
+    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.26);
+  }
+
+  .fixly-pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .fixly-pill-sky {
+    @apply fixly-pill text-sky-700 dark:text-sky-300;
+    background-color: color-mix(in srgb, hsl(var(--accent-primary)) 14%, hsl(var(--surface)) 86%);
+  }
+
+  .fixly-pill-emerald {
+    @apply fixly-pill text-emerald-700 dark:text-emerald-300;
+    background-color: color-mix(in srgb, hsl(var(--accent-success)) 14%, hsl(var(--surface)) 86%);
+  }
+
+  .fixly-pill-rose {
+    @apply fixly-pill text-rose-700 dark:text-rose-300;
+    background-color: color-mix(in srgb, hsl(0 84% 60%) 14%, hsl(var(--surface)) 86%);
+  }
+
+  .fixly-pill-violet {
+    @apply fixly-pill text-violet-700 dark:text-violet-300;
+    background-color: color-mix(in srgb, rgb(139 92 246) 14%, hsl(var(--surface)) 86%);
   }
 
   .fixly-tint-sky {
