@@ -6,6 +6,7 @@ import { ProtectedRoute, RoleRoute, GuestRoute } from './router/guards'
 
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/AuthActions'
 import WorkerCatalogPublic from './pages/public/WorkerCatalog'
 import WorkerProfile from './pages/public/WorkerProfile'
 import CustomerProfile from './pages/public/CustomerProfile'
@@ -58,6 +59,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<GuestRoute><Auth /></GuestRoute>} />
+            <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
             <Route path="/workers" element={<WorkerCatalogPublic />} />
             <Route path="/workers/:id" element={<WorkerProfile />} />
             <Route path="/customers/:id" element={<CustomerProfile />} />
