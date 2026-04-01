@@ -15,6 +15,30 @@ const VALID_TRANSITIONS = {
   payment_recorded: ["reviewed"],
 };
 
+async function canWorkerAccessJob(jobId, workerId) {
+  const relation = await pool.query(
+    `SELECT
+        EXISTS(
+          SELECT 1 FROM jobs
+          WHERE id = $1
+            AND is_active = true
+            AND status IN ('posted', 'proposals_received')
+        ) AS is_public_job,
+        EXISTS(
+          SELECT 1 FROM proposals
+          WHERE job_id = $1 AND worker_id = $2
+        ) AS has_proposal,
+        EXISTS(
+          SELECT 1 FROM invites
+          WHERE job_id = $1 AND worker_id = $2
+        ) AS has_invite`,
+    [jobId, workerId]
+  );
+
+  const row = relation.rows[0];
+  return row?.is_public_job || row?.has_proposal || row?.has_invite;
+}
+
 // GET /api/jobs/categories
 router.get("/categories", async (req, res) => {
   try {
@@ -270,6 +294,17 @@ router.get("/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ error: "Job not found" });
 
     const job = result.rows[0];
+
+    const isAdmin = req.user.role === 'admin';
+    const isOwner = req.user.role === 'customer' && job.customer_id === req.user.id;
+    const isAssignedWorker = req.user.role === 'worker' && job.assigned_worker_id === req.user.id;
+    const isAllowedWorker =
+      req.user.role === 'worker' &&
+      (isAssignedWorker || await canWorkerAccessJob(job.id, req.user.id));
+
+    if (!isAdmin && !isOwner && !isAllowedWorker) {
+      return res.status(403).json({ error: 'You do not have access to this job' });
+    }
 
     // Phone masking
     const { maskPhone, canRevealPhone } = require("../services/contactReveal");

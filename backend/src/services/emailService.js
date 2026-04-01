@@ -45,6 +45,7 @@ const sendPasswordResetEmail = async (email, token) => {
           <h2 style="color: #0284c7;">Password Reset</h2>
           <p>Click below to reset your password:</p>
           <a href="${resetUrl}" style="display:inline-block;background:#0284c7;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;margin:16px 0;">Reset Password</a>
+          <p style="color:#666;font-size:12px;">This link expires in 1 hour.</p>
           <p>If you didn't request this, ignore this email.</p>
         </div>
       `,
