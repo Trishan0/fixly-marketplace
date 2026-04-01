@@ -279,7 +279,7 @@ export function AppShell({ children }) {
   }, [location.pathname, navItems, user?.id])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_18%),linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
       {/* Desktop sidebar */}
       <aside className={cn('hidden lg:flex flex-col flex-shrink-0 shadow-lg transition-all duration-200', desktopCollapsed ? 'w-20' : 'w-64')}>
         <SidebarContent navItems={navItems} collapsed={desktopCollapsed} />
@@ -307,7 +307,7 @@ export function AppShell({ children }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90">
+        <header className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/75">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setDesktopCollapsed(v => !v)}
@@ -329,7 +329,7 @@ export function AppShell({ children }) {
         </header>
 
         {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0 dark:bg-slate-950 dark:border-slate-800">
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0 dark:bg-slate-950/85 dark:border-slate-800 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
             className="p-2 rounded-xl hover:bg-slate-100 transition-colors dark:hover:bg-slate-800"

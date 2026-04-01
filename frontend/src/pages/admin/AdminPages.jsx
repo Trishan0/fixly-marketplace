@@ -71,10 +71,11 @@ export function AdminDashboard() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-7xl space-y-5">
+      <div className="fixly-app-page">
+      <div className="fixly-page max-w-7xl space-y-6">
         <PageHeader title="Admin Dashboard" description="Marketplace operations at a glance" />
 
-        <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+        <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.06)] dark:border-slate-800">
           <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-500">Operations Overview</p>
@@ -84,17 +85,17 @@ export function AdminDashboard() {
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/70 p-4">
+                <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/70 p-4 dark:border-sky-900/50 dark:bg-sky-950/25">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Users</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">{stats?.total_users ?? 0}</p>
                   <p className="mt-1 text-sm text-slate-500">{stats?.total_workers ?? 0} workers active</p>
                 </div>
-                <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-4">
+                <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/25">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Open Jobs</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">{stats?.open_jobs ?? 0}</p>
                   <p className="mt-1 text-sm text-slate-500">{stats?.total_jobs ?? 0} total jobs created</p>
                 </div>
-                <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-4">
+                <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-4 dark:border-rose-900/50 dark:bg-rose-950/25">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Risk Queue</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">{openReports.length}</p>
                   <p className="mt-1 text-sm text-slate-500">{pendingWorkers.length} workers pending verification</p>
@@ -102,19 +103,19 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50/80 p-5">
+            <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/70">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Attention Needed</p>
                   <h3 className="mt-2 text-xl font-bold text-slate-950">Live moderation snapshot</h3>
                 </div>
-                <div className="rounded-2xl bg-white p-3 shadow-sm">
+                <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
                   <AlertTriangle className="h-5 w-5 text-amber-500" />
                 </div>
               </div>
 
               <div className="mt-5 space-y-3">
-                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm">
+                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Pending NIC review</p>
@@ -123,7 +124,7 @@ export function AdminDashboard() {
                     <span className="text-2xl font-bold text-slate-950">{pendingWorkers.length}</span>
                   </div>
                 </div>
-                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm">
+                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Open reports</p>
@@ -132,7 +133,7 @@ export function AdminDashboard() {
                     <span className="text-2xl font-bold text-slate-950">{openReports.length}</span>
                   </div>
                 </div>
-                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm">
+                <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Resolved reports</p>
@@ -166,7 +167,7 @@ export function AdminDashboard() {
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {actionCards.map(({ to, icon: Icon, title, desc, accent }) => (
-                <Link key={to} to={to} className="group rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-sm">
+                <Link key={to} to={to} className="group rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-900">
                   <div className="flex items-start gap-3">
                     <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl border', accentClasses[accent])}>
                       <Icon className="h-5 w-5" />
@@ -194,7 +195,7 @@ export function AdminDashboard() {
             </div>
 
             <div className="mt-5 space-y-4">
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-slate-900">Worker verification queue</p>
@@ -204,7 +205,7 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-slate-900">Open moderation reports</p>
@@ -214,7 +215,7 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-slate-900">Operational health</p>
@@ -228,6 +229,7 @@ export function AdminDashboard() {
             </div>
           </Card>
         </div>
+      </div>
       </div>
     </AppShell>
   )
