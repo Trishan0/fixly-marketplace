@@ -1,10 +1,11 @@
-# Fixly — Hyperlocal Service Marketplace
+# Fixly - Hyperlocal Service Marketplace
 
 Sri Lanka's platform connecting residents with trusted local skilled workers.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - PostgreSQL 14+
 - npm or yarn
@@ -77,11 +78,11 @@ npm run dev
 
 After running `node setup-db.js`:
 
-| Role     | Email                 | Password |
-|----------|-----------------------|----------|
-| Admin    | admin@fixly.lk        | admin123 |
-| Customer | customer@demo.lk      | demo123  |
-| Worker   | worker@demo.lk        | demo123  |
+| Role     | Email            | Password |
+| -------- | ---------------- | -------- |
+| Admin    | admin@fixly.lk   | admin123 |
+| Customer | customer@demo.lk | demo123  |
+| Worker   | worker@demo.lk   | demo123  |
 
 ---
 
@@ -118,21 +119,21 @@ fixly/
 
 ## API Overview
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/auth/register | Register user |
-| POST | /api/auth/login | Login |
-| GET | /api/auth/me | Current user |
-| GET | /api/workers | Public worker catalog |
-| POST | /api/jobs | Post a job (customer) |
-| GET | /api/jobs/feed | Open jobs (worker) |
-| GET | /api/jobs/my | My jobs (customer) |
-| POST | /api/jobs/:id/proposals | Send proposal (worker) |
-| PUT | /api/proposals/:id/accept | Accept proposal |
-| POST | /api/jobs/:id/invites | Invite worker |
-| POST | /api/jobs/:id/payment | Record payment |
-| POST | /api/jobs/:id/review | Submit review |
-| GET | /api/admin/stats | Admin dashboard |
+| Method | Endpoint                  | Description            |
+| ------ | ------------------------- | ---------------------- |
+| POST   | /api/auth/register        | Register user          |
+| POST   | /api/auth/login           | Login                  |
+| GET    | /api/auth/me              | Current user           |
+| GET    | /api/workers              | Public worker catalog  |
+| POST   | /api/jobs                 | Post a job (customer)  |
+| GET    | /api/jobs/feed            | Open jobs (worker)     |
+| GET    | /api/jobs/my              | My jobs (customer)     |
+| POST   | /api/jobs/:id/proposals   | Send proposal (worker) |
+| PUT    | /api/proposals/:id/accept | Accept proposal        |
+| POST   | /api/jobs/:id/invites     | Invite worker          |
+| POST   | /api/jobs/:id/payment     | Record payment         |
+| POST   | /api/jobs/:id/review      | Submit review          |
+| GET    | /api/admin/stats          | Admin dashboard        |
 
 Full API: see `backend/src/routes/`
 
@@ -140,12 +141,12 @@ Full API: see `backend/src/routes/`
 
 ## Key Business Rules
 
-1. **Email verification** — Required to post jobs (admin can bypass with `force_verified`)
-2. **Phone masking** — Phones shown as `077 *** *567` until job is assigned
-3. **Price visibility** — Only job owner sees full prices; others see range
-4. **Job status flow** — `posted → proposals_received → assigned → in_progress → completed → payment_recorded → reviewed`
-5. **Offline payments** — No payment gateway; records are manual
-6. **Simplified worker mode** — Large-button UI for low-digital-literacy users
+1. **Email verification** - Required to post jobs (admin can bypass with `force_verified`)
+2. **Phone masking** - Phones shown as `077 *** *567` until job is assigned
+3. **Price visibility** - Only job owner sees full prices; others see range
+4. **Job status flow** - `posted → proposals_received → assigned → in_progress → completed → payment_recorded → reviewed`
+5. **Offline payments** - No payment gateway; records are manual
+6. **Simplified worker mode** - Large-button UI for low-digital-literacy users
 
 ---
 

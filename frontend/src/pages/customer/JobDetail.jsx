@@ -1,137 +1,254 @@
-import React, { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, MapPin, Clock, DollarSign, Star, Phone, Trash2, CreditCard, Send } from 'lucide-react'
-import { AppShell } from '../../components/layout/AppShell'
-import { Button, Badge, Card, Avatar, Modal, Input, Select, Textarea, Spinner, StarRating } from '../../components/shared/UI'
-import { ProposalCard } from '../../components/shared/Cards'
-import { useAuth } from '../../context/AuthContext'
-import { useToast } from '../../hooks/useToast'
-import { formatCurrency, formatDate, URGENCY_LABELS, STATUS_LABELS } from '../../lib/utils'
-import api from '../../lib/api'
+import React, { useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ChevronLeft,
+  MapPin,
+  Clock,
+  DollarSign,
+  Star,
+  Phone,
+  Trash2,
+  CreditCard,
+  Send,
+} from "lucide-react";
+import { AppShell } from "../../components/layout/AppShell";
+import {
+  Button,
+  Badge,
+  Card,
+  Avatar,
+  Modal,
+  Input,
+  Select,
+  Textarea,
+  Spinner,
+  StarRating,
+} from "../../components/shared/UI";
+import { ProposalCard } from "../../components/shared/Cards";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../hooks/useToast";
+import {
+  formatCurrency,
+  formatDate,
+  URGENCY_LABELS,
+  STATUS_LABELS,
+} from "../../lib/utils";
+import api from "../../lib/api";
 
 export default function JobDetail() {
-  const { id } = useParams()
-  const { user } = useAuth()
-  const { toast } = useToast()
-  const qc = useQueryClient()
-  const navigate = useNavigate()
-  const [payModal, setPayModal] = useState(false)
-  const [priceModal, setPriceModal] = useState(false)
-  const [reviewModal, setReviewModal] = useState(false)
-  const [payment, setPayment] = useState({ amount: '', method: 'cash', note: '' })
-  const [agreedPrice, setAgreedPrice] = useState('')
-  const [review, setReview] = useState({ rating: 5, feedback: '' })
+  const { id } = useParams();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [payModal, setPayModal] = useState(false);
+  const [priceModal, setPriceModal] = useState(false);
+  const [reviewModal, setReviewModal] = useState(false);
+  const [payment, setPayment] = useState({
+    amount: "",
+    method: "cash",
+    note: "",
+  });
+  const [agreedPrice, setAgreedPrice] = useState("");
+  const [review, setReview] = useState({ rating: 5, feedback: "" });
 
   const { data: job, isLoading } = useQuery({
-    queryKey: ['job', id],
-    queryFn: () => api.get(`/jobs/${id}`).then(r => r.data),
-  })
+    queryKey: ["job", id],
+    queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
+  });
 
   const { data: proposals = [] } = useQuery({
-    queryKey: ['proposals', id],
-    queryFn: () => api.get(`/jobs/${id}/proposals`).then(r => r.data),
+    queryKey: ["proposals", id],
+    queryFn: () => api.get(`/jobs/${id}/proposals`).then((r) => r.data),
     enabled: !!job,
-  })
+  });
 
-  const isOwner = user?.id === job?.customer_id
-  const isAssignedWorker = user?.id === job?.assigned_worker_id
-  const isWorker = user?.role === 'worker'
-  const myProposal = isWorker ? proposals[0] : null
+  const isOwner = user?.id === job?.customer_id;
+  const isAssignedWorker = user?.id === job?.assigned_worker_id;
+  const isWorker = user?.role === "worker";
+  const myProposal = isWorker ? proposals[0] : null;
 
   const refetch = () => {
-    qc.invalidateQueries(['job', id])
-    qc.invalidateQueries(['proposals', id])
-    qc.invalidateQueries(['my-jobs'])
-  }
+    qc.invalidateQueries(["job", id]);
+    qc.invalidateQueries(["proposals", id]);
+    qc.invalidateQueries(["my-jobs"]);
+  };
 
   const acceptProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/accept`),
-    onSuccess: () => { toast({ title: 'Proposal accepted!', variant: 'success' }); refetch() },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onSuccess: () => {
+      toast({ title: "Proposal accepted!", variant: "success" });
+      refetch();
+    },
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const declineProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/decline`),
-    onSuccess: () => { toast({ title: 'Proposal declined' }); refetch() },
-  })
+    onSuccess: () => {
+      toast({ title: "Proposal declined" });
+      refetch();
+    },
+  });
 
   const updateStatus = useMutation({
     mutationFn: (status) => api.put(`/jobs/${id}/status`, { status }),
-    onSuccess: () => { toast({ title: 'Status updated', variant: 'success' }); refetch() },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onSuccess: () => {
+      toast({ title: "Status updated", variant: "success" });
+      refetch();
+    },
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const recordPayment = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/payment`, payment),
     onSuccess: () => {
-      setPayModal(false)
-      toast({ title: 'Payment recorded!', description: 'The worker can now confirm receipt.', variant: 'success' })
-      refetch()
-      qc.invalidateQueries(['earnings'])
-      qc.invalidateQueries(['assigned-jobs'])
+      setPayModal(false);
+      toast({
+        title: "Payment recorded!",
+        description: "The worker can now confirm receipt.",
+        variant: "success",
+      });
+      refetch();
+      qc.invalidateQueries(["earnings"]);
+      qc.invalidateQueries(["assigned-jobs"]);
     },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const confirmPayment = useMutation({
     mutationFn: () => api.put(`/payments/${job.payment_id}/confirm`),
     onSuccess: () => {
-      toast({ title: 'Payment confirmed!', variant: 'success' })
-      refetch()
-      qc.invalidateQueries(['earnings'])
-      qc.invalidateQueries(['assigned-jobs'])
+      toast({ title: "Payment confirmed!", variant: "success" });
+      refetch();
+      qc.invalidateQueries(["earnings"]);
+      qc.invalidateQueries(["assigned-jobs"]);
     },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const disputePayment = useMutation({
     mutationFn: () => api.put(`/payments/${job.payment_id}/dispute`),
     onSuccess: () => {
-      toast({ title: 'Payment disputed' })
-      refetch()
-      qc.invalidateQueries(['earnings'])
-      qc.invalidateQueries(['assigned-jobs'])
+      toast({ title: "Payment disputed" });
+      refetch();
+      qc.invalidateQueries(["earnings"]);
+      qc.invalidateQueries(["assigned-jobs"]);
     },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const setFinalPrice = useMutation({
-    mutationFn: () => api.put(`/jobs/${id}/final-price`, { final_price: agreedPrice }),
+    mutationFn: () =>
+      api.put(`/jobs/${id}/final-price`, { final_price: agreedPrice }),
     onSuccess: () => {
-      setPriceModal(false)
-      toast({ title: 'Agreed price saved!', variant: 'success' })
-      refetch()
+      setPriceModal(false);
+      toast({ title: "Agreed price saved!", variant: "success" });
+      refetch();
     },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const submitReview = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/review`, review),
-    onSuccess: () => { setReviewModal(false); toast({ title: 'Review submitted!', variant: 'success' }); refetch() },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
+    onSuccess: () => {
+      setReviewModal(false);
+      toast({ title: "Review submitted!", variant: "success" });
+      refetch();
+    },
+    onError: (e) =>
+      toast({
+        title: "Failed",
+        description: e.response?.data?.error,
+        variant: "error",
+      }),
+  });
 
   const cancelJob = useMutation({
     mutationFn: () => api.delete(`/jobs/${id}`),
-    onSuccess: () => { toast({ title: 'Job cancelled' }); navigate('/jobs') },
-  })
+    onSuccess: () => {
+      toast({ title: "Job cancelled" });
+      navigate("/jobs");
+    },
+  });
 
-  if (isLoading) return <AppShell><div className="flex items-center justify-center h-full"><Spinner /></div></AppShell>
-  if (!job) return <AppShell><div className="p-6 text-center text-slate-500">Job not found</div></AppShell>
+  if (isLoading)
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center h-full">
+          <Spinner />
+        </div>
+      </AppShell>
+    );
+  if (!job)
+    return (
+      <AppShell>
+        <div className="p-6 text-center text-slate-500">Job not found</div>
+      </AppShell>
+    );
 
-  const canCancel = isOwner && !['in_progress','completed','payment_recorded','reviewed','cancelled'].includes(job.status)
-  const canRecordPayment = isOwner && job.status === 'completed'
-  const canReview = isOwner && ['completed','payment_recorded'].includes(job.status)
-  const canMarkStarted = isAssignedWorker && job.status === 'assigned'
-  const canMarkDone = isAssignedWorker && job.status === 'in_progress'
-  const canSendProposal = isWorker && !isAssignedWorker && ['posted', 'proposals_received'].includes(job.status) && !myProposal
-  const canSetFinalPrice = isOwner && ['assigned', 'in_progress', 'completed'].includes(job.status) && job.pricing_mode !== 'fixed'
+  const canCancel =
+    isOwner &&
+    ![
+      "in_progress",
+      "completed",
+      "payment_recorded",
+      "reviewed",
+      "cancelled",
+    ].includes(job.status);
+  const canRecordPayment = isOwner && job.status === "completed";
+  const canReview =
+    isOwner && ["completed", "payment_recorded"].includes(job.status);
+  const canMarkStarted = isAssignedWorker && job.status === "assigned";
+  const canMarkDone = isAssignedWorker && job.status === "in_progress";
+  const canSendProposal =
+    isWorker &&
+    !isAssignedWorker &&
+    ["posted", "proposals_received"].includes(job.status) &&
+    !myProposal;
+  const canSetFinalPrice =
+    isOwner &&
+    ["assigned", "in_progress", "completed"].includes(job.status) &&
+    job.pricing_mode !== "fixed";
 
   return (
     <AppShell>
       <div className="fixly-page max-w-6xl space-y-5">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+        >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
 
@@ -141,37 +258,70 @@ export default function JobDetail() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge status={job.status} />
-                {job.urgency && <span className="text-sm text-slate-500">{URGENCY_LABELS[job.urgency]}</span>}
-                {job.category_name && <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{job.category_name}</span>}
+                {job.urgency && (
+                  <span className="text-sm text-slate-500">
+                    {URGENCY_LABELS[job.urgency]}
+                  </span>
+                )}
+                {job.category_name && (
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                    {job.category_name}
+                  </span>
+                )}
               </div>
               <h1 className="text-xl font-bold text-slate-900">{job.title}</h1>
               <div className="flex items-center flex-wrap gap-4 mt-3 text-sm text-slate-500">
-                {job.district && <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{job.district}{job.town ? `, ${job.town}` : ''}</span>}
-                <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{formatDate(job.created_at)}</span>
-                {job.final_price && <span className="flex items-center gap-1 font-semibold text-emerald-600"><DollarSign className="w-4 h-4" />{formatCurrency(job.final_price)}</span>}
+                {job.district && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {job.district}
+                    {job.town ? `, ${job.town}` : ""}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {formatDate(job.created_at)}
+                </span>
+                {job.final_price && (
+                  <span className="flex items-center gap-1 font-semibold text-emerald-600">
+                    <DollarSign className="w-4 h-4" />
+                    {formatCurrency(job.final_price)}
+                  </span>
+                )}
               </div>
             </div>
-            {job.pricing_mode === 'fixed' && job.fixed_budget && (
+            {job.pricing_mode === "fixed" && job.fixed_budget && (
               <div className="text-right">
                 <p className="text-xs text-slate-400">Fixed Budget</p>
-                <p className="text-xl font-bold text-sky-700">{formatCurrency(job.fixed_budget)}</p>
+                <p className="text-xl font-bold text-sky-700">
+                  {formatCurrency(job.fixed_budget)}
+                </p>
               </div>
             )}
           </div>
 
           {job.description && (
             <div className="mt-4 p-4 bg-slate-50 rounded-2xl">
-              <p className="text-sm text-slate-700 leading-relaxed">{job.description}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">
+                {job.description}
+              </p>
             </div>
           )}
 
-          {job.address && <p className="mt-3 text-sm text-slate-500">📍 {job.address}</p>}
+          {job.address && (
+            <p className="mt-3 text-sm text-slate-500">📍 {job.address}</p>
+          )}
 
           {/* Photos */}
           {job.photos?.length > 0 && (
             <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
-              {job.photos.map(p => (
-                <img key={p.id} src={p.path} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+              {job.photos.map((p) => (
+                <img
+                  key={p.id}
+                  src={p.path}
+                  alt=""
+                  className="w-24 h-24 rounded-xl object-cover flex-shrink-0"
+                />
               ))}
             </div>
           )}
@@ -188,37 +338,76 @@ export default function JobDetail() {
             {myProposal && (
               <Link to={`/jobs/${job.id}/propose`}>
                 <Button variant="outline">
-                  {myProposal.status === 'declined' ? 'Proposal Rejected' : myProposal.status === 'accepted' ? 'Proposal Accepted' : 'Proposal Sent'}
+                  {myProposal.status === "declined"
+                    ? "Proposal Rejected"
+                    : myProposal.status === "accepted"
+                      ? "Proposal Accepted"
+                      : "Proposal Sent"}
                 </Button>
               </Link>
             )}
             {canSetFinalPrice && (
-              <Button variant="outline" onClick={() => { setAgreedPrice(job.final_price || ''); setPriceModal(true) }}>
-                {job.final_price ? 'Update Agreed Price' : 'Set Agreed Price'}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAgreedPrice(job.final_price || "");
+                  setPriceModal(true);
+                }}
+              >
+                {job.final_price ? "Update Agreed Price" : "Set Agreed Price"}
               </Button>
             )}
-            {isAssignedWorker && job.status === 'payment_recorded' && job.payment_id && !job.payment_worker_confirmed && !job.payment_disputed && (
-              <>
-                <Button variant="success" onClick={() => confirmPayment.mutate()} loading={confirmPayment.isPending}>
-                  Confirm Payment Received
-                </Button>
-                <Button variant="outline" onClick={() => disputePayment.mutate()} loading={disputePayment.isPending}>
-                  Dispute Payment
-                </Button>
-              </>
-            )}
+            {isAssignedWorker &&
+              job.status === "payment_recorded" &&
+              job.payment_id &&
+              !job.payment_worker_confirmed &&
+              !job.payment_disputed && (
+                <>
+                  <Button
+                    variant="success"
+                    onClick={() => confirmPayment.mutate()}
+                    loading={confirmPayment.isPending}
+                  >
+                    Confirm Payment Received
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => disputePayment.mutate()}
+                    loading={disputePayment.isPending}
+                  >
+                    Dispute Payment
+                  </Button>
+                </>
+              )}
             {canMarkStarted && (
-              <Button variant="primary" onClick={() => updateStatus.mutate('in_progress')} loading={updateStatus.isPending}>
+              <Button
+                variant="primary"
+                onClick={() => updateStatus.mutate("in_progress")}
+                loading={updateStatus.isPending}
+              >
                 ▶ Mark Started
               </Button>
             )}
             {canMarkDone && (
-              <Button variant="success" onClick={() => updateStatus.mutate('completed')} loading={updateStatus.isPending}>
+              <Button
+                variant="success"
+                onClick={() => updateStatus.mutate("completed")}
+                loading={updateStatus.isPending}
+              >
                 ✓ Mark Completed
               </Button>
             )}
             {canRecordPayment && (
-              <Button variant="primary" onClick={() => { setPayment(p => ({ ...p, amount: job.final_price || p.amount })); setPayModal(true) }}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setPayment((p) => ({
+                    ...p,
+                    amount: job.final_price || p.amount,
+                  }));
+                  setPayModal(true);
+                }}
+              >
                 <CreditCard className="w-4 h-4" /> Record Payment
               </Button>
             )}
@@ -228,7 +417,12 @@ export default function JobDetail() {
               </Button>
             )}
             {canCancel && (
-              <Button variant="danger" onClick={() => { if(confirm('Cancel this job?')) cancelJob.mutate() }}>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (confirm("Cancel this job?")) cancelJob.mutate();
+                }}
+              >
                 <Trash2 className="w-4 h-4" /> Cancel Job
               </Button>
             )}
@@ -240,18 +434,36 @@ export default function JobDetail() {
             <h3 className="font-semibold text-slate-800 mb-3">Your Proposal</h3>
             <div className="flex items-center gap-3 mb-3">
               <Badge status={myProposal.status} />
-              {myProposal.proposed_price && <span className="text-sm font-semibold text-sky-700">{formatCurrency(myProposal.proposed_price)}</span>}
-              {myProposal.inspection_needed && <span className="text-sm text-amber-600 font-medium">Inspection needed</span>}
+              {myProposal.proposed_price && (
+                <span className="text-sm font-semibold text-sky-700">
+                  {formatCurrency(myProposal.proposed_price)}
+                </span>
+              )}
+              {myProposal.inspection_needed && (
+                <span className="text-sm text-amber-600 font-medium">
+                  Inspection needed
+                </span>
+              )}
             </div>
-            {myProposal.availability && <p className="text-sm text-slate-500">Availability: {myProposal.availability}</p>}
-            {myProposal.message && <p className="text-sm text-slate-600 mt-2">{myProposal.message}</p>}
+            {myProposal.availability && (
+              <p className="text-sm text-slate-500">
+                Availability: {myProposal.availability}
+              </p>
+            )}
+            {myProposal.message && (
+              <p className="text-sm text-slate-600 mt-2">
+                {myProposal.message}
+              </p>
+            )}
           </Card>
         )}
 
         {job.final_price && (
           <Card className="p-5">
             <h3 className="font-semibold text-slate-800 mb-2">Agreed Price</h3>
-            <p className="text-xl font-bold text-emerald-600">{formatCurrency(job.final_price)}</p>
+            <p className="text-xl font-bold text-emerald-600">
+              {formatCurrency(job.final_price)}
+            </p>
           </Card>
         )}
 
@@ -259,17 +471,25 @@ export default function JobDetail() {
           <Card className="p-5">
             <h3 className="font-semibold text-slate-800 mb-3">Posted By</h3>
             <div className="flex items-center gap-3">
-              <Avatar name={job.customer_name} src={job.customer_photo} size="lg" />
+              <Avatar
+                name={job.customer_name}
+                src={job.customer_photo}
+                size="lg"
+              />
               <div>
-                <p className="font-semibold text-slate-900">{job.customer_name}</p>
+                <p className="font-semibold text-slate-900">
+                  {job.customer_name}
+                </p>
                 {(job.district || job.town) && (
                   <p className="text-sm text-slate-500">
-                    {[job.district, job.town].filter(Boolean).join(', ')}
+                    {[job.district, job.town].filter(Boolean).join(", ")}
                   </p>
                 )}
               </div>
               <Link to={`/customers/${job.customer_id}`} className="ml-auto">
-                <Button variant="outline" size="sm">View Profile</Button>
+                <Button variant="outline" size="sm">
+                  View Profile
+                </Button>
               </Link>
             </div>
           </Card>
@@ -278,17 +498,31 @@ export default function JobDetail() {
         {/* Assigned worker contact reveal */}
         {job.assigned_worker_id && (
           <Card className="p-5">
-            <h3 className="font-semibold text-slate-800 mb-3">Assigned Worker</h3>
+            <h3 className="font-semibold text-slate-800 mb-3">
+              Assigned Worker
+            </h3>
             <div className="flex items-center gap-3">
-              <Avatar name={job.assigned_worker_name} src={job.assigned_worker_photo} size="lg" />
+              <Avatar
+                name={job.assigned_worker_name}
+                src={job.assigned_worker_photo}
+                size="lg"
+              />
               <div>
-                <p className="font-semibold text-slate-900">{job.assigned_worker_name}</p>
+                <p className="font-semibold text-slate-900">
+                  {job.assigned_worker_name}
+                </p>
                 <p className="text-sm text-slate-500 flex items-center gap-1 mt-0.5">
-                  <Phone className="w-3.5 h-3.5" /> {job.assigned_worker_phone || '—'}
+                  <Phone className="w-3.5 h-3.5" />{" "}
+                  {job.assigned_worker_phone || "-"}
                 </p>
               </div>
-              <Link to={`/workers/${job.assigned_worker_id}`} className="ml-auto">
-                <Button variant="outline" size="sm">View Profile</Button>
+              <Link
+                to={`/workers/${job.assigned_worker_id}`}
+                className="ml-auto"
+              >
+                <Button variant="outline" size="sm">
+                  View Profile
+                </Button>
               </Link>
             </div>
           </Card>
@@ -306,7 +540,7 @@ export default function JobDetail() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {proposals.map(p => (
+                {proposals.map((p) => (
                   <ProposalCard
                     key={p.id}
                     proposal={p}
@@ -322,53 +556,145 @@ export default function JobDetail() {
       </div>
 
       {/* Payment Modal */}
-      <Modal open={payModal} onClose={() => setPayModal(false)} title="Record Payment">
+      <Modal
+        open={payModal}
+        onClose={() => setPayModal(false)}
+        title="Record Payment"
+      >
         <div className="space-y-4">
-          <Input label="Amount (LKR) *" type="number" value={payment.amount} onChange={e => setPayment(p => ({ ...p, amount: e.target.value }))} placeholder="5000" />
-          <Select label="Payment Method" value={payment.method} onChange={e => setPayment(p => ({ ...p, method: e.target.value }))}>
+          <Input
+            label="Amount (LKR) *"
+            type="number"
+            value={payment.amount}
+            onChange={(e) =>
+              setPayment((p) => ({ ...p, amount: e.target.value }))
+            }
+            placeholder="5000"
+          />
+          <Select
+            label="Payment Method"
+            value={payment.method}
+            onChange={(e) =>
+              setPayment((p) => ({ ...p, method: e.target.value }))
+            }
+          >
             <option value="cash">Cash</option>
             <option value="bank_transfer">Bank Transfer</option>
             <option value="other">Other</option>
           </Select>
-          <Textarea label="Note (optional)" value={payment.note} onChange={e => setPayment(p => ({ ...p, note: e.target.value }))} placeholder="Any additional details..." rows={2} />
+          <Textarea
+            label="Note (optional)"
+            value={payment.note}
+            onChange={(e) =>
+              setPayment((p) => ({ ...p, note: e.target.value }))
+            }
+            placeholder="Any additional details..."
+            rows={2}
+          />
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setPayModal(false)} className="flex-1">Cancel</Button>
-            <Button variant="primary" onClick={() => recordPayment.mutate()} loading={recordPayment.isPending} className="flex-1">Record Payment</Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPayModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => recordPayment.mutate()}
+              loading={recordPayment.isPending}
+              className="flex-1"
+            >
+              Record Payment
+            </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={priceModal} onClose={() => setPriceModal(false)} title="Set Agreed Price">
+      <Modal
+        open={priceModal}
+        onClose={() => setPriceModal(false)}
+        title="Set Agreed Price"
+      >
         <div className="space-y-4">
-          <Input label="Agreed Price (LKR) *" type="number" value={agreedPrice} onChange={e => setAgreedPrice(e.target.value)} placeholder="5000" />
+          <Input
+            label="Agreed Price (LKR) *"
+            type="number"
+            value={agreedPrice}
+            onChange={(e) => setAgreedPrice(e.target.value)}
+            placeholder="5000"
+          />
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setPriceModal(false)} className="flex-1">Cancel</Button>
-            <Button variant="primary" onClick={() => setFinalPrice.mutate()} loading={setFinalPrice.isPending} className="flex-1">Save Price</Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPriceModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => setFinalPrice.mutate()}
+              loading={setFinalPrice.isPending}
+              className="flex-1"
+            >
+              Save Price
+            </Button>
           </div>
         </div>
       </Modal>
 
       {/* Review Modal */}
-      <Modal open={reviewModal} onClose={() => setReviewModal(false)} title="Leave a Review">
+      <Modal
+        open={reviewModal}
+        onClose={() => setReviewModal(false)}
+        title="Leave a Review"
+      >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Rating</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Rating
+            </label>
             <div className="flex gap-2">
-              {[1,2,3,4,5].map(n => (
-                <button key={n} onClick={() => setReview(r => ({ ...r, rating: n }))}
-                  className={`text-3xl transition-transform hover:scale-110 ${n <= review.rating ? 'text-amber-400' : 'text-slate-200'}`}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setReview((r) => ({ ...r, rating: n }))}
+                  className={`text-3xl transition-transform hover:scale-110 ${n <= review.rating ? "text-amber-400" : "text-slate-200"}`}
+                >
                   ★
                 </button>
               ))}
             </div>
           </div>
-          <Textarea label="Feedback" value={review.feedback} onChange={e => setReview(r => ({ ...r, feedback: e.target.value }))} placeholder="Share your experience with this worker..." rows={3} />
+          <Textarea
+            label="Feedback"
+            value={review.feedback}
+            onChange={(e) =>
+              setReview((r) => ({ ...r, feedback: e.target.value }))
+            }
+            placeholder="Share your experience with this worker..."
+            rows={3}
+          />
           <div className="flex gap-3 pt-2">
-            <Button variant="secondary" onClick={() => setReviewModal(false)} className="flex-1">Cancel</Button>
-            <Button variant="primary" onClick={() => submitReview.mutate()} loading={submitReview.isPending} className="flex-1">Submit Review</Button>
+            <Button
+              variant="secondary"
+              onClick={() => setReviewModal(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => submitReview.mutate()}
+              loading={submitReview.isPending}
+              className="flex-1"
+            >
+              Submit Review
+            </Button>
           </div>
         </div>
       </Modal>
     </AppShell>
-  )
+  );
 }
