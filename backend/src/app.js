@@ -55,12 +55,27 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => {
-    console.log(`Fixly API running on port ${PORT}`);
-    console.log('Uploads served at /uploads');
-    console.log(`CORS allowed: ${process.env.CLIENT_URL}`);
-  });
+  const basePort = Number(process.env.PORT) || 4000;
+
+  const startServer = (port, retriesLeft = 10) => {
+    const server = app.listen(port, () => {
+      console.log(`Fixly API running on port ${port}`);
+      console.log('Uploads served at /uploads');
+      console.log(`CORS allowed: ${process.env.CLIENT_URL}`);
+    });
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE' && retriesLeft > 0) {
+        console.warn(`Port ${port} is in use, trying ${port + 1}...`);
+        startServer(port + 1, retriesLeft - 1);
+        return;
+      }
+
+      throw err;
+    });
+  };
+
+  startServer(basePort);
 }
 
 module.exports = app;
