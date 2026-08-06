@@ -2,7 +2,7 @@
 
 Sri Lanka's platform connecting residents with trusted local skilled workers.
 
-## 🚀 Quick Start
+## 🚀 Local Setup Guide
 
 ### Prerequisites
 
@@ -10,40 +10,62 @@ Sri Lanka's platform connecting residents with trusted local skilled workers.
 - PostgreSQL 14+
 - npm or yarn
 
----
-
-## 1. Database Setup
+### 1. Clone and Install
 
 ```bash
-# Create the database
-psql -U postgres -c "CREATE DATABASE fixly;"
-
-```
-
----
-
-## 2. Backend Setup
-
-```bash
+cd fixly-marketplace
 cd backend
 npm install
 
-# Copy and edit environment variables
-cp .env.example .env
-# Edit .env with your DATABASE_URL, JWT_SECRET, and SMTP settings
-
-# Run database migrations + seed demo data
-node setup-db.js
-
-# Start the server
-npm run dev
-# → API running at http://localhost:4000
+cd ../frontend
+npm install
 ```
 
-### Backend Environment Variables (`.env`)
+### 2. Create the PostgreSQL Database
+
+Create a local database named `fixly`.
+
+#### Option A: Standard local PostgreSQL install
+
+```bash
+psql -U postgres -d postgres
+```
+
+Then run:
+
+```sql
+CREATE DATABASE fixly;
+```
+
+If your machine uses peer authentication and `psql -U postgres` fails, use:
+
+```bash
+sudo -u postgres psql -d postgres
+```
+
+Then create the database with the same SQL command.
+
+#### Option B: If you already have a Postgres user and password
+
+```bash
+createdb -U <username> fixly
+```
+
+### 3. Configure Backend Environment Variables
+
+From the backend folder, copy the example environment file:
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `backend/.env` and set a real PostgreSQL connection string.
+
+Example:
 
 ```env
-DATABASE_URL=postgresql://username:password@localhost:5432/fixly
+DATABASE_URL=postgresql://postgres:admin@localhost:5432/fixly
 JWT_SECRET=fixly_jwt_secret_change_in_production
 JWT_EXPIRES_IN=7d
 
@@ -61,28 +83,95 @@ UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=5242880
 ```
 
----
+If you use a different Postgres username, password, or port, update the URL accordingly.
 
-## 3. Frontend Setup
+### 4. Run Database Migrations and Seed Data
+
+From the backend folder:
+
+```bash
+node setup-db.js
+```
+
+This script:
+- creates the schema
+- seeds demo categories
+- creates demo accounts
+- inserts starter worker/customer/admin data
+
+If this command fails with a password or authentication error, verify that `DATABASE_URL` in `backend/.env` matches your local PostgreSQL user.
+
+### 5. Start the Backend API
+
+```bash
+npm run dev
+```
+
+The backend runs at:
+
+```bash
+http://localhost:4000
+```
+
+### 6. Start the Frontend App
+
+In a second terminal:
 
 ```bash
 cd frontend
-npm install
 npm run dev
-# → App running at http://localhost:5173
 ```
 
----
+The frontend runs at:
 
-## 4. Demo Accounts
+```bash
+http://localhost:5173
+```
 
-After running `node setup-db.js`:
+### 7. Demo Accounts
+
+After running `node setup-db.js`, use these accounts:
 
 | Role     | Email            | Password |
 | -------- | ---------------- | -------- |
 | Admin    | admin@fixly.lk   | admin123 |
 | Customer | customer@demo.lk | demo123  |
 | Worker   | worker@demo.lk   | demo123  |
+
+### 8. Local Startup Checklist
+
+Before opening the app, confirm:
+
+1. PostgreSQL is running.
+2. The `fixly` database exists.
+3. `backend/.env` exists and contains a valid `DATABASE_URL`.
+4. `node setup-db.js` completed successfully.
+5. The backend server is running on port `4000`.
+6. The frontend server is running on port `5173`.
+
+### 9. Common PostgreSQL Issues
+
+#### Peer authentication failed
+
+If you see a peer authentication error, your local Postgres install expects the operating system user to match the database user. Use:
+
+```bash
+sudo -u postgres psql
+```
+
+Or update `DATABASE_URL` to use a role that exists on your machine.
+
+#### Password authentication failed
+
+If the password in `DATABASE_URL` is wrong, reset it in Postgres or change the URL to match the real password.
+
+#### Database already exists
+
+If `fixly` already exists, you can keep it and just run `node setup-db.js` again.
+
+#### Permission denied when connecting
+
+Make sure the Postgres server is running and that the port in `DATABASE_URL` matches your local installation.
 
 ---
 
