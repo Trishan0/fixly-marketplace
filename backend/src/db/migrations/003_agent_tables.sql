@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   agent_type    VARCHAR(30) NOT NULL CHECK (agent_type IN ('match', 'proposal')),
   objective     TEXT,
   plan_json     JSONB,
-  status        VARCHAR(20) NOT NULL DEFAULT 'pending'
+  status        VARCHAR(50) NOT NULL DEFAULT 'pending'
                   CHECK (status IN ('pending', 'running', 'awaiting_confirmation', 'confirmed', 'completed', 'cancelled', 'error')),
   -- context references (one of these will be set depending on agent_type)
   job_id        UUID REFERENCES jobs(id) ON DELETE SET NULL,

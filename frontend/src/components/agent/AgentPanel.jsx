@@ -130,6 +130,17 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
         {/* Rationale */}
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">{rec.rationale}</p>
+
+        {/* Gemini key strengths */}
+        {rec.key_strengths?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {rec.key_strengths.map((s, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 px-2 py-0.5 rounded-full font-medium">
+                ✦ {s}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Expanded factors */}
@@ -476,14 +487,25 @@ export default function AgentPanel({ mode, jobId, onClose }) {
               )}
             </div>
 
-            {/* Results count */}
+            {/* Results count + Gemini reasoning */}
             <div>
               <h3 className="font-bold text-slate-800 dark:text-white text-sm mb-1">
                 {isMatch
                   ? `${runData.recommendations?.length || 0} Top Workers Found`
                   : `${runData.recommendations?.length || 0} Best Jobs Found`}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              {runData.overall_reasoning && (
+                <div className={cn(
+                  'mt-2 p-3 rounded-xl border text-xs leading-relaxed',
+                  isMatch
+                    ? 'bg-sky-50/80 border-sky-200 text-sky-800 dark:bg-sky-950/30 dark:border-sky-800 dark:text-sky-300'
+                    : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
+                )}>
+                  <span className="font-semibold">Gemini's reasoning: </span>
+                  {runData.overall_reasoning}
+                </div>
+              )}
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                 {isMatch
                   ? 'Select workers to invite. You must confirm before any invites are sent.'
                   : 'Select jobs to apply to. You can edit the proposal message before confirming.'}
