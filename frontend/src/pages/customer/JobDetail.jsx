@@ -11,7 +11,10 @@ import {
   Trash2,
   CreditCard,
   Send,
+  Bot,
+  X,
 } from "lucide-react";
+import AgentPanel from "../../components/agent/AgentPanel";
 import { AppShell } from "../../components/layout/AppShell";
 import {
   Button,
@@ -45,6 +48,7 @@ export default function JobDetail() {
   const [payModal, setPayModal] = useState(false);
   const [priceModal, setPriceModal] = useState(false);
   const [reviewModal, setReviewModal] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
   const [payment, setPayment] = useState({
     amount: "",
     method: "cash",
@@ -328,6 +332,17 @@ export default function JobDetail() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-100">
+            {/* AI Match Agent button — visible to job owner on active jobs */}
+            {isOwner && ["posted", "proposals_received"].includes(job.status) && (
+              <Button
+                id="run-match-agent-btn"
+                variant="primary"
+                className="bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-md shadow-sky-200 dark:shadow-sky-900/30"
+                onClick={() => setAgentOpen(true)}
+              >
+                <Bot className="w-4 h-4" /> Run Match Agent
+              </Button>
+            )}
             {canSendProposal && (
               <Link to={`/jobs/${job.id}/propose`}>
                 <Button variant="primary">
@@ -695,6 +710,25 @@ export default function JobDetail() {
           </div>
         </div>
       </Modal>
+
+      {/* ── Agent Panel slide-in modal ── */}
+      {agentOpen && (
+        <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Match Agent">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setAgentOpen(false)}
+          />
+          {/* Panel */}
+          <div className="relative ml-auto w-full max-w-lg bg-white dark:bg-slate-900 shadow-2xl flex flex-col h-full overflow-hidden animate-slide-in-right">
+            <AgentPanel
+              mode="match"
+              jobId={id}
+              onClose={() => setAgentOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
