@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play } from 'lucide-react'
+import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play, Bot, X } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, Badge, PageHeader, Spinner, EmptyState } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatRelativeTime, URGENCY_LABELS, DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
+import AgentPanel from '../../components/agent/AgentPanel'
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
 
@@ -15,6 +16,7 @@ export function OpenJobs() {
   const [category, setCategory] = useState('')
   const [district, setDistrict] = useState('')
   const [tab, setTab] = useState('open')
+  const [agentOpen, setAgentOpen] = useState(false)
   const { toast } = useToast()
   const qc = useQueryClient()
 
@@ -35,7 +37,17 @@ export function OpenJobs() {
     <AppShell>
       <div className="fixly-app-page">
         <div className="fixly-page max-w-7xl space-y-6">
-          <PageHeader title="Open Jobs" description="Browse jobs looking for workers" />
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <PageHeader title="Open Jobs" description="Browse jobs looking for workers" />
+            <Button
+              id="run-proposal-agent-btn"
+              variant="primary"
+              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-md shadow-violet-200 dark:shadow-violet-900/30 flex-shrink-0"
+              onClick={() => setAgentOpen(true)}
+            >
+              <Bot className="w-4 h-4" /> Run Proposal Agent
+            </Button>
+          </div>
 
           <div className="fixly-tab-strip">
             {[
@@ -115,6 +127,22 @@ export function OpenJobs() {
           )}
         </div>
       </div>
+
+      {/* ── Proposal Agent slide-in modal ── */}
+      {agentOpen && (
+        <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Proposal Agent">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setAgentOpen(false)}
+          />
+          <div className="relative ml-auto w-full max-w-lg bg-white dark:bg-slate-900 shadow-2xl flex flex-col h-full overflow-hidden animate-slide-in-right">
+            <AgentPanel
+              mode="proposal"
+              onClose={() => setAgentOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }
