@@ -1,6 +1,44 @@
 # Fixly - Hyperlocal Service Marketplace
 
-Sri Lanka's platform connecting residents with trusted local skilled workers.
+## 📌 Project Purpose
+
+Fixly is a hyper-local service marketplace designed to connect residents with trusted, skilled local workers in Sri Lanka. It solves the problem of finding reliable manual labor (plumbers, electricians, cleaners, etc.) by providing a structured, secure, and AI-enhanced platform. 
+
+The core problem Fixly addresses is the friction in matchmaking and bidding in the gig economy. By integrating autonomous AI Agents, Fixly automates the hardest parts of hiring: finding the exact right person for the job, and helping workers write professional proposals, effectively bridging the digital literacy gap for skilled workers.
+
+## 🛠️ Tech Stack
+
+- **Frontend:** React.js, Vite
+- **Backend:** Node.js, Express.js
+- **Database:** PostgreSQL (pg)
+- **AI Integration:** Google Gemini API (gemini-1.5-flash via `@google/generative-ai` SDK)
+- **Authentication:** JWT (JSON Web Tokens) & bcrypt
+- **File Storage:** Local File System (multer)
+
+## ✨ Core Features & AI Agent Workflow
+
+Fixly includes comprehensive dashboards for Customers, Workers, and Admins. The standout features are our integrated **AI Agents**, which demonstrate real reasoning, decision-making, tool use, and multi-step workflows.
+
+### 🤖 1. The AI Matchmaker Agent (Customer Side)
+When a customer creates a job, they can use the AI Agent to automatically find the best workers.
+- **Inputs:** The customer's job description, category, and location.
+- **Steps:** The agent does not simply perform a keyword search. It uses backend tools to query the PostgreSQL database, fetching profiles of workers in the required area. It then reads their bios, past ratings, and specific skills, reasoning about who is truly the best fit for the specific problem described.
+- **Outputs:** The agent returns a ranked list of the top recommended candidates, complete with a generated, personalized explanation detailing exactly why each worker was selected.
+
+### 🤖 2. The AI Proposal Agent (Worker Side)
+When a worker receives a job invite, writing a professional proposal can be time-consuming. The AI Proposal Agent acts as a virtual assistant to draft this for them.
+- **Inputs:** The customer's exact job description and the worker's personal profile data (skills, experience, category).
+- **Steps:** The AI analyzes the customer's problem and maps it directly to the worker's expertise. It formulates a professional, persuasive pitch that highlights why the worker is uniquely qualified for the task.
+- **Outputs:** The agent generates a complete, tailored proposal text directly in the submission box. The worker can review it, tweak it if necessary, and submit it instantly, saving valuable time.
+
+### Additional Core Features:
+- **Role-Based Access Control:** Distinct interfaces and features for Customers, Workers, and Admins.
+- **Worker Catalog:** Browse workers by category, district, and aggregate ratings.
+- **Job Lifecycle Management:** Post jobs, send invites, receive proposals, hire, and mark jobs as completed.
+- **Review System:** Customers can leave 1-5 star ratings and reviews upon job completion, feeding back into the AI matchmaking logic.
+- **Privacy Controls:** Phone numbers are masked until a worker is officially hired.
+
+---
 
 ## 🚀 Local Setup Guide
 
@@ -60,7 +98,7 @@ cd backend
 cp .env.example .env
 ```
 
-Edit `backend/.env` and set a real PostgreSQL connection string.
+Edit `backend/.env` and set a real PostgreSQL connection string, and your Gemini API Key.
 
 Example:
 
@@ -81,6 +119,8 @@ CLIENT_URL=http://localhost:5173
 NODE_ENV=development
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=5242880
+
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 If you use a different Postgres username, password, or port, update the URL accordingly.
@@ -144,7 +184,7 @@ Before opening the app, confirm:
 
 1. PostgreSQL is running.
 2. The `fixly` database exists.
-3. `backend/.env` exists and contains a valid `DATABASE_URL`.
+3. `backend/.env` exists and contains a valid `DATABASE_URL` and `GEMINI_API_KEY`.
 4. `node setup-db.js` completed successfully.
 5. The backend server is running on port `4000`.
 6. The frontend server is running on port `5173`.
@@ -182,9 +222,10 @@ fixly/
 ├── backend/                 # Node.js + Express API
 │   ├── src/
 │   │   ├── app.js           # Main Express server
+│   │   ├── agents/          # AI Agents (Gemini ReAct Loop)
 │   │   ├── routes/          # All API routes
-│   │   ├── middleware/       # Auth, upload, verified
-│   │   ├── services/         # Business logic
+│   │   ├── middleware/      # Auth, upload, verified
+│   │   ├── services/        # Business logic
 │   │   └── db/              # PostgreSQL pool + migrations
 │   ├── uploads/             # Local file storage
 │   └── setup-db.js          # DB setup + seed script
@@ -206,28 +247,6 @@ fixly/
 
 ---
 
-## API Overview
-
-| Method | Endpoint                  | Description            |
-| ------ | ------------------------- | ---------------------- |
-| POST   | /api/auth/register        | Register user          |
-| POST   | /api/auth/login           | Login                  |
-| GET    | /api/auth/me              | Current user           |
-| GET    | /api/workers              | Public worker catalog  |
-| POST   | /api/jobs                 | Post a job (customer)  |
-| GET    | /api/jobs/feed            | Open jobs (worker)     |
-| GET    | /api/jobs/my              | My jobs (customer)     |
-| POST   | /api/jobs/:id/proposals   | Send proposal (worker) |
-| PUT    | /api/proposals/:id/accept | Accept proposal        |
-| POST   | /api/jobs/:id/invites     | Invite worker          |
-| POST   | /api/jobs/:id/payment     | Record payment         |
-| POST   | /api/jobs/:id/review      | Submit review          |
-| GET    | /api/admin/stats          | Admin dashboard        |
-
-Full API: see `backend/src/routes/`
-
----
-
 ## Key Business Rules
 
 1. **Email verification** - Required to post jobs (admin can bypass with `force_verified`)
@@ -236,14 +255,3 @@ Full API: see `backend/src/routes/`
 4. **Job status flow** - `posted → proposals_received → assigned → in_progress → completed → payment_recorded → reviewed`
 5. **Offline payments** - No payment gateway; records are manual
 6. **Simplified worker mode** - Large-button UI for low-digital-literacy users
-
----
-
-## Phase 2 Roadmap
-
-- SMS OTP login
-- In-app chat
-- GPS-based worker discovery
-- Push/SMS notifications
-- Worker tier system (Bronze/Silver/Gold)
-- Mobile app (React Native)
