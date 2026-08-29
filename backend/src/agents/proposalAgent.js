@@ -6,7 +6,7 @@ const pool = require('../db');
 const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./gemini');
 const { getOpenJobsForWorker } = require('./tools/getOpenJobs');
 const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
-const { getMemory, setMemory } = require('./memory');
+const { getMemory } = require('./memory');
 
 const TOP_N = 5;
 
@@ -132,7 +132,7 @@ function buildToolHandlers({ workerId, workerCache, jobCache }) {
       return { preferred_district: prefDistrict };
     },
 
-    async get_open_jobs({ district, limit = 60 }) {
+    async get_open_jobs({ district: _district, limit = 60 }) {
       const jobs = await getOpenJobsForWorker(workerId, { limit });
       for (const j of jobs) jobCache[j.id] = j;
       return { count: jobs.length, jobs };
@@ -146,7 +146,7 @@ function buildToolHandlers({ workerId, workerCache, jobCache }) {
       return { job_id, score: total, factors };
     },
 
-    async draft_proposal_message(args) {
+    async draft_proposal_message(_args) {
       return { status: 'ok' };
     },
   };

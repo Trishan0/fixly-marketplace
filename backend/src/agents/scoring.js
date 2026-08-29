@@ -151,7 +151,7 @@ function scoreWorkerForJob(worker, job) {
   return { total: parseFloat(total.toFixed(4)), factors, rationale };
 }
 
-function buildMatchRationale(worker, job, factors, total) {
+function buildMatchRationale(worker, job, factors, _total) {
   const lines = [];
 
   if (factors.skill_fit >= 0.7) {
@@ -291,7 +291,7 @@ function scoreJobForWorker(job, worker) {
   return { total: parseFloat(total.toFixed(4)), factors, rationale };
 }
 
-function buildProposalRationale(job, worker, factors, total) {
+function buildProposalRationale(job, worker, factors, _total) {
   const lines = [];
 
   if (factors.skill_overlap >= 0.7) {

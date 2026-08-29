@@ -3,10 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bot, Zap, CheckCircle2, XCircle, ChevronDown, ChevronUp,
   Star, MapPin, Briefcase, Shield, TrendingUp, Clock, DollarSign,
-  Loader2, AlertCircle, Send, UserCheck
+  AlertCircle, Send, UserCheck
 } from 'lucide-react'
 import { Button, Avatar } from '../shared/UI'
-import { cn, formatCurrency } from '../../lib/utils'
+import { cn } from '../../lib/utils'
 import api from '../../lib/api'
 
 // ─── Score Bar ────────────────────────────────────────────────────────────────
@@ -382,8 +382,6 @@ export default function AgentPanel({ mode, jobId, onClose }) {
       return next
     })
   }
-
-  const accentColor = isMatch ? 'sky' : 'violet'
 
   return (
     <div className="flex flex-col h-full max-h-[90vh]">

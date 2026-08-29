@@ -2,9 +2,22 @@
   "name": "fixly-backend",
   "version": "1.0.0",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.mjs",
+    "test:watch": "vitest --config vitest.config.mjs",
+    "test:integration": "vitest run --config vitest.integration.config.mjs",
+    "lint": "eslint .",
+    "db:migrate": "node scripts/migrate.js",
+    "db:migrate:status": "node scripts/migrate.js --status",
+    "db:migrate:baseline": "node scripts/baseline-migrations.js",
+    "db:seed:demo": "node setup-db.js --seed-only"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -14,11 +27,20 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.7",
+    "nodemailer": "^9.0.5",
     "pg": "^8.11.3",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^4.17.25",
+    "@types/node": "^22.20.1",
+    "@types/pg": "^8.23.1",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^7.2.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }

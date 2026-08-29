@@ -1,13 +1,17 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const transportOptions = process.env.NODE_ENV === 'test'
+  ? { jsonTransport: true }
+  : {
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    };
+
+const transporter = nodemailer.createTransport(transportOptions);
 
 const sendVerificationEmail = async (email, token) => {
   const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;

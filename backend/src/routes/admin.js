@@ -164,7 +164,7 @@ router.get('/reports', ...adminOnly, async (req, res) => {
   const { status, type } = req.query;
   let conditions = [], params = [], idx = 1;
   if (status) { conditions.push(`r.status = $${idx}`); params.push(status); idx++; }
-  if (type) { conditions.push(`r.report_type = $${idx}`); params.push(type); idx++; }
+  if (type) { conditions.push(`r.report_type = $${idx}`); params.push(type); }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
   try {

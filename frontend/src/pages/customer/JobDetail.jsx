@@ -12,7 +12,6 @@ import {
   CreditCard,
   Send,
   Bot,
-  X,
 } from "lucide-react";
 import AgentPanel from "../../components/agent/AgentPanel";
 import { AppShell } from "../../components/layout/AppShell";
@@ -26,7 +25,6 @@ import {
   Select,
   Textarea,
   Spinner,
-  StarRating,
 } from "../../components/shared/UI";
 import { ProposalCard } from "../../components/shared/Cards";
 import { useAuth } from "../../context/AuthContext";
@@ -35,7 +33,6 @@ import {
   formatCurrency,
   formatDate,
   URGENCY_LABELS,
-  STATUS_LABELS,
 } from "../../lib/utils";
 import api from "../../lib/api";
 
