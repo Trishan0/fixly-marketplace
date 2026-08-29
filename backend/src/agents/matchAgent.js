@@ -7,7 +7,7 @@ const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./
 const { getJobDetails } = require('./tools/getJobDetails');
 const { getCandidateWorkers } = require('./tools/getCandidateWorkers');
 const { scoreWorkerForJob } = require('./scoring');
-const { getMemory, setMemory } = require('./memory');
+const { getMemory } = require('./memory');
 
 const TOP_N = 5;
 

@@ -18,7 +18,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React 18" />
-  <img src="https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white" alt="Node.js 18+" />
+  <img src="https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white" alt="Node.js 22" />
   <img src="https://img.shields.io/badge/PostgreSQL-14%2B-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 14+" />
   <img src="https://img.shields.io/badge/AI-Google%20Gemini-4285F4?logo=google-gemini&logoColor=white" alt="Google Gemini" />
 </p>
@@ -99,7 +99,7 @@ fixly-marketplace/
 
 ### Prerequisites
 
-- Node.js 18 or newer
+- Node.js 22 (see `.nvmrc`)
 - PostgreSQL 14 or newer
 - npm
 - A Google Gemini API key for AI features (the rest of the marketplace can still run without it)
@@ -151,14 +151,11 @@ From `backend/`:
 ```bash
 node setup-db.js
 
-# Load the additional authentication and AI-agent tables.
-set -a; source .env; set +a
-psql "$DATABASE_URL" -f src/db/migrations/002_auth_hardening.sql
-psql "$DATABASE_URL" -f src/db/migrations/003_agent_tables.sql
-
 # Optional: populate richer jobs and worker profiles for the AI demo.
 node src/db/seed_agent_demo_data.js
 ```
+
+`setup-db.js` applies all pending numbered migrations before creating the basic demo accounts. For a database created by an older version, first back it up and run `npm run db:migrate:status`. If it is reported as a legacy database, run `npm run db:migrate:baseline -- --confirm-legacy-schema` once, followed by `npm run db:migrate`.
 
 ### 5. Start Fixly
 

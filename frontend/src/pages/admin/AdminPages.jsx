@@ -12,7 +12,6 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Ban,
   ArrowRight,
   Clock3,
 } from "lucide-react";
@@ -31,7 +30,7 @@ import {
   EmptyState,
 } from "../../components/shared/UI";
 import { useToast } from "../../hooks/useToast";
-import { formatDate, formatCurrency, cn } from "../../lib/utils";
+import { formatDate, cn } from "../../lib/utils";
 import api from "../../lib/api";
 
 // Admin Dashboard
@@ -403,7 +402,7 @@ export function AdminUsers() {
   const update = useMutation({
     mutationFn: ({ id, action, data }) =>
       api.put(`/admin/users/${id}/${action}`, data),
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       toast({ title: "Updated!", variant: "success" });
       qc.invalidateQueries(["admin-users"]);
       setSelectedUser(null);
@@ -640,8 +639,6 @@ export function AdminWorkers() {
   });
 
   const pending = workers.filter((w) => w.nic_image_path && !w.is_nic_verified);
-  const verified = workers.filter((w) => w.is_nic_verified);
-
   return (
     <AppShell>
       <div className="fixly-page max-w-6xl space-y-5">

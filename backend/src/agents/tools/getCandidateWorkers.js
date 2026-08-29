@@ -8,7 +8,7 @@
 
 const pool = require('../../db');
 
-async function getCandidateWorkers({ categoryId, district, limit = 50 } = {}) {
+async function getCandidateWorkers({ categoryId: _categoryId, district, limit = 50 } = {}) {
   // Step 1: fetch workers (optionally pre-filtered for speed)
   let conditions = ["u.role = 'worker'", "u.is_suspended = false"];
   const params = [];

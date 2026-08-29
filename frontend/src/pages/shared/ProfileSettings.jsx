@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Upload, Camera, Trash2, Save } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, Input, Textarea, Select, PageHeader, Avatar } from '../../components/shared/UI'
@@ -12,25 +12,21 @@ import { ThemeModeSelector } from '../../components/shared/ThemeToggle'
 
 const CATEGORIES = ['Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
+const profileForm = (user) => ({
+  full_name: user?.full_name || '',
+  phone: user?.phone || '',
+  district: user?.district || '',
+  area: user?.area || '',
+  bio: user?.bio || '',
+  starting_price: user?.starting_price || '',
+  primary_skill: user?.primary_skill || '',
+})
+
 export function ProfilePage() {
   const { user, refreshUser } = useAuth()
   const { toast } = useToast()
-  const [form, setForm] = useState({
-    full_name: '', phone: '', district: '', area: '', bio: '', starting_price: '', primary_skill: ''
-  })
+  const [form, setForm] = useState(() => profileForm(user))
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-
-  useEffect(() => {
-    if (user) setForm({
-      full_name: user.full_name || '',
-      phone: user.phone || '',
-      district: user.district || '',
-      area: user.area || '',
-      bio: user.bio || '',
-      starting_price: user.starting_price || '',
-      primary_skill: user.primary_skill || '',
-    })
-  }, [user])
 
   const save = useMutation({
     mutationFn: () => api.put('/profile/me', form),

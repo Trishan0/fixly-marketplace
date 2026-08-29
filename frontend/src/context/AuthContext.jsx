@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import api from '../lib/api'
 
 const AuthContext = createContext(null)
@@ -15,7 +15,13 @@ export function AuthProvider({ children }) {
       return null
     }
   })
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => {
+    try {
+      return Boolean(localStorage.getItem(TOKEN_KEY))
+    } catch {
+      return false
+    }
+  })
 
   const persistSession = (token, nextUser) => {
     localStorage.setItem(TOKEN_KEY, token)
@@ -57,13 +63,20 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem(TOKEN_KEY)
 
     if (!token) {
-      setLoading(false)
       return
     }
 
-    refreshUser()
+    api.get('/auth/me')
+      .then(({ data }) => {
+        if (!mounted) return
+        localStorage.setItem(USER_KEY, JSON.stringify(data))
+        setUser(data)
+      })
       .catch(() => {
-        if (mounted) clearSession()
+        if (!mounted) return
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(USER_KEY)
+        setUser(null)
       })
       .finally(() => {
         if (mounted) setLoading(false)
@@ -81,14 +94,14 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const value = useMemo(() => ({
+  const value = {
     user,
     login,
     register,
     logout,
     refreshUser,
     loading,
-  }), [user, loading])
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

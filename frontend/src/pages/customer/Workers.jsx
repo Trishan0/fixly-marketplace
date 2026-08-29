@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AppShell } from '../../components/layout/AppShell'
-import { Modal, Select, Textarea, Button, PageHeader } from '../../components/shared/UI'
+import { Modal, Select, Button, PageHeader } from '../../components/shared/UI'
 import WorkerCatalog from '../public/WorkerCatalog'
 import { useToast } from '../../hooks/useToast'
 import { useAuth } from '../../context/AuthContext'

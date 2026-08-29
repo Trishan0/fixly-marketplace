@@ -1,4 +1,4 @@
-const maskPrice = (proposals, requesterId, jobCustomerId, jobStatus) => {
+const maskPrice = (proposals, requesterId, jobCustomerId, _jobStatus) => {
   if (!proposals || proposals.length === 0) return proposals;
 
   // After payment recorded, final_price is public - but proposals are still masked for non-parties

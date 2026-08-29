@@ -5,9 +5,8 @@
  */
 require('dotenv').config()
 const { Pool } = require('pg')
-const fs = require('fs')
-const path = require('path')
 const bcrypt = require('bcryptjs')
+const { runMigrations } = require('./scripts/lib/migrations')
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
@@ -15,10 +14,14 @@ async function setup() {
   console.log('🔧 Setting up Fixly database...\n')
 
   try {
-    // Run migration
-    const sql = fs.readFileSync(path.join(__dirname, 'src/db/migrations/001_initial.sql'), 'utf8')
-    await pool.query(sql)
-    console.log('✅ Schema created')
+    const seedOnly = process.argv.includes('--seed-only')
+    if (!seedOnly) {
+      await runMigrations({
+        connectionString: process.env.DATABASE_URL,
+        logger: { info: message => console.log(`↳ ${message}`) },
+      })
+      console.log('✅ Schema migrations complete')
+    }
 
     // Seed admin user
     const hash = await bcrypt.hash('admin123', 10)
@@ -74,6 +77,7 @@ async function setup() {
   } catch (err) {
     console.error('❌ Setup failed:', err.message)
     if (err.detail) console.error('   Detail:', err.detail)
+    process.exitCode = 1
   } finally {
     await pool.end()
   }

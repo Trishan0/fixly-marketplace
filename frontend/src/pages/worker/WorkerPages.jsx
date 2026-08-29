@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play, Bot, X } from 'lucide-react'
+import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play, Bot } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, Badge, PageHeader, Spinner, EmptyState } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
@@ -17,9 +17,6 @@ export function OpenJobs() {
   const [district, setDistrict] = useState('')
   const [tab, setTab] = useState('open')
   const [agentOpen, setAgentOpen] = useState(false)
-  const { toast } = useToast()
-  const qc = useQueryClient()
-
   const { data: feed = [], isLoading } = useQuery({
     queryKey: ['job-feed', category, district],
     queryFn: () => api.get(`/jobs/feed?category=${category}&district=${district}`).then(r => r.data),
