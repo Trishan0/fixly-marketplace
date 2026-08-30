@@ -245,6 +245,7 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobileDrawer = Boolean(onClose);
 
   const handleLogout = () => {
     logout();
@@ -254,14 +255,18 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
   return (
     <div
       className={cn(
-        "flex h-full flex-col bg-slate-950 text-white transition-all duration-200",
+        "flex h-full flex-col transition-all duration-200",
+        isMobileDrawer
+          ? "bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
+          : "bg-slate-950 text-white",
         collapsed ? "w-20" : "w-64",
       )}
     >
       {/* Logo */}
       <div
         className={cn(
-          "flex items-center border-b border-white/10 py-5",
+          "flex items-center border-b py-5",
+          isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10",
           collapsed ? "justify-center px-3" : "justify-between px-6",
         )}
       >
@@ -282,7 +287,7 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white lg:hidden"
             aria-label="Close navigation"
           >
             <X className="w-5 h-5" />
@@ -293,7 +298,8 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
       {/* User info */}
       <div
         className={cn(
-          "border-b border-white/10 py-4",
+          "border-b py-4",
+          isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10",
           collapsed ? "px-2" : "px-4",
         )}
       >
@@ -303,7 +309,12 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
             collapsed ? "justify-center" : "items-center gap-3",
           )}
         >
-          <div className="w-9 h-9 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-400 text-sm font-bold flex-shrink-0 overflow-hidden">
+          <div className={cn(
+            "flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-bold",
+            isMobileDrawer
+              ? "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300"
+              : "bg-sky-500/20 text-sky-400",
+          )}>
             {user?.profile_photo ? (
               <img
                 src={user.profile_photo}
@@ -319,7 +330,7 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
               <p className="text-sm font-semibold truncate">
                 {user?.full_name}
               </p>
-              <p className="text-xs text-slate-400 capitalize">{user?.role}</p>
+              <p className={cn("text-xs capitalize", isMobileDrawer ? "text-slate-500 dark:text-slate-400" : "text-slate-400")}>{user?.role}</p>
             </div>
           )}
         </div>
@@ -359,7 +370,9 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
                 collapsed ? "justify-center px-3 py-3" : "gap-3 px-4 py-2.5",
                 isActive
                   ? "bg-sky-600 text-white"
-                  : "text-slate-400 hover:text-white hover:bg-white/10",
+                  : isMobileDrawer
+                    ? "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+                    : "text-slate-400 hover:bg-white/10 hover:text-white",
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
@@ -385,7 +398,7 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
       </nav>
 
       {onClose && (
-        <div className="border-t border-white/10 px-3 py-3">
+        <div className="border-t border-slate-200 px-3 py-3 dark:border-white/10">
           {[
             { href: "/profile", icon: User, label: "Public profile" },
             { href: "/profile/edit", icon: User, label: "Edit profile" },
@@ -396,7 +409,7 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
               key={href}
               to={href}
               onClick={onClose}
-              className="flex min-h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white"
+              className="flex min-h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1">{label}</span>
@@ -404,19 +417,22 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
             </Link>
           ))}
           <div className="mt-1 px-2">
-            <ThemeToggleIconButton className="h-11 w-full justify-center rounded-xl border-white/10 bg-white/5 text-slate-300 shadow-none" />
+            <ThemeToggleIconButton className="h-11 w-full justify-center rounded-xl border-slate-200 bg-slate-50 text-slate-600 shadow-none dark:border-white/10 dark:bg-white/5 dark:text-slate-300" />
           </div>
         </div>
       )}
 
       {/* Logout */}
-      <div className="px-3 pb-6 pt-2 border-t border-white/10">
+      <div className={cn("border-t px-3 pb-6 pt-2", isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10")}>
         <button
           type="button"
           onClick={handleLogout}
           title={collapsed ? "Sign Out" : undefined}
           className={cn(
-            "w-full flex rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all text-sm font-medium",
+            "flex w-full rounded-xl text-sm font-medium transition-all",
+            isMobileDrawer
+              ? "text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-400/10 dark:hover:text-red-400"
+              : "text-slate-400 hover:bg-red-400/10 hover:text-red-400",
             collapsed
               ? "justify-center px-3 py-3"
               : "items-center gap-3 px-4 py-2.5",

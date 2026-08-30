@@ -301,7 +301,7 @@ export default function PostJob() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-3xl">
+      <div className="fixly-page max-w-3xl pb-24 sm:pb-5 md:pb-6">
         <div className="mb-5 sm:mb-8">
           <button
             onClick={() => navigate(-1)}
@@ -342,7 +342,7 @@ export default function PostJob() {
           </AnimatePresence>
         </Card>
 
-        <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex gap-3 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none lg:bottom-0">
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
           {step > 0 && (
             <Button
               variant="secondary"
