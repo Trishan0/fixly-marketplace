@@ -39,13 +39,13 @@ export default function CustomerDashboard() {
     <AppShell>
       <div className="fixly-app-page">
         <div className="fixly-page max-w-7xl space-y-6">
-          <div className="fixly-glow-panel flex items-start justify-between p-6">
+          <div className="fixly-glow-panel flex items-start justify-between p-5 sm:p-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Customer Overview</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">
+              <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:mt-3 sm:text-3xl">
                 Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {user?.full_name?.split(' ')[0]}!
               </h1>
-              <p className="mt-2 text-slate-500">Manage your jobs, review proposals, and hire trusted workers from one place.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-500 sm:text-base">Manage jobs, review proposals, and hire trusted workers from one place.</p>
             </div>
             <Link to="/jobs/new">
               <Button variant="primary" className="hidden sm:flex">
@@ -61,7 +61,7 @@ export default function CustomerDashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard icon={Briefcase} label="Active Jobs" value={activeJobs.length} color="sky" />
             <StatCard icon={CheckCircle} label="Completed" value={completedJobs.length} color="emerald" />
             <StatCard icon={DollarSign} label="Total Spent" value={formatCurrency(totalSpent)} color="violet" />

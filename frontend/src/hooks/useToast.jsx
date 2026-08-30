@@ -42,7 +42,7 @@ export function ToastProvider({ children }) {
                   {t.title && <p className="font-semibold text-sm">{t.title}</p>}
                   {t.description && <p className="text-sm opacity-80 mt-0.5">{t.description}</p>}
                 </div>
-                <button onClick={() => dismiss(t.id)} className="opacity-60 hover:opacity-100">
+                <button type="button" onClick={() => dismiss(t.id)} className="flex h-11 w-11 items-center justify-center rounded-xl opacity-60 hover:bg-black/5 hover:opacity-100" aria-label="Dismiss notification">
                   <X className="w-4 h-4" />
                 </button>
               </motion.div>

@@ -36,7 +36,7 @@ export default function Earnings() {
       <div className="fixly-page max-w-6xl space-y-5">
         <PageHeader title="Earnings" description="Track your payments and income" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           <StatCard icon={DollarSign} label="Total Recorded" value={formatCurrency(total)} color="emerald" />
           <StatCard icon={CheckCircle} label="Confirmed" value={formatCurrency(confirmed)} color="sky" />
           <StatCard icon={AlertCircle} label="Pending Confirmation" value={formatCurrency(pending)} color="amber" />
@@ -49,16 +49,16 @@ export default function Earnings() {
             <Card>
               <div className="divide-y divide-slate-50">
                 {payments.map(p => (
-                  <div key={p.id} className="flex items-center gap-4 p-5">
+                  <div key={p.id} className="grid gap-3 p-4 sm:flex sm:items-center sm:gap-4 sm:p-5">
                     <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
                       <DollarSign className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-900 truncate">{p.job_title}</p>
-                      <p className="text-xs text-slate-500">{p.customer_name} • {formatDate(p.created_at)} • {p.method}</p>
+                      <p className="line-clamp-2-mobile font-semibold text-slate-900">{p.job_title}</p>
+                      <p className="text-xs leading-5 text-slate-500">{p.customer_name} • {formatDate(p.created_at)} • {p.method}</p>
                       {p.note && <p className="text-xs text-slate-400 italic mt-0.5">"{p.note}"</p>}
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2 sm:block sm:flex-shrink-0 sm:text-right">
                       <p className="font-bold text-emerald-600">{formatCurrency(p.amount)}</p>
                       {p.disputed ? (
                         <span className="text-xs text-red-500 font-medium">Disputed</span>

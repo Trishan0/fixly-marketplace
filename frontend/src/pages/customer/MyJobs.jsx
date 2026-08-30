@@ -52,10 +52,10 @@ export default function MyJobs() {
         />
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 mb-6 w-fit">
+        <div className="fixly-tab-strip -mx-1 mb-6 w-[calc(100%+0.5rem)] sm:mx-0 sm:w-fit" role="tablist" aria-label="Filter jobs">
           {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={cn('px-4 py-2 rounded-xl text-sm font-semibold transition-all', tab === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
+            <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
+              className={cn('fixly-tab flex-1 sm:flex-none', tab === t.key && 'active')}>
               {t.label}
             </button>
           ))}

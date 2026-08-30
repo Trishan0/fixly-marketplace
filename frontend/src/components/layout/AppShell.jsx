@@ -23,6 +23,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
+  Plus,
+  MoreHorizontal,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { cn, getInitials } from "../../lib/utils";
@@ -59,6 +61,89 @@ const adminNav = [
   { href: "/admin/categories", icon: Tag, label: "Categories" },
 ];
 
+const customerMobileNav = [
+  { href: "/customer-dashboard", icon: LayoutDashboard, label: "Home" },
+  { href: "/jobs", icon: Briefcase, label: "Jobs" },
+  { href: "/jobs/new", icon: Plus, label: "Post", featured: true },
+  { href: "/find-workers", icon: Users, label: "Workers" },
+];
+
+const workerMobileNav = [
+  { href: "/worker-dashboard", icon: LayoutDashboard, label: "Home" },
+  { href: "/jobs/feed", icon: Briefcase, label: "Find jobs" },
+  { href: "/invites", icon: MessageSquare, label: "Invites" },
+  { href: "/jobs/assigned", icon: Wrench, label: "My work" },
+];
+
+const adminMobileNav = [
+  { href: "/admin", icon: BarChart3, label: "Overview" },
+  { href: "/admin/users", icon: Users, label: "Users" },
+  { href: "/admin/workers", icon: Shield, label: "Workers" },
+  { href: "/admin/reports", icon: FileText, label: "Reports" },
+];
+
+function routeIsActive(pathname, href) {
+  if (pathname === href) return true;
+  if (pathname === "/jobs/new") return false;
+  if (["/", "/admin", "/worker-dashboard", "/customer-dashboard"].includes(href)) return false;
+  return pathname.startsWith(`${href}/`);
+}
+
+function MobileBottomNav({ items, unread, onMore }) {
+  const location = useLocation();
+
+  return (
+    <nav
+      className="mobile-bottom-nav lg:hidden"
+      aria-label="Primary navigation"
+    >
+      <div className="grid grid-cols-5">
+        {items.map(({ href, icon: Icon, label, featured }) => {
+          const active = routeIsActive(location.pathname, href);
+          return (
+            <Link
+              key={href}
+              to={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold transition-colors",
+                active
+                  ? "text-sky-600 dark:text-sky-300"
+                  : "text-slate-500 dark:text-slate-400",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-7 w-10 items-center justify-center rounded-xl transition-colors",
+                  active && "bg-sky-50 dark:bg-sky-950/60",
+                  featured && "bg-sky-600 text-white shadow-sm dark:bg-sky-500",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+              <span>{label}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onMore}
+          className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400"
+          aria-label="Open more navigation options"
+        >
+          <span className="relative flex h-7 w-10 items-center justify-center rounded-xl">
+            <MoreHorizontal className="h-4 w-4" />
+            {unread > 0 && (
+              <span className="absolute right-1 top-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-950" />
+            )}
+          </span>
+          <span>More</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 function AccountMenu({ unread }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -82,6 +167,7 @@ function AccountMenu({ unread }) {
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
       >
@@ -155,7 +241,7 @@ function AccountMenu({ unread }) {
   );
 }
 
-function SidebarContent({ navItems, onClose, collapsed = false }) {
+function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -194,8 +280,10 @@ function SidebarContent({ navItems, onClose, collapsed = false }) {
         </div>
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
-            className="lg:hidden text-slate-400 hover:text-white p-1"
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Close navigation"
           >
             <X className="w-5 h-5" />
           </button>
@@ -296,9 +384,35 @@ function SidebarContent({ navItems, onClose, collapsed = false }) {
         })}
       </nav>
 
+      {onClose && (
+        <div className="border-t border-white/10 px-3 py-3">
+          {[
+            { href: "/profile", icon: User, label: "Public profile" },
+            { href: "/profile/edit", icon: User, label: "Edit profile" },
+            { href: "/settings", icon: Settings, label: "Settings" },
+            { href: "/notifications", icon: Bell, label: "Notifications", badge: unread },
+          ].map(({ href, icon: Icon, label, badge }) => (
+            <Link
+              key={href}
+              to={href}
+              onClick={onClose}
+              className="flex min-h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <Icon className="h-4 w-4" />
+              <span className="flex-1">{label}</span>
+              {badge > 0 && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{badge > 9 ? '9+' : badge}</span>}
+            </Link>
+          ))}
+          <div className="mt-1 px-2">
+            <ThemeToggleIconButton className="h-11 w-full justify-center rounded-xl border-white/10 bg-white/5 text-slate-300 shadow-none" />
+          </div>
+        </div>
+      )}
+
       {/* Logout */}
       <div className="px-3 pb-6 pt-2 border-t border-white/10">
         <button
+          type="button"
           onClick={handleLogout}
           title={collapsed ? "Sign Out" : undefined}
           className={cn(
@@ -327,6 +441,7 @@ export function AppShell({ children }) {
     }
   });
   const location = useLocation();
+  const mainRef = useRef(null);
 
   const { data: notifData } = useQuery({
     queryKey: ["notifications"],
@@ -344,6 +459,19 @@ export function AppShell({ children }) {
     }
   }, [desktopCollapsed]);
 
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileOpen]);
+
   let baseNav = customerNav;
   if (user?.role === "worker") {
     baseNav =
@@ -354,6 +482,9 @@ export function AppShell({ children }) {
 
   // Inject unread badge on notifications link
   const navItems = baseNav;
+  let mobileNavItems = customerMobileNav;
+  if (user?.role === "worker") mobileNavItems = workerMobileNav;
+  if (user?.role === "admin") mobileNavItems = adminMobileNav;
 
   const currentSection = useMemo(() => {
     if (
@@ -384,7 +515,7 @@ export function AppShell({ children }) {
   }, [location.pathname, navItems, user?.id]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_18%),linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
+    <div className="flex h-[100dvh] overflow-hidden bg-slate-50 dark:bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_18%),linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
       {/* Desktop sidebar */}
       <aside
         className={cn(
@@ -405,17 +536,22 @@ export function AppShell({ children }) {
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 z-40 lg:hidden"
               onClick={() => setMobileOpen(false)}
+              aria-hidden="true"
             />
             <motion.aside
               initial={{ x: -270 }}
               animate={{ x: 0 }}
               exit={{ x: -270 }}
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
-              className="fixed left-0 top-0 bottom-0 z-50 lg:hidden flex flex-col shadow-2xl"
+              className="fixed bottom-0 left-0 top-0 z-50 flex flex-col shadow-2xl lg:hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
             >
               <SidebarContent
                 navItems={navItems}
                 onClose={() => setMobileOpen(false)}
+                unread={unread}
               />
             </motion.aside>
           </>
@@ -427,6 +563,7 @@ export function AppShell({ children }) {
         <header className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/75">
           <div className="flex items-center gap-4">
             <button
+              type="button"
               onClick={() => setDesktopCollapsed((v) => !v)}
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
               aria-label={
@@ -456,31 +593,41 @@ export function AppShell({ children }) {
         </header>
 
         {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 flex-shrink-0 dark:bg-slate-950/85 dark:border-slate-800 backdrop-blur-xl">
+        <header className="flex min-h-16 flex-shrink-0 items-center gap-3 border-b border-slate-100 bg-white/95 px-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 lg:hidden">
           <button
+            type="button"
             onClick={() => setMobileOpen(true)}
-            className="p-2 rounded-xl hover:bg-slate-100 transition-colors dark:hover:bg-slate-800"
+            className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-label="Open navigation"
           >
             <Menu className="w-5 h-5 text-slate-700 dark:text-slate-200" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-sky-500 rounded-lg flex items-center justify-center">
               <Wrench className="w-3 h-3 text-white" />
             </div>
-            <span
-              className="font-bold text-slate-900 dark:text-white"
-              style={{ fontFamily: "Syne, sans-serif" }}
-            >
-              Fixly
-            </span>
+              <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                {currentSection}
+              </span>
+            </div>
           </div>
-          <div className="ml-auto">
-            <ThemeToggleIconButton />
-          </div>
+          <Link
+            to="/notifications"
+            className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label={unread ? `${unread} unread notifications` : "Notifications"}
+          >
+            <Bell className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+          </Link>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 8 }}
@@ -491,6 +638,11 @@ export function AppShell({ children }) {
             {children}
           </motion.div>
         </main>
+        <MobileBottomNav
+          items={mobileNavItems}
+          unread={unread}
+          onMore={() => setMobileOpen(true)}
+        />
       </div>
     </div>
   );

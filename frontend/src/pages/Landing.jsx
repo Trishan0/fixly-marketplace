@@ -1,9 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Wrench, ChevronRight, Droplets, Zap, Hammer, Sparkles, ShieldCheck,
-  Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search
+  Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search, Menu, X
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
@@ -182,28 +182,57 @@ function HeroVisual({ user }) {
 
 export default function Landing() {
   const { user } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
   const navActions = getNavActions(user)
   const hero = getHeroContent(user)
 
   return (
-    <div className="fixly-page-shell min-h-screen">
-      <nav className="fixly-topbar border-b px-6 py-5 md:px-12">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600">
+    <div className="fixly-page-shell min-h-[100dvh]">
+      <nav className="fixly-topbar sticky top-0 z-30 border-b px-4 py-3 sm:px-6 md:px-12">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+          <Link to="/" className="flex min-h-11 items-center gap-3" aria-label="Fixly home">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-600">
               <Wrench className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900">Fixly</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggleIconButton />
+            <span className="text-xl font-black text-slate-900">Fixly</span>
+          </Link>
+          <div className="hidden items-center gap-3 sm:flex">
+            <ThemeToggleIconButton className="h-11 w-11" />
             {navActions.map(action => (
               <Link key={action.label} to={action.to} className={actionClass(action.variant)}>
                 {action.label}
               </Link>
             ))}
           </div>
+          <div className="flex items-center gap-1 sm:hidden">
+            <ThemeToggleIconButton className="h-11 w-11 rounded-xl" />
+            <button
+              type="button"
+              onClick={() => setMenuOpen((current) => !current)}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
+        {menuOpen && (
+          <div className="mx-auto grid max-w-6xl gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:hidden">
+            {navActions.map((action) => (
+              <Link
+                key={action.label}
+                to={action.to}
+                onClick={() => setMenuOpen(false)}
+                className={action.variant === 'primary'
+                  ? 'fixly-btn-primary w-full text-sm'
+                  : 'flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'}
+              >
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </nav>
 
       <section className="relative overflow-hidden">
@@ -212,32 +241,32 @@ export default function Landing() {
           <div className="absolute right-[-3rem] top-24 h-80 w-80 rounded-full bg-cyan-100 blur-3xl dark:bg-cyan-900/40" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-6 py-16 md:px-12 md:py-20">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:px-12 md:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
             <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:px-4">
                 <ShieldCheck className="h-3.5 w-3.5 text-sky-500" />
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">{hero.eyebrow}</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300 sm:text-xs sm:tracking-[0.18em]">{hero.eyebrow}</span>
               </div>
 
-              <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-slate-950 md:text-6xl">
+              <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-5xl md:text-6xl">
                 {hero.title}
               </h1>
-              <p className="mt-4 max-w-2xl text-2xl font-semibold leading-tight text-sky-600 dark:text-sky-300 md:text-3xl">
+              <p className="mt-4 max-w-2xl text-xl font-bold leading-snug text-sky-600 dark:text-sky-300 sm:text-2xl md:text-3xl">
                 {hero.accent}
               </p>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
                 {hero.description}
               </p>
 
-              <div className="mt-10 flex flex-col gap-3 pb-6 sm:flex-row sm:flex-wrap">
-                <Link to={hero.primary.to} className="fixly-btn-primary rounded-2xl px-8 py-3.5 text-base">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link to={hero.primary.to} className="fixly-btn-primary w-full rounded-2xl px-8 py-3.5 text-base sm:w-auto">
                   {hero.primary.label}
                 </Link>
-                <Link to={hero.secondary.to} className="fixly-btn-secondary rounded-2xl px-8 py-3.5 text-base">
+                <Link to={hero.secondary.to} className="fixly-btn-secondary w-full rounded-2xl px-8 py-3.5 text-base sm:w-auto">
                   {hero.secondary.label}
                 </Link>
-                <Link to={hero.tertiary.to} className="inline-flex items-center gap-1 px-2 py-3 text-base font-semibold text-sky-700 transition hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200">
+                <Link to={hero.tertiary.to} className="inline-flex min-h-12 items-center justify-center gap-1 px-2 py-3 text-base font-semibold text-sky-700 transition hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200 sm:justify-start">
                   {hero.tertiary.label} <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
@@ -246,29 +275,29 @@ export default function Landing() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.45 }}
-                className="mt-8 flex flex-wrap gap-8 border-t border-slate-200 pt-8 dark:border-slate-800"
+                className="mt-8 grid grid-cols-3 gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex sm:flex-wrap sm:gap-8 sm:pt-8"
               >
                 {[['500+', 'Verified Workers'], ['25', 'Districts Covered'], ['4.8', 'Average Rating']].map(([v, l]) => (
                   <div key={l}>
-                    <p className="text-2xl font-bold text-slate-950">{v}</p>
-                    <p className="text-sm text-slate-500">{l}</p>
+                    <p className="text-xl font-black text-slate-950 sm:text-2xl">{v}</p>
+                    <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-sm">{l}</p>
                   </div>
                 ))}
               </motion.div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.55, delay: 0.1 }}>
+            <motion.div className="hidden sm:block" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.55, delay: 0.1 }}>
               <HeroVisual user={user} />
             </motion.div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-20 md:px-12">
-        <h2 className="mb-8 text-2xl font-bold text-slate-900">Popular Services</h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:px-12 md:py-20">
+        <h2 className="mb-6 text-2xl font-bold text-slate-900 sm:mb-8">Popular Services</h2>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           {categories.map(({ icon: Icon, name, color }) => (
-            <Link key={name} to={`/workers?category=${name}`} className="fixly-card group flex flex-col items-center gap-3 p-6 transition-shadow hover:shadow-md">
+            <Link key={name} to={`/workers?category=${name}`} className="fixly-card group flex min-h-32 flex-col items-center justify-center gap-3 p-4 transition-shadow hover:shadow-md sm:p-6">
               <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}>
                 <Icon className="h-6 w-6" />
               </div>
@@ -278,13 +307,13 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="bg-slate-50 py-20 dark:bg-slate-950/40">
-        <div className="mx-auto max-w-6xl px-6 md:px-12">
+      <section className="bg-slate-50 py-14 dark:bg-slate-950/40 md:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 md:px-12">
           <h2 className="mb-2 text-2xl font-bold text-slate-900">How Fixly Works</h2>
           <p className="mb-10 text-slate-500">Simple, transparent, and built for Sri Lanka</p>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {features.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="fixly-card p-6">
+              <div key={title} className="fixly-card p-5 sm:p-6">
                 <div className="mb-4 inline-flex rounded-2xl bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
                   <Icon className="h-5 w-5" />
                 </div>
@@ -297,15 +326,15 @@ export default function Landing() {
       </section>
 
       {!user && (
-        <section className="bg-sky-600 py-20 text-center text-white dark:bg-sky-700">
-          <div className="mx-auto max-w-2xl px-6">
+        <section className="bg-sky-600 py-14 text-center text-white dark:bg-sky-700 md:py-20">
+          <div className="mx-auto max-w-2xl px-4 sm:px-6">
             <h2 className="mb-4 text-3xl font-bold">Ready to get started?</h2>
             <p className="mb-8 text-sky-100">Join thousands of homeowners and skilled workers across Sri Lanka.</p>
-            <div className="flex justify-center gap-3">
-              <Link to="/auth?tab=register" className="rounded-2xl bg-white px-8 py-3 font-bold text-sky-600 transition-all hover:bg-sky-50 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900">
+            <div className="flex flex-col justify-center gap-3 sm:flex-row">
+              <Link to="/auth?tab=register" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-8 py-3 font-bold text-sky-600 transition-all hover:bg-sky-50 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900">
                 Create Account
               </Link>
-              <Link to="/workers" className="rounded-2xl bg-sky-700 px-8 py-3 font-bold text-white transition-all hover:bg-sky-800 dark:bg-sky-800 dark:hover:bg-sky-900">
+              <Link to="/workers" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-700 px-8 py-3 font-bold text-white transition-all hover:bg-sky-800 dark:bg-sky-800 dark:hover:bg-sky-900">
                 Browse Workers
               </Link>
             </div>
@@ -315,14 +344,14 @@ export default function Landing() {
 
       <footer className="border-t border-slate-200 bg-slate-950 py-10 text-slate-400 dark:border-slate-800">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 md:flex-row md:px-12">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:justify-start sm:text-left">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500">
               <Wrench className="h-3 w-3 text-white" />
             </div>
             <span className="text-sm font-bold text-white">Fixly</span>
             <span className="text-xs">Sri Lanka&apos;s Local Service Marketplace</span>
           </div>
-          <p className="text-xs">© 2024 Fixly. All rights reserved.</p>
+          <p className="text-xs">© {new Date().getFullYear()} Fixly. All rights reserved.</p>
         </div>
       </footer>
     </div>

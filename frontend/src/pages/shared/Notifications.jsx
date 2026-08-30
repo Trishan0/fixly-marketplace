@@ -63,23 +63,26 @@ export default function Notifications() {
           <Card>
             <div className="divide-y divide-slate-50">
               {notifications.map(n => (
-                <div
+                <button
+                  type="button"
                   key={n.id}
-                  className={cn('flex items-start gap-4 p-4 transition-colors cursor-pointer hover:bg-slate-50', !n.is_read && 'bg-sky-50/50')}
+                  className={cn('flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-slate-50 sm:gap-4', !n.is_read && 'bg-sky-50/50')}
                   onClick={() => !n.is_read && markRead.mutate(n.id)}
+                  aria-label={n.is_read ? `${n.title}, read` : `${n.title}, mark as read`}
                 >
                   <div className="w-10 h-10 bg-white rounded-2xl border border-slate-100 flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
                     {NOTIF_ICONS[n.type] || '🔔'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={cn('text-sm', n.is_read ? 'text-slate-700' : 'font-semibold text-slate-900')}>{n.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{n.body}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-slate-500">{n.body}</p>
+                    <span className="mt-2 block text-xs text-slate-400 sm:hidden">{formatRelativeTime(n.created_at)}</span>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
                     <span className="text-xs text-slate-400">{formatRelativeTime(n.created_at)}</span>
                     {!n.is_read && <div className="w-2 h-2 bg-sky-500 rounded-full" />}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </Card>

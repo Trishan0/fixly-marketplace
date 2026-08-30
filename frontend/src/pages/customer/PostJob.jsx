@@ -44,14 +44,7 @@ const PRICING_MODES = [
   },
 ];
 
-const STEPS = [
-  "Basics",
-  "Description",
-  "Photos",
-  "Location",
-  "Pricing",
-  "Review",
-];
+const STEPS = ["Job details", "Location & photos", "Budget & review"];
 
 export default function PostJob() {
   const navigate = useNavigate();
@@ -115,8 +108,7 @@ export default function PostJob() {
   };
 
   const stepContent = [
-    // Step 0: Basics
-    <div key="basics" className="space-y-4">
+    <div key="details" className="space-y-5">
       <Input
         label="Job Title *"
         placeholder="e.g. Fix leaking kitchen pipe"
@@ -139,20 +131,21 @@ export default function PostJob() {
           ))}
       </Select>
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">
+        <p className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
           Urgency
-        </label>
+        </p>
         <div className="grid grid-cols-2 gap-2">
           {URGENCIES.map((u) => (
             <button
               key={u.value}
               type="button"
               onClick={() => setForm((f) => ({ ...f, urgency: u.value }))}
+              aria-pressed={form.urgency === u.value}
               className={cn(
-                "p-3 rounded-xl border text-left transition-all",
+                "min-h-20 rounded-xl border p-3 text-left transition-all",
                 form.urgency === u.value
-                  ? "border-sky-500 bg-sky-50"
-                  : "border-slate-200 hover:border-sky-200",
+                  ? "border-sky-500 bg-sky-50 dark:bg-sky-950/40"
+                  : "border-slate-200 hover:border-sky-200 dark:border-slate-700",
               )}
             >
               <p className="text-sm font-semibold">{u.label}</p>
@@ -161,16 +154,12 @@ export default function PostJob() {
           ))}
         </div>
       </div>
-    </div>,
-
-    // Step 1: Description
-    <div key="description" className="space-y-4">
       <Textarea
         label="Describe the problem *"
         placeholder="Explain what needs to be done in detail..."
         value={form.description}
         onChange={set("description")}
-        rows={6}
+        rows={5}
         required
       />
       <p className="text-xs text-slate-400">
@@ -179,48 +168,7 @@ export default function PostJob() {
       </p>
     </div>,
 
-    // Step 2: Photos
-    <div key="photos" className="space-y-4">
-      <p className="text-sm text-slate-500">
-        Upload up to 6 photos of the job (optional but recommended)
-      </p>
-      <div className="grid grid-cols-3 gap-3">
-        {photos.map((p, i) => (
-          <div
-            key={i}
-            className="relative aspect-square rounded-xl overflow-hidden"
-          >
-            <img
-              src={p.preview}
-              className="w-full h-full object-cover"
-              alt=""
-            />
-            <button
-              onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
-              className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        ))}
-        {photos.length < 6 && (
-          <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-400 flex flex-col items-center justify-center cursor-pointer transition-all">
-            <Upload className="w-5 h-5 text-slate-400 mb-1" />
-            <span className="text-xs text-slate-400">Add photo</span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePhotos}
-              className="hidden"
-            />
-          </label>
-        )}
-      </div>
-    </div>,
-
-    // Step 3: Location
-    <div key="location" className="space-y-4">
+    <div key="location" className="space-y-5">
       <Select
         label="District *"
         value={form.district}
@@ -245,27 +193,56 @@ export default function PostJob() {
         value={form.address}
         onChange={set("address")}
       />
+      <div>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Job photos</p>
+            <p className="mt-1 text-xs text-slate-400">Optional, but photos help workers quote accurately.</p>
+          </div>
+          <span className="shrink-0 text-xs font-semibold text-slate-400">{photos.length}/6</span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {photos.map((photo, index) => (
+            <div key={photo.preview} className="relative aspect-square overflow-hidden rounded-xl">
+              <img src={photo.preview} className="h-full w-full object-cover" alt={`Job preview ${index + 1}`} />
+              <button type="button" onClick={() => setPhotos(photos.filter((_, photoIndex) => photoIndex !== index))} className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white" aria-label={`Remove photo ${index + 1}`}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {photos.length < 6 && (
+            <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 transition-all hover:border-sky-400 dark:border-slate-700">
+              <Upload className="mb-1 h-5 w-5 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500">Add photo</span>
+              <input type="file" accept="image/*" multiple onChange={handlePhotos} className="hidden" />
+            </label>
+          )}
+        </div>
+      </div>
     </div>,
 
-    // Step 4: Pricing
-    <div key="pricing" className="space-y-4">
+    <div key="budget" className="space-y-5">
+      <div>
+        <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">How should workers price this job?</p>
       <div className="space-y-2">
         {PRICING_MODES.map((m) => (
           <button
             key={m.value}
             type="button"
             onClick={() => setForm((f) => ({ ...f, pricing_mode: m.value }))}
+            aria-pressed={form.pricing_mode === m.value}
             className={cn(
-              "w-full p-4 rounded-xl border text-left transition-all",
+              "min-h-16 w-full rounded-xl border p-4 text-left transition-all",
               form.pricing_mode === m.value
-                ? "border-sky-500 bg-sky-50"
-                : "border-slate-200 hover:border-sky-200",
+                ? "border-sky-500 bg-sky-50 dark:bg-sky-950/40"
+                : "border-slate-200 hover:border-sky-200 dark:border-slate-700",
             )}
           >
             <p className="font-semibold text-sm">{m.label}</p>
             <p className="text-xs text-slate-500">{m.desc}</p>
           </button>
-        ))}
+          ))}
+        </div>
       </div>
       {form.pricing_mode === "fixed" && (
         <Input
@@ -276,11 +253,9 @@ export default function PostJob() {
           onChange={set("fixed_budget")}
         />
       )}
-    </div>,
-
-    // Step 5: Review
-    <div key="review" className="space-y-4">
-      <div className="bg-slate-50 rounded-2xl p-4 space-y-3 text-sm">
+      <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
+        <h2 className="mb-3 text-base font-bold text-slate-900">Review your job</h2>
+      <div className="space-y-3 rounded-2xl bg-slate-50 p-4 text-sm dark:bg-slate-900/70">
         <ReviewRow label="Title" value={form.title} />
         <ReviewRow
           label="Category"
@@ -314,34 +289,34 @@ export default function PostJob() {
       <p className="text-xs text-slate-400">
         By posting, this job will be visible to all workers in the platform.
       </p>
+      </div>
     </div>,
   ];
 
   const canNext = () => {
-    if (step === 0) return form.title && form.category_id;
-    if (step === 1) return form.description;
-    if (step === 3) return form.district;
+    if (step === 0) return form.title && form.category_id && form.description;
+    if (step === 1) return form.district;
     return true;
   };
 
   return (
     <AppShell>
       <div className="fixly-page max-w-3xl">
-        <div className="mb-8">
+        <div className="mb-5 sm:mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4"
+            className="mb-3 flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700 sm:mb-4"
           >
             <ChevronLeft className="w-4 h-4" /> Back
           </button>
-          <h1 className="text-2xl font-bold text-slate-900">Post a Job</h1>
+          <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Post a job</h1>
           <p className="text-slate-500 text-sm">
             Step {step + 1} of {STEPS.length} - {STEPS[step]}
           </p>
         </div>
 
         {/* Progress */}
-        <div className="flex items-center gap-1 mb-8">
+        <div className="mb-5 flex items-center gap-2 sm:mb-8">
           {STEPS.map((s, i) => (
             <div
               key={s}
@@ -353,7 +328,7 @@ export default function PostJob() {
           ))}
         </div>
 
-        <Card className="p-6 mb-6">
+        <Card className="mb-6 p-4 sm:p-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -367,7 +342,7 @@ export default function PostJob() {
           </AnimatePresence>
         </Card>
 
-        <div className="flex gap-3">
+        <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex gap-3 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none lg:bottom-0">
           {step > 0 && (
             <Button
               variant="secondary"
@@ -404,9 +379,9 @@ export default function PostJob() {
 
 function ReviewRow({ label, value }) {
   return (
-    <div className="flex justify-between">
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4">
       <span className="text-slate-500">{label}</span>
-      <span className="font-medium text-slate-800">{value || "-"}</span>
+      <span className="break-words text-right font-medium text-slate-800 dark:text-slate-200">{value || "-"}</span>
     </div>
   );
 }

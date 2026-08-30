@@ -9,6 +9,7 @@ export function ThemeToggleIconButton({ className }) {
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
       className={cn('flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white', className)}
       aria-label="Toggle theme"
@@ -32,15 +33,16 @@ export function ThemeModeSelector() {
       {options.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
+          type="button"
           onClick={() => setThemeMode(value)}
           className={cn(
-            'rounded-2xl border px-4 py-3 text-left transition-all',
+            'min-h-16 rounded-2xl border px-2 py-3 text-center transition-all sm:px-4 sm:text-left',
             themeMode === value
               ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500 dark:bg-sky-950/40 dark:text-sky-300'
               : 'border-slate-200 text-slate-600 hover:border-sky-200 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
           )}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
             <Icon className="h-4 w-4" />
             <span className="text-sm font-semibold">{label}</span>
           </div>

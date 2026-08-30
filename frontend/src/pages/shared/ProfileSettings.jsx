@@ -67,29 +67,26 @@ export function ProfilePage() {
   return (
     <AppShell>
       <div className="fixly-page max-w-4xl space-y-5">
-        <PageHeader title="Edit Profile" description="Update the information shown on your public profile" />
-        <div className="flex justify-end">
-          <Link to="/profile">
-            <Button variant="outline">View Public Profile</Button>
-          </Link>
-        </div>
+        <PageHeader
+          title="Edit Profile"
+          description="Update the information shown on your public profile"
+          action={<Link to="/profile"><Button variant="outline">View Public Profile</Button></Link>}
+        />
 
         {/* Photo */}
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <h3 className="font-semibold text-slate-800 mb-4">Profile Photo</h3>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Avatar name={user?.full_name} src={user?.profile_photo} size="xl" />
-            <label className="cursor-pointer">
-              <Button variant="outline" as="span">
-                <Camera className="w-4 h-4" /> Change Photo
-              </Button>
+            <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
+              <Camera className="w-4 h-4" /> Change Photo
               <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadPhoto.mutate(e.target.files[0])} />
             </label>
           </div>
         </Card>
 
         {/* Basic info */}
-        <Card className="p-6 space-y-4">
+        <Card className="space-y-4 p-4 sm:p-6">
           <h3 className="font-semibold text-slate-800">Basic Information</h3>
           <Input label="Full Name" value={form.full_name} onChange={set('full_name')} />
           <Input label="Phone" type="tel" value={form.phone} onChange={set('phone')} placeholder="077 123 4567" />
@@ -102,7 +99,7 @@ export function ProfilePage() {
 
         {/* Worker-specific */}
         {user?.role === 'worker' && (
-          <Card className="p-6 space-y-4">
+          <Card className="space-y-4 p-4 sm:p-6">
             <h3 className="font-semibold text-slate-800">Worker Details</h3>
             <Select label="Primary Skill" value={form.primary_skill} onChange={set('primary_skill')}>
               <option value="">Select skill</option>
@@ -114,7 +111,7 @@ export function ProfilePage() {
         )}
 
         {/* NIC Verification */}
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <h3 className="font-semibold text-slate-800 mb-2">Identity Verification</h3>
           <p className="text-sm text-slate-500 mb-4">Upload your NIC to get a verified badge on your profile</p>
           <div className="flex items-center gap-3">
@@ -123,10 +120,8 @@ export function ProfilePage() {
             ) : user?.nic_image_path ? (
               <span className="text-amber-600 font-semibold text-sm">⏳ Under review</span>
             ) : (
-              <label className="cursor-pointer">
-                <Button variant="outline" as="span">
-                  <Upload className="w-4 h-4" /> Upload NIC
-                </Button>
+              <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
+                <Upload className="w-4 h-4" /> Upload NIC
                 <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadNic.mutate(e.target.files[0])} />
               </label>
             )}
@@ -135,15 +130,15 @@ export function ProfilePage() {
 
         {/* Portfolio (workers only) */}
         {user?.role === 'worker' && (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h3 className="font-semibold text-slate-800 mb-4">Portfolio Photos (max 10)</h3>
             <div className="grid grid-cols-3 gap-3 mb-4">
               {(user?.portfolio_photos || []).map(p => (
                 <div key={p.id} className="relative aspect-square">
                   <img src={p.path} alt="" className="w-full h-full object-cover rounded-xl" />
-                  <button onClick={() => deletePortfolio.mutate(p.id)}
-                    className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 hover:bg-red-500">
-                    <Trash2 className="w-3 h-3" />
+                  <button type="button" onClick={() => deletePortfolio.mutate(p.id)} aria-label="Remove portfolio photo"
+                    className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -180,13 +175,13 @@ export function SettingsPage() {
       <div className="fixly-page max-w-4xl space-y-5">
         <PageHeader title="Settings" />
 
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <h3 className="font-semibold text-slate-800 mb-1">Account</h3>
           <p className="text-sm text-slate-500 mb-4">Your account details</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between py-2 border-b border-slate-50">
+            <div className="grid gap-1 border-b border-slate-50 py-2 sm:grid-cols-[auto_1fr] sm:gap-4">
               <span className="text-slate-500">Email</span>
-              <span className="font-medium">{user?.email}</span>
+              <span className="break-all font-medium sm:text-right">{user?.email}</span>
             </div>
             <div className="flex justify-between py-2 border-b border-slate-50">
               <span className="text-slate-500">Role</span>
@@ -201,20 +196,20 @@ export function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <h3 className="font-semibold text-slate-800 mb-1">Appearance</h3>
           <p className="text-sm text-slate-500 mb-4">Choose how Fixly should look on this device</p>
           <ThemeModeSelector />
         </Card>
 
         {user?.role === 'worker' && (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h3 className="font-semibold text-slate-800 mb-1">Dashboard Mode</h3>
             <p className="text-sm text-slate-500 mb-4">Choose your preferred dashboard experience</p>
             <div className="grid grid-cols-2 gap-3">
               {[['standard', '🖥️ Standard', 'Full-featured dashboard with all details'], ['simplified', '📱 Simplified', 'Large buttons, fewer options, easier to use']].map(([v, l, d]) => (
-                <button key={v} onClick={() => setMode.mutate(v)}
-                  className={cn('p-4 rounded-2xl border text-left transition-all', user?.dashboard_mode === v ? 'border-sky-500 bg-sky-50' : 'border-slate-200 hover:border-sky-200')}>
+                <button key={v} type="button" onClick={() => setMode.mutate(v)} aria-pressed={user?.dashboard_mode === v}
+                  className={cn('min-h-28 rounded-2xl border p-3 text-left transition-all sm:p-4', user?.dashboard_mode === v ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'border-slate-200 hover:border-sky-200 dark:border-slate-700')}>
                   <p className="font-semibold text-sm">{l}</p>
                   <p className="text-xs text-slate-500 mt-1">{d}</p>
                 </button>

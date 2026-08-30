@@ -64,7 +64,7 @@ export default function CustomerProfile() {
         <>
           <PublicPageChrome crumbLabel="Customers" currentLabel={customer.full_name} />
           <div className="fixly-page max-w-7xl">
-            <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
+            <button type="button" onClick={() => navigate(-1)} className="mb-4 flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
             <CustomerProfileBody customer={customer} recentJobs={recentJobs} completionRate={completionRate} />
@@ -94,7 +94,7 @@ function CustomerProfileBody({ customer, recentJobs, completionRate }) {
         header={(
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{customer.full_name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-4xl">{customer.full_name}</h1>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">Customer</span>
             </div>
             <div className="mt-3 flex flex-wrap gap-6 text-sm text-slate-600">
@@ -206,12 +206,6 @@ function CustomerProfileBody({ customer, recentJobs, completionRate }) {
         </ProfileSectionCard>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-4">
-        <ProfileStatPanel label="Jobs Posted" value={customer.jobs_posted || 0} hint="Public activity footprint" accent="sky" />
-        <ProfileStatPanel label="Active Jobs" value={customer.active_jobs || 0} hint="Current live jobs on platform" accent="amber" />
-        <ProfileStatPanel label="Completed Jobs" value={customer.jobs_completed || 0} hint="Signals follow-through" accent="emerald" />
-        <ProfileStatPanel label="Reviews Given" value={customer.reviews_given || 0} hint="Worker-facing accountability" accent="violet" />
-      </div>
     </>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bot, Zap, CheckCircle2, XCircle, ChevronDown, ChevronUp,
@@ -154,16 +154,18 @@ function WorkerRecCard({ rec, selected, onToggle }) {
       {/* Footer actions */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700">
         <button
+          type="button"
           onClick={() => setExpanded(e => !e)}
-          className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center gap-1 transition-colors"
+          className="flex min-h-11 items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 dark:hover:text-slate-300"
         >
           {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           {expanded ? 'Less detail' : 'Score breakdown'}
         </button>
         <button
+          type="button"
           onClick={() => onToggle(w.id)}
           className={cn(
-            'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-150',
+            'flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150',
             selected
               ? 'bg-sky-500 text-white hover:bg-sky-600'
               : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-sky-400 hover:text-sky-600'
@@ -233,7 +235,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
           <div className="mt-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 p-3">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Proposal Message</span>
-              <button onClick={() => setEditingMessage(e => !e)} className="text-xs text-violet-600 hover:underline">
+              <button type="button" onClick={() => setEditingMessage(e => !e)} className="min-h-11 px-2 text-xs font-semibold text-violet-600 hover:underline">
                 {editingMessage ? 'Done' : 'Edit'}
               </button>
             </div>
@@ -267,16 +269,18 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700">
         <button
+          type="button"
           onClick={() => setExpanded(e => !e)}
-          className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center gap-1 transition-colors"
+          className="flex min-h-11 items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 dark:hover:text-slate-300"
         >
           {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           {expanded ? 'Less detail' : 'See breakdown'}
         </button>
         <button
+          type="button"
           onClick={() => onToggle(j.id)}
           className={cn(
-            'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all duration-150',
+            'flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150',
             selected
               ? 'bg-violet-500 text-white hover:bg-violet-600'
               : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-violet-400 hover:text-violet-600'
@@ -336,6 +340,14 @@ export default function AgentPanel({ mode, jobId, onClose }) {
 
   const isMatch = mode === 'match'
 
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') onClose?.()
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
   // ── Run agent ──────────────────────────────────────────────────────────────
   const runMutation = useMutation({
     mutationFn: () =>
@@ -384,10 +396,10 @@ export default function AgentPanel({ mode, jobId, onClose }) {
   }
 
   return (
-    <div className="flex flex-col h-full max-h-[90vh]">
+    <div className="flex h-full max-h-full flex-col">
       {/* ── Header ── */}
       <div className={cn(
-        'flex items-center gap-3 px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0',
+        'flex flex-shrink-0 items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-5 sm:py-4',
         isMatch ? 'bg-sky-50/80 dark:bg-sky-950/20' : 'bg-violet-50/80 dark:bg-violet-950/20'
       )}>
         <div className={cn(
@@ -405,15 +417,17 @@ export default function AgentPanel({ mode, jobId, onClose }) {
           </p>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400"
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+          aria-label="Close agent panel"
         >
           <XCircle className="w-5 h-5" />
         </button>
       </div>
 
       {/* ── Body ── */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
 
         {/* Success state */}
         {confirmDone && (
@@ -472,8 +486,9 @@ export default function AgentPanel({ mode, jobId, onClose }) {
             {/* Plan trace toggle */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
               <button
+                type="button"
                 onClick={() => setShowPlan(p => !p)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/60 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors"
+                className="flex min-h-11 w-full items-center justify-between bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:bg-slate-700/60"
               >
                 <span className="flex items-center gap-2"><Bot className="w-4 h-4 text-slate-400" />Agent Execution Plan</span>
                 {showPlan ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -544,7 +559,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
       {/* ── Footer — Confirm bar ── */}
       {runData && !confirmDone && selectedIds.size > 0 && (
         <div className={cn(
-          'flex items-center justify-between px-5 py-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0',
+          'grid flex-shrink-0 gap-3 border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:flex sm:items-center sm:justify-between sm:px-5 sm:py-4',
           isMatch ? 'bg-sky-50/80 dark:bg-sky-950/20' : 'bg-violet-50/80 dark:bg-violet-950/20'
         )}>
           <div>
@@ -555,7 +570,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
               {isMatch ? 'Confirm to send invites' : 'Confirm to submit proposals'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
               Deselect all
             </Button>
