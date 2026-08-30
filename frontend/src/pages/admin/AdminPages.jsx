@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -32,6 +32,37 @@ import {
 import { useToast } from "../../hooks/useToast";
 import { formatDate, cn } from "../../lib/utils";
 import api from "../../lib/api";
+
+function PrivateNicImage({ src, alt = "NIC" }) {
+  const isPrivate = src?.includes('.private.blob.vercel-storage.com');
+  const [loadedImage, setLoadedImage] = useState({ src: '', url: '' });
+
+  useEffect(() => {
+    if (!isPrivate) return undefined;
+
+    let active = true;
+    let objectUrl;
+    api.get('/uploads/private', { params: { url: src }, responseType: 'blob' })
+      .then(response => {
+        objectUrl = URL.createObjectURL(response.data);
+        if (active) setLoadedImage({ src, url: objectUrl });
+      })
+      .catch(() => { if (active) setLoadedImage({ src, url: '' }); });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [isPrivate, src]);
+
+  const imageUrl = isPrivate
+    ? (loadedImage.src === src ? loadedImage.url : '')
+    : src;
+
+  if (!imageUrl) {
+    return <div className="mb-3 flex h-32 w-full items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400 dark:bg-slate-800">Loading private document…</div>;
+  }
+  return <img src={imageUrl} alt={alt} className="mb-3 h-32 w-full rounded-xl object-cover" />;
+}
 
 // Admin Dashboard
 export function AdminDashboard() {
@@ -696,11 +727,7 @@ export function AdminWorkers() {
                     </div>
                   </div>
                   {w.nic_image_path && (
-                    <img
-                      src={w.nic_image_path}
-                      alt="NIC"
-                      className="w-full h-32 object-cover rounded-xl mb-3"
-                    />
+                    <PrivateNicImage src={w.nic_image_path} />
                   )}
                   <div className="flex gap-2">
                     <Button

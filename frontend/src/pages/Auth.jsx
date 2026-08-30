@@ -20,11 +20,14 @@ import { DISTRICTS, cn } from '../lib/utils'
 import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
+const ENABLE_DEMO_ACCOUNTS = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true'
+const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || 'password123'
+const DEMO_ADMIN_PASSWORD = import.meta.env.VITE_DEMO_ADMIN_PASSWORD || 'admin123'
 
 const DEMO_ACCOUNTS = [
-  { label: 'Customer', email: 'customer@demo.lk', password: 'password123' },
-  { label: 'Worker', email: 'worker@demo.lk', password: 'password123' },
-  { label: 'Admin', email: 'admin@fixly.lk', password: 'admin123' },
+  { label: 'Customer', email: 'customer@demo.lk', password: DEMO_PASSWORD },
+  { label: 'Worker', email: 'worker@demo.lk', password: DEMO_PASSWORD },
+  { label: 'Admin', email: 'admin@fixly.lk', password: DEMO_ADMIN_PASSWORD },
 ]
 
 function PasswordField({ value, onChange, show, onToggle, register = false, error }) {
@@ -272,7 +275,7 @@ export default function Auth() {
                   Sign in <ArrowRight className="h-4 w-4" />
                 </Button>
 
-                <details className="group rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+                {ENABLE_DEMO_ACCOUNTS && <details className="group rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-600 dark:text-slate-300">
                     Use a demo account
                     <span className="text-xs font-medium text-slate-400 group-open:hidden">Show</span>
@@ -285,7 +288,7 @@ export default function Auth() {
                       </button>
                     ))}
                   </div>
-                </details>
+                </details>}
               </form>
             ) : (
               <form onSubmit={handleRegister} className="space-y-5">

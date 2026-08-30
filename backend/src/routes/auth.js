@@ -137,7 +137,7 @@ router.post('/register', authWriteLimiter, async (req, res) => {
 
     await client.query('COMMIT');
 
-    sendVerificationEmail(email, rawVerifyToken);
+    await sendVerificationEmail(email, rawVerifyToken);
 
     const token = signToken(user);
     res.status(201).json({ token, user });
@@ -239,7 +239,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       [hashToken(rawToken), expiresInHours(1), email]
     );
 
-    sendPasswordResetEmail(email, rawToken);
+    await sendPasswordResetEmail(email, rawToken);
     res.json({ message: 'If account exists, reset email sent' });
   } catch (err) {
     console.error(err);

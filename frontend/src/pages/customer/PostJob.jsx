@@ -14,6 +14,7 @@ import {
 import { useToast } from "../../hooks/useToast";
 import { DISTRICTS, cn } from "../../lib/utils";
 import api from "../../lib/api";
+import { uploadJobImages } from "../../lib/storage";
 
 const URGENCIES = [
   { value: "today", label: "🔥 Today", desc: "Need it done ASAP" },
@@ -75,17 +76,21 @@ export default function PostJob() {
       const payload = { ...form, fixed_budget: form.fixed_budget || undefined };
       const { data } = await api.post("/jobs", payload);
       if (photos.length > 0) {
-        const fd = new FormData();
-        photos.forEach((p) => fd.append("photos", p.file));
-        await api.post(`/jobs/${data.id}/photos`, fd);
+        try {
+          await uploadJobImages(photos.map(photo => photo.file), data.id);
+        } catch (error) {
+          return { ...data, photoUploadFailed: true, photoUploadError: error.message };
+        }
       }
       return data;
     },
     onSuccess: (data) => {
       toast({
-        title: "Job posted!",
-        description: "Workers can now send you proposals.",
-        variant: "success",
+        title: data.photoUploadFailed ? "Job posted without photos" : "Job posted!",
+        description: data.photoUploadFailed
+          ? "Your job is live, but its photos could not be uploaded. You can continue safely without posting it twice."
+          : "Workers can now send you proposals.",
+        variant: data.photoUploadFailed ? "warning" : "success",
       });
       navigate(`/jobs/${data.id}`);
     },

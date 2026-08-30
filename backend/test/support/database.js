@@ -48,6 +48,7 @@ async function resetTestDatabase(pool) {
   requireSafeTestDatabaseUrl();
   await pool.query(`
     TRUNCATE TABLE
+      rate_limit_buckets,
       agent_run_steps,
       agent_recommendations,
       agent_memories,

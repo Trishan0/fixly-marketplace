@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { deleteStoredFile, uploadedPath } = require('../services/storage');
 
 // GET /api/profile/me
 router.get('/me', verifyToken, async (req, res) => {
@@ -75,18 +76,31 @@ router.put('/me', verifyToken, async (req, res) => {
 
 // POST /api/profile/photo
 router.post('/photo', verifyToken, upload.single('photo'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const path = `/uploads/${req.file.filename}`;
-  await pool.query('UPDATE users SET profile_photo = $1 WHERE id = $2', [path, req.user.id]);
-  res.json({ path });
+  try {
+    const path = uploadedPath({ req, kind: 'profile', userId: req.user.id });
+    const previous = await pool.query('SELECT profile_photo FROM users WHERE id=$1', [req.user.id]);
+    await pool.query('UPDATE users SET profile_photo=$1, updated_at=NOW() WHERE id=$2', [path, req.user.id]);
+    await deleteStoredFile(previous.rows[0]?.profile_photo, 'profile').catch(error => console.warn('Old profile photo cleanup failed:', error.message));
+    res.json({ path });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 // POST /api/profile/nic-upload
 router.post('/nic-upload', verifyToken, upload.single('nic_image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const path = `/uploads/${req.file.filename}`;
-  await pool.query('UPDATE users SET nic_image_path = $1 WHERE id = $2', [path, req.user.id]);
-  res.json({ message: 'NIC uploaded, pending verification', path });
+  try {
+    const path = uploadedPath({ req, kind: 'nic', userId: req.user.id });
+    const previous = await pool.query('SELECT nic_image_path FROM users WHERE id=$1', [req.user.id]);
+    await pool.query(
+      'UPDATE users SET nic_image_path=$1, is_nic_verified=false, nic_verified_by=null, updated_at=NOW() WHERE id=$2',
+      [path, req.user.id]
+    );
+    await deleteStoredFile(previous.rows[0]?.nic_image_path, 'nic').catch(error => console.warn('Old NIC cleanup failed:', error.message));
+    res.json({ message: 'NIC uploaded, pending verification', path });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 // PUT /api/profile/dashboard-mode
@@ -101,22 +115,24 @@ router.put('/dashboard-mode', verifyToken, requireRole('worker'), async (req, re
 
 // POST /api/profile/portfolio
 router.post('/portfolio', verifyToken, requireRole('worker'), upload.single('photo'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  
-  const wpResult = await pool.query('SELECT id FROM worker_profiles WHERE user_id = $1', [req.user.id]);
-  if (!wpResult.rows[0]) return res.status(404).json({ error: 'Worker profile not found' });
-  
-  const count = await pool.query('SELECT COUNT(*) FROM worker_portfolio_photos WHERE worker_id = $1', [wpResult.rows[0].id]);
-  if (parseInt(count.rows[0].count) >= 10) {
-    return res.status(400).json({ error: 'Maximum 10 portfolio photos allowed' });
+  try {
+    const path = uploadedPath({ req, kind: 'portfolio', userId: req.user.id });
+    const wpResult = await pool.query('SELECT id FROM worker_profiles WHERE user_id = $1', [req.user.id]);
+    if (!wpResult.rows[0]) return res.status(404).json({ error: 'Worker profile not found' });
+
+    const count = await pool.query('SELECT COUNT(*) FROM worker_portfolio_photos WHERE worker_id = $1', [wpResult.rows[0].id]);
+    if (parseInt(count.rows[0].count, 10) >= 10) {
+      return res.status(400).json({ error: 'Maximum 10 portfolio photos allowed' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO worker_portfolio_photos (worker_id, path) VALUES ($1, $2) RETURNING *',
+      [wpResult.rows[0].id, path]
+    );
+    return res.json(result.rows[0]);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
   }
-  
-  const path = `/uploads/${req.file.filename}`;
-  const result = await pool.query(
-    'INSERT INTO worker_portfolio_photos (worker_id, path) VALUES ($1, $2) RETURNING *',
-    [wpResult.rows[0].id, path]
-  );
-  res.json(result.rows[0]);
 });
 
 // DELETE /api/profile/portfolio/:photoId
@@ -124,10 +140,11 @@ router.delete('/portfolio/:photoId', verifyToken, requireRole('worker'), async (
   const wpResult = await pool.query('SELECT id FROM worker_profiles WHERE user_id = $1', [req.user.id]);
   if (!wpResult.rows[0]) return res.status(404).json({ error: 'Not found' });
   
-  await pool.query(
-    'DELETE FROM worker_portfolio_photos WHERE id = $1 AND worker_id = $2',
+  const deleted = await pool.query(
+    'DELETE FROM worker_portfolio_photos WHERE id = $1 AND worker_id = $2 RETURNING path',
     [req.params.photoId, wpResult.rows[0].id]
   );
+  await deleteStoredFile(deleted.rows[0]?.path, 'portfolio').catch(error => console.warn('Portfolio cleanup failed:', error.message));
   res.json({ message: 'Photo deleted' });
 });
 
