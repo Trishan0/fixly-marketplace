@@ -76,10 +76,31 @@
     @apply border-border;
   }
 
+  html {
+    min-width: 320px;
+    scroll-behavior: smooth;
+  }
+
   body {
     background-color: hsl(var(--app-bg));
     color: hsl(var(--text-default));
     font-family: 'Plus Jakarta Sans', sans-serif;
+    min-width: 320px;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, hsl(var(--accent-primary)) 70%, white 30%);
+    outline-offset: 2px;
   }
 
   h1,
@@ -95,7 +116,7 @@
     background-color: hsl(var(--surface));
     border: 1px solid hsl(var(--border-soft));
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-    @apply rounded-3xl;
+    @apply rounded-2xl sm:rounded-3xl;
   }
 
   .dark .fixly-card {
@@ -107,7 +128,7 @@
   }
 
   .fixly-page {
-    @apply w-full mx-auto px-5 py-5 md:px-6 md:py-6 xl:px-8;
+    @apply w-full mx-auto px-4 py-5 sm:px-5 md:px-6 md:py-6 xl:px-8;
   }
 
   .fixly-app-page {
@@ -115,7 +136,7 @@
       radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 22%),
       radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 18%),
       linear-gradient(180deg, hsl(var(--page-bg)) 0%, hsl(var(--surface-muted)) 100%);
-    min-height: 100vh;
+    min-height: 100%;
   }
 
   .fixly-surface-muted {
@@ -181,13 +202,13 @@
   }
 
   .fixly-tab-strip {
-    @apply flex gap-1 rounded-2xl p-1 w-fit;
+    @apply flex max-w-full gap-1 overflow-x-auto rounded-2xl p-1 w-fit;
     background-color: hsl(var(--surface-muted));
     border: 1px solid hsl(var(--border-soft));
   }
 
   .fixly-tab {
-    @apply px-4 py-2 rounded-xl text-sm font-semibold transition-all;
+    @apply min-h-11 shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition-all;
     color: hsl(var(--text-muted));
   }
 
@@ -257,18 +278,18 @@
   }
 
   .fixly-btn-primary {
-    @apply bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
+    @apply inline-flex min-h-11 items-center justify-center bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
   }
 
   .fixly-btn-secondary {
-    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
+    @apply inline-flex min-h-11 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
   }
 
   .fixly-input {
     background-color: hsl(var(--surface));
     border-color: hsl(var(--border-strong));
     color: hsl(var(--text-strong));
-    @apply w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all;
+    @apply min-h-11 w-full border rounded-xl px-4 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all;
   }
 
   .status-badge {
@@ -281,6 +302,43 @@
 
   .sidebar-link.active {
     @apply bg-sky-600 text-white;
+  }
+
+  .mobile-bottom-nav {
+    background-color: hsla(var(--surface), 0.96);
+    border-top: 1px solid hsl(var(--border-soft));
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.08);
+    padding-bottom: env(safe-area-inset-bottom);
+    @apply fixed inset-x-0 bottom-0 z-30 backdrop-blur-xl;
+  }
+
+  .line-clamp-2-mobile {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 640px) {
+  .line-clamp-2-mobile {
+    display: block;
+    overflow: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

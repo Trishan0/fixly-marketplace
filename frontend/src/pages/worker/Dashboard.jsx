@@ -127,13 +127,13 @@ function StandardDashboard() {
   return (
     <div className="fixly-app-page">
       <div className="fixly-page max-w-7xl space-y-6">
-        <div className="fixly-glow-panel grid gap-6 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="fixly-glow-panel grid gap-6 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Worker Overview</p>
-            <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-900">Welcome back, {user?.full_name?.split(' ')[0]}.</h1>
-            <p className="mt-3 max-w-2xl text-base leading-8 text-slate-500">Keep proposals, active jobs, and earnings moving from one focused workspace with stronger visibility into what matters next.</p>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:mt-3 sm:text-4xl">Welcome back, {user?.full_name?.split(' ')[0]}.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:mt-3 sm:text-base sm:leading-8">Keep proposals, active jobs, and earnings moving from one focused workspace.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="hidden gap-3 lg:grid lg:grid-cols-2">
             <div className="fixly-elevated p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Pending Invites</p>
               <p className="mt-2 text-3xl font-black text-slate-900">{pendingInvites.length}</p>
@@ -147,7 +147,7 @@ function StandardDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard icon={MessageSquare} label="Pending Invites" value={pendingInvites.length} color="amber" />
           <StatCard icon={Briefcase} label="Active Jobs" value={activeJobs.length} color="sky" />
           <StatCard icon={CheckCircle} label="Completed" value={completedJobs.length} color="emerald" />
@@ -162,7 +162,7 @@ function StandardDashboard() {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {activeJobs.map(job => (
-                <Card key={job.id} className="p-6">
+                <Card key={job.id} className="p-4 sm:p-6">
                   <div className="mb-3 flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold text-slate-900">{job.title}</h3>

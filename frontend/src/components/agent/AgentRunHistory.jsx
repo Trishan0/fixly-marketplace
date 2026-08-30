@@ -18,8 +18,9 @@ function RunRow({ run, onSelect }) {
 
   return (
     <button
+      type="button"
       onClick={() => onSelect?.(run)}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors text-left rounded-xl group"
+      className="group flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60"
     >
       <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
         <Bot className="w-4 h-4 text-slate-400" />

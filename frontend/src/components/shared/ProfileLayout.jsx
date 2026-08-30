@@ -66,7 +66,7 @@ export function ProfileActionsMenu({ className }) {
 
 export function ProfilePageIntro({ title = 'Public Profile', subtitle, ownView = false }) {
   return (
-    <div className="mb-6 flex items-start justify-between gap-4">
+    <div className="mb-6 flex items-start justify-between gap-3 sm:gap-4">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Profile</p>
         <h1 className="mt-2 text-2xl font-bold text-slate-900">{title}</h1>
@@ -80,7 +80,7 @@ export function ProfilePageIntro({ title = 'Public Profile', subtitle, ownView =
 export function PublicPageChrome({ crumbLabel, crumbTo, currentLabel }) {
   return (
     <nav className="fixly-topbar border-b border-white/70 dark:border-slate-800">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-4">
+      <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
         <Link to="/" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600">
             <Wrench className="h-4 w-4 text-white" />
@@ -98,10 +98,10 @@ export function PublicPageChrome({ crumbLabel, crumbTo, currentLabel }) {
           </>
         )}
         {currentLabel && (
-          <>
+          <span className="hidden min-w-0 items-center gap-3 sm:flex">
             <span className="text-slate-300">/</span>
-            <span className="text-sm font-medium text-slate-800">{currentLabel}</span>
-          </>
+            <span className="truncate text-sm font-medium text-slate-800">{currentLabel}</span>
+          </span>
         )}
         <div className="ml-auto">
           <ThemeToggleIconButton />
@@ -120,10 +120,10 @@ export function ProfileStatPanel({ label, value, hint, accent = 'sky' }) {
   }
 
   return (
-    <div className={cn('rounded-[1.75rem] border p-5', accents[accent])}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{label}</p>
-      <p className="mt-3 text-3xl font-black text-slate-950">{value}</p>
-      {hint && <p className="mt-2 text-sm text-slate-500">{hint}</p>}
+    <div className={cn('rounded-2xl border p-3 sm:rounded-[1.75rem] sm:p-5', accents[accent])}>
+      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:text-[11px] sm:tracking-[0.24em]">{label}</p>
+      <p className="mt-2 text-2xl font-black text-slate-950 sm:mt-3 sm:text-3xl">{value}</p>
+      {hint && <p className="mt-2 hidden text-sm text-slate-500 sm:block">{hint}</p>}
     </div>
   )
 }
@@ -131,7 +131,7 @@ export function ProfileStatPanel({ label, value, hint, accent = 'sky' }) {
 export function ProfileHeroCard({ avatarName, avatarSrc, header, summary, stats, asideTitle, asideContent, children }) {
   return (
     <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-[0_24px_70px_rgba(2,6,23,0.34)]">
-      <div className="grid gap-6 p-6 lg:p-8 xl:grid-cols-[1.4fr_0.8fr]">
+      <div className="grid gap-5 p-4 sm:p-6 lg:p-8 xl:grid-cols-[1.4fr_0.8fr]">
         <div className="space-y-6">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <Avatar
@@ -146,11 +146,11 @@ export function ProfileHeroCard({ avatarName, avatarSrc, header, summary, stats,
             </div>
           </div>
 
-          {stats && <div className="grid gap-3 sm:grid-cols-3">{stats}</div>}
+          {stats && <div className="grid grid-cols-3 gap-2 sm:gap-3">{stats}</div>}
           {children}
         </div>
 
-        <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50/90 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none">
+        <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none sm:rounded-[1.75rem] sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{asideTitle}</p>
           <div className="mt-4 space-y-4">{asideContent}</div>
         </div>
@@ -161,9 +161,9 @@ export function ProfileHeroCard({ avatarName, avatarSrc, header, summary, stats,
 
 export function ProfileSectionCard({ title, meta, children, className }) {
   return (
-    <Card className={cn('border-white/90 bg-white/95 p-6 shadow-[0_16px_44px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-[0_16px_44px_rgba(2,6,23,0.28)]', className)}>
+    <Card className={cn('border-white/90 bg-white/95 p-4 shadow-[0_16px_44px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-[0_16px_44px_rgba(2,6,23,0.28)] sm:p-6', className)}>
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold tracking-tight text-slate-950">{title}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-xl">{title}</h2>
         {meta && <span className="text-sm text-slate-400">{meta}</span>}
       </div>
       <div className="mt-5">{children}</div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { cn, getInitials, STATUS_LABELS, STATUS_COLORS } from "../../lib/utils";
 
 export function Button({
@@ -7,10 +7,12 @@ export function Button({
   size = "md",
   className,
   loading,
+  disabled,
+  type = "button",
   ...props
 }) {
   const base =
-    "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:pointer-events-none gap-2";
+    "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950";
   const variants = {
     primary: "bg-sky-600 hover:bg-sky-700 text-white",
     secondary:
@@ -23,14 +25,15 @@ export function Button({
     success: "bg-emerald-500 hover:bg-emerald-600 text-white",
   };
   const sizes = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-5 py-2.5 text-sm",
-    lg: "px-6 py-3 text-base",
+    sm: "min-h-11 px-3 py-2 text-xs",
+    md: "min-h-11 px-5 py-2.5 text-sm",
+    lg: "min-h-12 px-6 py-3 text-base",
   };
   return (
     <button
+      type={type}
       className={cn(base, variants[variant], sizes[size], className)}
-      disabled={loading}
+      disabled={disabled || loading}
       {...props}
     >
       {loading && (
@@ -88,7 +91,7 @@ export function StatCard({
     rose: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300",
   };
   return (
-    <div className={cn("fixly-card p-5", className)}>
+    <div className={cn("fixly-card p-4 sm:p-5", className)}>
       <div className="flex items-start justify-between">
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -118,15 +121,21 @@ export function Card({ children, className, ...props }) {
   );
 }
 
-export function Input({ label, error, className, ...props }) {
+export function Input({ label, error, className, id, ...props }) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const errorId = `${inputId}-error`;
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       )}
       <input
+        id={inputId}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
         className={cn(
           "fixly-input",
           error && "border-red-400 focus:ring-red-400",
@@ -134,20 +143,26 @@ export function Input({ label, error, className, ...props }) {
         )}
         {...props}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
 
-export function Textarea({ label, error, className, ...props }) {
+export function Textarea({ label, error, className, id, ...props }) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const errorId = `${inputId}-error`;
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       )}
       <textarea
+        id={inputId}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
         className={cn(
           "fixly-input resize-none",
           error && "border-red-400",
@@ -155,20 +170,26 @@ export function Textarea({ label, error, className, ...props }) {
         )}
         {...props}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
 
-export function Select({ label, error, className, children, ...props }) {
+export function Select({ label, error, className, children, id, ...props }) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const errorId = `${inputId}-error`;
   return (
     <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor={inputId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </label>
       )}
       <select
+        id={inputId}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
         className={cn(
           "fixly-input bg-white dark:bg-slate-900",
           error && "border-red-400",
@@ -178,7 +199,7 @@ export function Select({ label, error, className, children, ...props }) {
       >
         {children}
       </select>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -209,8 +230,8 @@ export function EmptyState({ icon: Icon, title, description, action }) {
 
 export function PageHeader({ title, description, action }) {
   return (
-    <div className="mb-5 flex items-start justify-between gap-4">
-      <div>
+    <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row">
+      <div className="min-w-0">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           {title}
         </h1>
@@ -218,30 +239,51 @@ export function PageHeader({ title, description, action }) {
           <p className="mt-1 text-sm text-slate-500">{description}</p>
         )}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="w-full shrink-0 [&>a]:block [&_button]:w-full sm:w-auto sm:[&_button]:w-auto">{action}</div>}
     </div>
   );
 }
 
 export function Modal({ open, onClose, title, children, width = "max-w-lg" }) {
+  const closeRef = useRef(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    requestAnimationFrame(() => closeRef.current?.focus());
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900",
+          "relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-100 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:rounded-3xl",
           width,
         )}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
-          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-6">
+          <h2 id={titleId} className="text-lg font-bold text-slate-900">{title}</h2>
           <button
+            ref={closeRef}
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+            aria-label="Close dialog"
           >
             <svg
               className="h-5 w-5"
@@ -258,7 +300,7 @@ export function Modal({ open, onClose, title, children, width = "max-w-lg" }) {
             </svg>
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6">{children}</div>
       </div>
     </div>
   );
