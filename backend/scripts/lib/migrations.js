@@ -26,6 +26,7 @@ const APPLICATION_TABLES = [
   'agent_run_steps',
   'agent_memories',
   'agent_recommendations',
+  'rate_limit_buckets',
 ];
 
 class MigrationError extends Error {

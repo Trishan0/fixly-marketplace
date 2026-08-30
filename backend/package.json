@@ -17,10 +17,11 @@
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:status": "node scripts/migrate.js --status",
     "db:migrate:baseline": "node scripts/baseline-migrations.js",
-    "db:seed:demo": "node setup-db.js --seed-only"
+    "db:seed:demo": "node scripts/seed-demo.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@vercel/blob": "^2.8.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",

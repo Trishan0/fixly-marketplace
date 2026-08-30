@@ -96,7 +96,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
             #{rec.rank}
           </div>
 
-          <Avatar name={w.full_name} src={w.profile_photo ? `/uploads/${w.profile_photo}` : null} size="md" />
+          <Avatar name={w.full_name} src={w.profile_photo || null} size="md" />
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">

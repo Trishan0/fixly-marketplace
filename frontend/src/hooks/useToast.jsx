@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle, XCircle, Info, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle, XCircle, Info, X } from 'lucide-react'
 
 const ToastContext = createContext(null)
 
@@ -15,10 +15,11 @@ export function ToastProvider({ children }) {
 
   const dismiss = (id) => setToasts(t => t.filter(x => x.id !== id))
 
-  const icons = { success: CheckCircle, error: XCircle, default: Info }
+  const icons = { success: CheckCircle, error: XCircle, warning: AlertTriangle, default: Info }
   const colors = {
     success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
     error: 'bg-red-50 border-red-200 text-red-800',
+    warning: 'bg-amber-50 border-amber-200 text-amber-800',
     default: 'bg-white border-slate-200 text-slate-800',
   }
 

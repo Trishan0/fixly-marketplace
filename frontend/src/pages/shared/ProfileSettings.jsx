@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
 import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
+import { uploadSingleImage } from '../../lib/storage'
 import { ThemeModeSelector } from '../../components/shared/ThemeToggle'
 
 const CATEGORIES = ['Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
@@ -35,26 +36,17 @@ export function ProfilePage() {
   })
 
   const uploadPhoto = useMutation({
-    mutationFn: (file) => {
-      const fd = new FormData(); fd.append('photo', file)
-      return api.post('/profile/photo', fd)
-    },
+    mutationFn: (file) => uploadSingleImage({ file, kind: 'profile', endpoint: '/profile/photo', fieldName: 'photo' }),
     onSuccess: () => { refreshUser(); toast({ title: 'Photo updated!', variant: 'success' }) },
   })
 
   const uploadNic = useMutation({
-    mutationFn: (file) => {
-      const fd = new FormData(); fd.append('nic_image', file)
-      return api.post('/profile/nic-upload', fd)
-    },
+    mutationFn: (file) => uploadSingleImage({ file, kind: 'nic', endpoint: '/profile/nic-upload', fieldName: 'nic_image' }),
     onSuccess: () => { refreshUser(); toast({ title: 'NIC uploaded! Pending verification.', variant: 'success' }) },
   })
 
   const uploadPortfolio = useMutation({
-    mutationFn: (file) => {
-      const fd = new FormData(); fd.append('photo', file)
-      return api.post('/profile/portfolio', fd)
-    },
+    mutationFn: (file) => uploadSingleImage({ file, kind: 'portfolio', endpoint: '/profile/portfolio', fieldName: 'photo' }),
     onSuccess: () => { refreshUser(); toast({ title: 'Photo added!', variant: 'success' }) },
     onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
   })
