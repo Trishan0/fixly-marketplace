@@ -247,16 +247,17 @@ export default function JobDetail() {
     <AppShell>
       <div className="fixly-page max-w-6xl space-y-5">
         <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+          className="flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
 
         {/* Job header */}
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-start justify-between flex-wrap gap-4">
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge status={job.status} />
                 {job.urgency && (
@@ -292,7 +293,7 @@ export default function JobDetail() {
               </div>
             </div>
             {job.pricing_mode === "fixed" && job.fixed_budget && (
-              <div className="text-right">
+              <div className="sm:text-right">
                 <p className="text-xs text-slate-400">Fixed Budget</p>
                 <p className="text-xl font-bold text-sky-700">
                   {formatCurrency(job.fixed_budget)}
@@ -302,7 +303,7 @@ export default function JobDetail() {
           </div>
 
           {job.description && (
-            <div className="mt-4 p-4 bg-slate-50 rounded-2xl">
+            <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/70">
               <p className="text-sm text-slate-700 leading-relaxed">
                 {job.description}
               </p>
@@ -328,7 +329,7 @@ export default function JobDetail() {
           )}
 
           {/* Actions */}
-          <div className="flex flex-wrap gap-2 mt-5 pt-5 border-t border-slate-100">
+          <div className="mt-5 grid grid-cols-1 gap-2 border-t border-slate-100 pt-5 min-[380px]:grid-cols-2 [&>a]:block [&>a_button]:w-full [&>button]:w-full dark:border-slate-800 sm:flex sm:flex-wrap sm:[&>a_button]:w-auto sm:[&>button]:w-auto">
             {/* AI Match Agent button — visible to job owner on active jobs */}
             {isOwner && ["posted", "proposals_received"].includes(job.status) && (
               <Button
@@ -337,7 +338,7 @@ export default function JobDetail() {
                 className="bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 shadow-md shadow-sky-200 dark:shadow-sky-900/30"
                 onClick={() => setAgentOpen(true)}
               >
-                <Bot className="w-4 h-4" /> Run Match Agent
+                <Bot className="w-4 h-4" /> Find Matching Workers
               </Button>
             )}
             {canSendProposal && (
@@ -671,8 +672,10 @@ export default function JobDetail() {
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
+                  type="button"
                   onClick={() => setReview((r) => ({ ...r, rating: n }))}
-                  className={`text-3xl transition-transform hover:scale-110 ${n <= review.rating ? "text-amber-400" : "text-slate-200"}`}
+                  className={`flex h-11 w-11 items-center justify-center text-3xl transition-transform hover:scale-110 ${n <= review.rating ? "text-amber-400" : "text-slate-200 dark:text-slate-700"}`}
+                  aria-label={`${n} star${n === 1 ? '' : 's'}`}
                 >
                   ★
                 </button>
@@ -717,7 +720,7 @@ export default function JobDetail() {
             onClick={() => setAgentOpen(false)}
           />
           {/* Panel */}
-          <div className="relative ml-auto w-full max-w-lg bg-white dark:bg-slate-900 shadow-2xl flex flex-col h-full overflow-hidden animate-slide-in-right">
+          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
             <AgentPanel
               mode="match"
               jobId={id}

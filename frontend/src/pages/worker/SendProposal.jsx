@@ -77,8 +77,9 @@ export default function SendProposal() {
     <AppShell>
       <div className="fixly-page max-w-2xl space-y-5">
         <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+          className="flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-700"
         >
           <ChevronLeft className="w-4 h-4" /> Back to job
         </button>
@@ -89,7 +90,7 @@ export default function SendProposal() {
               Applying for
             </p>
             <h2 className="font-bold text-slate-900">{job.title}</h2>
-            <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
               {job.district && <span>Location: {job.district}</span>}
               {job.urgency && <span>{URGENCY_LABELS[job.urgency]}</span>}
               {job.fixed_budget && job.pricing_mode === 'fixed' && (
@@ -103,30 +104,34 @@ export default function SendProposal() {
 
         <PageHeader title="Send Proposal" description="Make a strong first impression" />
 
-        <Card className="p-6 space-y-5">
+        <Card className="space-y-5 p-4 sm:p-6">
           <div>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <div
-                onClick={() => setForm(f => ({ ...f, inspection_needed: !f.inspection_needed, proposed_price: '' }))}
-                className={`w-11 h-6 rounded-full transition-colors relative ${form.inspection_needed ? 'bg-sky-600' : 'bg-slate-200'}`}
-              >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.inspection_needed ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.inspection_needed}
+              onClick={() => setForm(f => ({ ...f, inspection_needed: !f.inspection_needed, proposed_price: '' }))}
+              className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-200 p-3 text-left dark:border-slate-700"
+            >
+              <span className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${form.inspection_needed ? 'bg-sky-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.inspection_needed ? 'translate-x-6' : 'translate-x-1'}`} />
+              </span>
               <div>
                 <p className="font-medium text-slate-800 text-sm">Inspection needed before pricing</p>
                 <p className="text-xs text-slate-400">I need to see the job first to give an accurate price</p>
               </div>
-            </label>
+            </button>
           </div>
 
           {!form.inspection_needed && (
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">
+              <label htmlFor="proposal-price" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Your Price (LKR) *
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">LKR</span>
                 <input
+                  id="proposal-price"
                   type="number"
                   className="fixly-input pl-12"
                   placeholder="5000"
@@ -142,10 +147,11 @@ export default function SendProposal() {
           )}
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700">
+            <label htmlFor="proposal-availability" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               Your Availability *
             </label>
             <input
+              id="proposal-availability"
               type="text"
               className="fixly-input"
               placeholder="e.g. Available tomorrow morning, or weekends"
@@ -155,10 +161,11 @@ export default function SendProposal() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700">
+            <label htmlFor="proposal-message" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
               Message to Customer
             </label>
             <textarea
+              id="proposal-message"
               className="fixly-input resize-none"
               rows={4}
               placeholder="Introduce yourself. Mention your experience with similar jobs, how you'd approach this work, and why you're the right person for the job..."

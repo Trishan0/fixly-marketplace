@@ -2,9 +2,10 @@ import axios from 'axios'
 
 const TOKEN_KEY = 'fixly_token'
 const USER_KEY = 'fixly_user'
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
 })
 

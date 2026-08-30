@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -32,6 +32,37 @@ import {
 import { useToast } from "../../hooks/useToast";
 import { formatDate, cn } from "../../lib/utils";
 import api from "../../lib/api";
+
+function PrivateNicImage({ src, alt = "NIC" }) {
+  const isPrivate = src?.includes('.private.blob.vercel-storage.com');
+  const [loadedImage, setLoadedImage] = useState({ src: '', url: '' });
+
+  useEffect(() => {
+    if (!isPrivate) return undefined;
+
+    let active = true;
+    let objectUrl;
+    api.get('/uploads/private', { params: { url: src }, responseType: 'blob' })
+      .then(response => {
+        objectUrl = URL.createObjectURL(response.data);
+        if (active) setLoadedImage({ src, url: objectUrl });
+      })
+      .catch(() => { if (active) setLoadedImage({ src, url: '' }); });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [isPrivate, src]);
+
+  const imageUrl = isPrivate
+    ? (loadedImage.src === src ? loadedImage.url : '')
+    : src;
+
+  if (!imageUrl) {
+    return <div className="mb-3 flex h-32 w-full items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400 dark:bg-slate-800">Loading private document…</div>;
+  }
+  return <img src={imageUrl} alt={alt} className="mb-3 h-32 w-full rounded-xl object-cover" />;
+}
 
 // Admin Dashboard
 export function AdminDashboard() {
@@ -451,7 +482,32 @@ export function AdminUsers() {
             <Spinner />
           </div>
         ) : (
-          <Card>
+          <>
+          <div className="space-y-3 md:hidden">
+            {users.map((u) => (
+              <Card key={u.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <Avatar name={u.full_name} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900">{u.full_name}</p>
+                    <p className="break-all text-xs text-slate-500">{u.email}</p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-2 py-1 capitalize dark:bg-slate-800">{u.role}</span>
+                      {u.district && <span className="px-1 py-1">{u.district}</span>}
+                      {u.is_suspended && <span className="rounded-full bg-red-50 px-2 py-1 font-semibold text-red-600 dark:bg-red-950/40">Suspended</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+                  <Button size="sm" variant="outline" onClick={() => setSelectedUser(u)}>Manage</Button>
+                  <Button size="sm" variant={u.is_suspended ? "success" : "danger"} onClick={() => update.mutate({ id: u.id, action: "suspend", data: { suspended: !u.is_suspended } })}>
+                    {u.is_suspended ? "Unsuspend" : "Suspend"}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <Card className="hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -542,6 +598,7 @@ export function AdminUsers() {
               </table>
             </div>
           </Card>
+          </>
         )}
       </div>
 
@@ -670,11 +727,7 @@ export function AdminWorkers() {
                     </div>
                   </div>
                   {w.nic_image_path && (
-                    <img
-                      src={w.nic_image_path}
-                      alt="NIC"
-                      className="w-full h-32 object-cover rounded-xl mb-3"
-                    />
+                    <PrivateNicImage src={w.nic_image_path} />
                   )}
                   <div className="flex gap-2">
                     <Button
@@ -713,7 +766,25 @@ export function AdminWorkers() {
               <Spinner />
             </div>
           ) : (
-            <Card>
+            <>
+            <div className="space-y-3 md:hidden">
+              {workers.map((w) => (
+                <Card key={w.id} className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar name={w.full_name} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900">{w.full_name}</p>
+                      <p className="text-sm text-slate-500">{w.primary_skill || "Skill not set"}</p>
+                      <p className="mt-1 text-xs text-slate-400">{w.district || "District not set"} • {w.total_jobs_done || 0} jobs • {w.avg_rating ? `${Number(w.avg_rating).toFixed(1)}★` : "No rating"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 border-t border-slate-100 pt-3 text-xs font-semibold dark:border-slate-800">
+                    {w.is_nic_verified ? <span className="text-emerald-600">✓ Identity verified</span> : w.nic_image_path ? <span className="text-amber-600">NIC review pending</span> : <span className="text-slate-400">NIC not uploaded</span>}
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <Card className="hidden md:block">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -774,6 +845,7 @@ export function AdminWorkers() {
                 </table>
               </div>
             </Card>
+            </>
           )}
         </div>
       </div>
@@ -827,7 +899,7 @@ export function AdminReports() {
           <Card>
             <div className="divide-y divide-slate-50">
               {reports.map((r) => (
-                <div key={r.id} className="flex items-start gap-4 p-5">
+                <div key={r.id} className="flex flex-wrap items-start gap-3 p-4 sm:flex-nowrap sm:gap-4 sm:p-5">
                   <div
                     className={cn(
                       "w-2 h-2 rounded-full mt-2 flex-shrink-0",
@@ -860,6 +932,7 @@ export function AdminReports() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="ml-5 basis-full sm:ml-0 sm:basis-auto"
                       onClick={() => setSelected(r)}
                     >
                       Resolve
