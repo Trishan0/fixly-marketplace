@@ -284,6 +284,72 @@ function insertJobPhoto(jobId, photoPath, orderIdx) {
   `);
 }
 
+function insertPayment(input, client) {
+  return one(sql`
+    INSERT INTO payments (job_id, amount, method, note, recorded_by)
+    VALUES (${input.jobId}, ${input.amount}, ${input.method}, ${input.note}, ${input.recordedBy})
+    RETURNING *
+  `, client);
+}
+
+function findPaymentForUpdate(paymentId, client) {
+  return one(sql`
+    SELECT p.*, j.customer_id, j.title AS job_title, j.assigned_worker_id, j.id AS job_id, j.status AS job_status
+    FROM payments p
+    JOIN jobs j ON j.id = p.job_id
+    WHERE p.id = ${paymentId}
+    FOR UPDATE OF p, j
+  `, client);
+}
+
+function updatePaymentStatus(paymentId, status, client) {
+  return one(sql`UPDATE payments SET status = ${status} WHERE id = ${paymentId} RETURNING *`, client);
+}
+
+function insertReview(input, client) {
+  return one(sql`
+    INSERT INTO reviews (job_id, customer_id, worker_id, rating, feedback)
+    VALUES (${input.jobId}, ${input.customerId}, ${input.workerId}, ${input.rating}, ${input.feedback})
+    RETURNING *
+  `, client);
+}
+
+function rebuildWorkerAggregate(workerId, client) {
+  return one(sql`
+    UPDATE worker_profiles
+    SET avg_rating = COALESCE((SELECT ROUND(AVG(r.rating), 2) FROM reviews r WHERE r.worker_id = ${workerId}), 0),
+        total_jobs_done = (SELECT COUNT(*)::int FROM jobs j
+                           WHERE j.assigned_worker_id = ${workerId}
+                             AND j.status IN ('completed', 'payment_recorded', 'reviewed'))
+    WHERE user_id = ${workerId}
+    RETURNING user_id, avg_rating, total_jobs_done
+  `, client);
+}
+
+async function workerEarnings(workerId) {
+  const [payments, totals] = await Promise.all([
+    rows(sql`
+      SELECT p.*, j.title AS job_title, j.customer_id, u.full_name AS customer_name
+      FROM payments p
+      JOIN jobs j ON j.id = p.job_id
+      JOIN users u ON u.id = j.customer_id
+      WHERE j.assigned_worker_id = ${workerId}
+      ORDER BY p.created_at DESC
+    `),
+    one(sql`
+      SELECT
+        COALESCE(SUM(p.amount), 0)::text AS total,
+        COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'confirmed'), 0)::text AS confirmed_total,
+        COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'recorded'), 0)::text AS pending_total,
+        COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'disputed'), 0)::text AS disputed_total
+      FROM payments p
+      JOIN jobs j ON j.id = p.job_id
+      WHERE j.assigned_worker_id = ${workerId}
+    `),
+  ]);
+  return { payments, totals };
+}
+
 module.exports = {
   acceptProposal,
   assignJob,
@@ -299,6 +365,8 @@ module.exports = {
   findProposalForUpdate,
   findUserSummary,
   insertJobPhoto,
+  insertPayment,
+  insertReview,
   insertNotification,
   insertProposal,
   listAssignedJobs,
@@ -311,6 +379,10 @@ module.exports = {
   listJobProposals,
   markJobHasProposals,
   setProposalStatus,
+  findPaymentForUpdate,
+  rebuildWorkerAggregate,
   updateFinalPrice,
+  updatePaymentStatus,
   updateJobStatus,
+  workerEarnings,
 };

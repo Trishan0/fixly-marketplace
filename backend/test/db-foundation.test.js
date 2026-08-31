@@ -58,6 +58,7 @@ describe('database foundation', () => {
     expect(unique.message).not.toContain('sensitive');
     expect(serializable).toMatchObject({ code: 'TRANSACTION_RETRYABLE', retryable: true });
     expect(isRetryableTransactionError({ code: '40001' })).toBe(true);
+    expect(isRetryableTransactionError({ cause: { code: '40001' } })).toBe(true);
     expect(isRetryableTransactionError({ code: '23505' })).toBe(false);
   });
 

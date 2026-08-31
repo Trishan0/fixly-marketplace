@@ -1,6 +1,6 @@
 const { drizzle } = require('drizzle-orm/node-postgres');
 const pool = require('./index');
-const { SQLSTATE } = require('./errors');
+const { SQLSTATE, sqlState } = require('./errors');
 
 const ISOLATION_LEVELS = new Set(['read committed', 'repeatable read', 'serializable']);
 const ACCESS_MODES = new Set(['read only', 'read write']);
@@ -16,7 +16,8 @@ function transactionStatement({ isolationLevel = 'read committed', accessMode = 
 }
 
 function isRetryableTransactionError(error) {
-  return error?.code === SQLSTATE.SERIALIZATION_FAILURE || error?.code === SQLSTATE.DEADLOCK_DETECTED;
+  const code = sqlState(error);
+  return code === SQLSTATE.SERIALIZATION_FAILURE || code === SQLSTATE.DEADLOCK_DETECTED;
 }
 
 function wait(milliseconds) {

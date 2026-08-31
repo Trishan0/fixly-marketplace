@@ -17,8 +17,16 @@ class DatabaseError extends Error {
   }
 }
 
+function sqlState(error) {
+  let current = error;
+  for (let depth = 0; current && depth < 4; depth += 1, current = current.cause) {
+    if (typeof current.code === 'string') return current.code;
+  }
+  return undefined;
+}
+
 function classifyDatabaseError(error) {
-  switch (error?.code) {
+  switch (sqlState(error)) {
     case SQLSTATE.UNIQUE_VIOLATION:
       return new DatabaseError({ code: 'CONFLICT', message: 'A conflicting record already exists', cause: error });
     case SQLSTATE.FOREIGN_KEY_VIOLATION:
@@ -35,4 +43,4 @@ function classifyDatabaseError(error) {
   }
 }
 
-module.exports = { DatabaseError, SQLSTATE, classifyDatabaseError };
+module.exports = { DatabaseError, SQLSTATE, classifyDatabaseError, sqlState };

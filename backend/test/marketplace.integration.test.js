@@ -317,7 +317,7 @@ describe('Phase 3 jobs and proposals invariants', () => {
     expect([workerA.id, workerB.id]).toContain(assigned.rows[0].assigned_worker_id);
   });
 
-  test.fails('rejects a payment dispute after that payment was confirmed', async () => {
+  test('rejects a payment dispute after that payment was confirmed', async () => {
     const customer = await createUser(testPool, {
       email: 'customer-payment-state@fixly-test.local',
       fullName: 'Payment Customer',
@@ -328,8 +328,8 @@ describe('Phase 3 jobs and proposals invariants', () => {
       fullName: 'Payment Worker',
       role: 'worker',
     });
-    const job = await createJob(testPool, { customerId: customer.id, status: 'payment_recorded' });
-    await testPool.query('UPDATE jobs SET assigned_worker_id = $1 WHERE id = $2', [worker.id, job.id]);
+    const job = await createJob(testPool, { customerId: customer.id });
+    await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'payment_recorded' WHERE id = $2", [worker.id, job.id]);
     const payment = await testPool.query(
       'INSERT INTO payments (job_id, amount, method, recorded_by) VALUES ($1, $2, $3, $4) RETURNING id',
       [job.id, '4000.00', 'cash', customer.id]

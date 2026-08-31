@@ -30,6 +30,16 @@ const proposalInput = z.object({
   message: optionalText,
 });
 
+const paymentInput = z.object({
+  amount: decimal.optional().nullable(),
+  method: z.enum(['cash', 'bank_transfer', 'other']),
+  note: optionalText,
+});
+const reviewInput = z.object({
+  rating: z.coerce.number().int().min(1).max(5),
+  feedback: optionalText,
+});
+
 const jobStatus = z.enum(['proposals_received', 'assigned', 'in_progress', 'completed', 'payment_recorded', 'reviewed', 'cancelled']);
 const transitions = {
   posted: ['proposals_received', 'cancelled'],
@@ -259,12 +269,109 @@ async function cancelJob({ jobId, customerId }) {
   }
 }
 
+async function recordPayment({ jobId, customerId, input }) {
+  const data = parse(paymentInput, input);
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const job = await repository.findJobForUpdate(jobId, tx);
+      if (!job || job.customer_id !== customerId) throw notFound('Job not found');
+      if (job.status === 'payment_recorded' || job.status === 'reviewed') throw badRequest('Payment already recorded for this job');
+      if (job.status !== 'completed') throw badRequest('Job must be completed first');
+      const amount = data.amount || job.final_price;
+      if (!amount) throw badRequest('Set the final price or enter an amount first');
+      const payment = await repository.insertPayment({
+        jobId,
+        amount,
+        method: data.method,
+        note: data.note,
+        recordedBy: customerId,
+      }, tx);
+      if (!payment) throw conflict('Payment already recorded for this job');
+      const updated = await repository.updateJobStatus(jobId, 'completed', 'payment_recorded', tx);
+      if (!updated) throw conflict('Job is no longer ready for payment');
+      await repository.updateFinalPrice(jobId, amount, tx);
+      await repository.insertNotification({
+        userId: job.assigned_worker_id,
+        type: 'payment_recorded',
+        title: 'Payment Recorded',
+        body: `Customer recorded a payment of LKR ${amount} for: ${job.title}`,
+        meta: { job_id: job.id, payment_id: payment.id },
+      }, tx);
+      return payment;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function changePaymentState({ paymentId, workerId, targetStatus }) {
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const payment = await repository.findPaymentForUpdate(paymentId, tx);
+      if (!payment) throw notFound('Payment not found');
+      if (payment.assigned_worker_id !== workerId) throw forbidden('Not your payment');
+      if (payment.status === targetStatus) return payment;
+      if (payment.status !== 'recorded') throw conflict(`Payment is already ${payment.status}`);
+      const updated = await repository.updatePaymentStatus(paymentId, targetStatus, tx);
+      if (!updated) throw conflict('Payment state could not be changed');
+      await repository.insertNotification({
+        userId: payment.customer_id,
+        type: targetStatus === 'confirmed' ? 'payment_confirmed' : 'payment_disputed',
+        title: targetStatus === 'confirmed' ? 'Payment Confirmed' : 'Payment Disputed',
+        body: targetStatus === 'confirmed'
+          ? `Worker confirmed payment for: ${payment.job_title}`
+          : `Worker has disputed the payment for: ${payment.job_title}`,
+        meta: { job_id: payment.job_id, payment_id: payment.id },
+      }, tx);
+      return updated;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function createReview({ jobId, customerId, input }) {
+  const data = parse(reviewInput, input);
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const job = await repository.findJobForUpdate(jobId, tx);
+      if (!job || job.customer_id !== customerId) throw notFound('Job not found');
+      if (job.status === 'reviewed') throw badRequest('Already reviewed this job');
+      if (!['completed', 'payment_recorded'].includes(job.status)) throw badRequest('Job must be completed before reviewing');
+      if (!job.assigned_worker_id) throw badRequest('No worker assigned');
+      const review = await repository.insertReview({
+        jobId,
+        customerId,
+        workerId: job.assigned_worker_id,
+        rating: data.rating,
+        feedback: data.feedback,
+      }, tx);
+      const updated = await repository.updateJobStatus(jobId, job.status, 'reviewed', tx);
+      if (!updated) throw conflict('Job is no longer ready for review');
+      await repository.rebuildWorkerAggregate(job.assigned_worker_id, tx);
+      await repository.insertNotification({
+        userId: job.assigned_worker_id,
+        type: 'review_received',
+        title: 'New Review',
+        body: `You received a ${data.rating}-star review for: ${job.title}`,
+        meta: { job_id: job.id, rating: data.rating },
+      }, tx);
+      return review;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
 module.exports = {
   acceptProposal,
   cancelJob,
   createJob,
+  createReview,
   declineProposal,
   setFinalPrice,
+  recordPayment,
+  changePaymentState,
   submitProposal,
   updateJobWorkflowStatus,
   withdrawProposal,

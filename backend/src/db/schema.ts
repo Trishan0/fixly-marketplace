@@ -147,6 +147,7 @@ export const payments = pgTable("payments", {
 	workerConfirmed: boolean("worker_confirmed").default(false),
 	disputed: boolean().default(false),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
+	status: varchar({ length: 20 }).default('recorded').notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.recordedBy],
@@ -160,6 +161,8 @@ export const payments = pgTable("payments", {
 		}),
 	unique("payments_job_id_key").on(table.jobId),
 	check("payments_method_check", sql`(method)::text = ANY ((ARRAY['cash'::character varying, 'bank_transfer'::character varying, 'other'::character varying])::text[])`),
+	check("payments_amount_positive", sql`amount > (0)::numeric`),
+	check("payments_status_check", sql`(status)::text = ANY ((ARRAY['recorded'::character varying, 'confirmed'::character varying, 'disputed'::character varying])::text[])`),
 ]);
 
 export const reviews = pgTable("reviews", {
@@ -189,6 +192,10 @@ export const reviews = pgTable("reviews", {
 		}),
 	unique("reviews_job_id_key").on(table.jobId),
 	check("reviews_rating_check", sql`(rating >= 1) AND (rating <= 5)`),
+	check("reviews_job_required", sql`job_id IS NOT NULL`),
+	check("reviews_customer_required", sql`customer_id IS NOT NULL`),
+	check("reviews_worker_required", sql`worker_id IS NOT NULL`),
+	check("reviews_rating_required", sql`rating IS NOT NULL`),
 ]);
 
 export const workerPortfolioPhotos = pgTable("worker_portfolio_photos", {
