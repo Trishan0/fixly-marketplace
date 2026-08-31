@@ -11,6 +11,7 @@ const environmentSchema = z.object({
   DATABASE_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).optional(),
   DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().max(600_000).optional(),
   DATABASE_IDLE_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().max(600_000).optional(),
+  DATABASE_SLOW_QUERY_MS: z.coerce.number().int().positive().max(600_000).optional(),
   DATABASE_SSL_MODE: z.enum(['disable', 'require', 'verify-full']).optional(),
 }).passthrough();
 
@@ -34,6 +35,7 @@ function loadDatabaseConfig(source = process.env) {
     connectionTimeoutMillis: env.DATABASE_CONNECT_TIMEOUT_MS || 10_000,
     statement_timeout: env.DATABASE_STATEMENT_TIMEOUT_MS || 30_000,
     idle_in_transaction_session_timeout: env.DATABASE_IDLE_TRANSACTION_TIMEOUT_MS || 30_000,
+    slowQueryMs: env.DATABASE_SLOW_QUERY_MS || 500,
     ssl,
     migrationConnectionString: env.DATABASE_MIGRATION_URL || env.MIGRATION_DATABASE_URL || env.DATABASE_URL,
   };

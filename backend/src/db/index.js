@@ -15,8 +15,21 @@ const pool = new Pool({
   ssl: databaseConfig.ssl,
 });
 
+const metrics = { queries: 0, failures: 0, slowQueries: 0, totalDurationMs: 0 };
+const poolQuery = pool.query.bind(pool);
+pool.query = async (...args) => {
+  const started = performance.now();
+  try { const result = await poolQuery(...args); metrics.queries += 1; return result; }
+  catch (error) { metrics.queries += 1; metrics.failures += 1; throw error; }
+  finally {
+    const duration = performance.now() - started; metrics.totalDurationMs += duration;
+    if (duration >= databaseConfig.slowQueryMs) { metrics.slowQueries += 1; console.warn(JSON.stringify({ event: 'slow_database_query', duration_ms: Math.round(duration) })); }
+  }
+};
+
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
 });
 
 module.exports = pool;
+module.exports.queryMetrics = () => ({ ...metrics, averageDurationMs: metrics.queries ? metrics.totalDurationMs / metrics.queries : 0 });

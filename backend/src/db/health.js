@@ -8,6 +8,9 @@ function poolMetrics() {
     total: pool.totalCount,
     idle: pool.idleCount,
     waiting: pool.waitingCount,
+    queries: pool.queryMetrics().queries,
+    queryFailures: pool.queryMetrics().failures,
+    slowQueries: pool.queryMetrics().slowQueries,
     readinessFailures,
   };
 }
