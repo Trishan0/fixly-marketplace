@@ -18,6 +18,7 @@ import { useToast } from '../../hooks/useToast'
 import { formatRelativeTime } from '../../lib/utils'
 import api from '../../lib/api'
 import { AppShell } from '../../components/layout/AppShell'
+import { PublicFooter } from '../../components/shared/PublicFooter'
 
 export default function WorkerProfile() {
   const { id } = useParams()
@@ -136,7 +137,7 @@ export default function WorkerProfile() {
     )
   }
 
-  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}</div>
+  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}<PublicFooter /></div>
 }
 
 function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, onInvite }) {

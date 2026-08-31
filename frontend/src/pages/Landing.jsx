@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { PublicNavbar } from '../components/shared/PublicNavbar'
+import { PublicFooter } from '../components/shared/PublicFooter'
 
 const categories = [
   { icon: Droplets, name: 'Plumbing', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300' },
@@ -269,21 +270,7 @@ export default function Landing() {
         </section>
       )}
 
-      <footer className="border-t border-slate-200 bg-slate-950 py-10 text-slate-400 dark:border-slate-800">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 md:flex-row md:px-12">
-          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:justify-start sm:text-left">
-            <img
-              src="/fixly-logo-dark.svg"
-              alt="Fixly"
-              width="124"
-              height="34"
-              className="h-auto w-[124px] shrink-0 object-contain"
-            />
-            <span className="text-xs">Sri Lanka&apos;s Local Service Marketplace</span>
-          </div>
-          <p className="text-xs">© {new Date().getFullYear()} Fixly. All rights reserved.</p>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

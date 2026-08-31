@@ -8,6 +8,7 @@ import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { PublicNavbar } from '../../components/shared/PublicNavbar'
+import { PublicFooter } from '../../components/shared/PublicFooter'
 
 const CATEGORIES = ['All','Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
@@ -109,6 +110,7 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
         </div>
         {content}
       </div>
+      <PublicFooter />
     </div>
   )
 }
