@@ -398,6 +398,8 @@ export const workerSkills = pgTable("worker_skills", {
 			foreignColumns: [categories.id],
 			name: "worker_skills_category_id_fkey"
 		}),
+	check("worker_skills_worker_required", sql`worker_id IS NOT NULL`),
+	check("worker_skills_category_required", sql`category_id IS NOT NULL`),
 ]);
 
 export const workerProfiles = pgTable("worker_profiles", {
@@ -416,6 +418,7 @@ export const workerProfiles = pgTable("worker_profiles", {
 			name: "worker_profiles_user_id_fkey"
 		}).onDelete("cascade"),
 	unique("worker_profiles_user_id_key").on(table.userId),
+	check("worker_profiles_user_required", sql`user_id IS NOT NULL`),
 ]);
 
 export const users = pgTable("users", {
@@ -445,6 +448,7 @@ export const users = pgTable("users", {
 }, (table) => [
 	index("idx_users_email_verify_token_hash").using("btree", table.emailVerifyTokenHash.asc().nullsLast().op("text_ops")),
 	index("idx_users_password_reset_token_hash").using("btree", table.passwordResetTokenHash.asc().nullsLast().op("text_ops")),
+	uniqueIndex("uq_users_email_ci").using("btree", sql`lower((email)::text)`),
 	foreignKey({
 			columns: [table.nicVerifiedBy],
 			foreignColumns: [table.id],
@@ -452,4 +456,6 @@ export const users = pgTable("users", {
 		}),
 	unique("users_email_key").on(table.email),
 	check("users_role_check", sql`(role)::text = ANY ((ARRAY['customer'::character varying, 'worker'::character varying, 'admin'::character varying])::text[])`),
+	check("users_no_raw_email_verify_token", sql`email_verify_token IS NULL`),
+	check("users_dashboard_mode_valid", sql`(dashboard_mode)::text = ANY ((ARRAY['standard'::character varying, 'simplified'::character varying])::text[])`),
 ]);
