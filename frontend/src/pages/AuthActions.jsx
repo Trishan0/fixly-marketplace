@@ -7,7 +7,7 @@ import { Button, Input, Card } from '../components/shared/UI'
 function AuthActionLayout({ icon: Icon, title, description, children }) {
   return (
     <div className="fixly-page-shell min-h-screen">
-      <div className="mx-auto max-w-xl px-6 py-12">
+      <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
         <Link to="/" className="mb-8 inline-flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600">
             <Wrench className="h-5 w-5 text-white" />
@@ -15,11 +15,11 @@ function AuthActionLayout({ icon: Icon, title, description, children }) {
           <span className="text-2xl font-bold text-slate-900 dark:text-white">Fixly</span>
         </Link>
 
-        <Card className="p-8">
+        <Card className="p-5 sm:p-8">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
             <Icon className="h-6 w-6" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{title}</h1>
           <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-300">{description}</p>
           <div className="mt-6">{children}</div>
         </Card>

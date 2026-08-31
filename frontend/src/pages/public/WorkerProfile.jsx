@@ -148,7 +148,7 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
         header={(
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{worker.full_name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-4xl">{worker.full_name}</h1>
               {worker.is_nic_verified && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
                   <Shield className="h-3.5 w-3.5" /> Verified

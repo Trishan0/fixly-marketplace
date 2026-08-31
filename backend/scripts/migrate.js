@@ -51,9 +51,13 @@ async function main() {
     return;
   }
 
-  const connectionString = process.env[options.envName];
+  const connectionString = options.envName === 'DATABASE_URL'
+    ? process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL
+    : process.env[options.envName];
   if (!connectionString) {
-    throw new Error(`${options.envName} is required`);
+    throw new Error(options.envName === 'DATABASE_URL'
+      ? 'MIGRATION_DATABASE_URL or DATABASE_URL is required'
+      : `${options.envName} is required`);
   }
 
   if (options.status) {

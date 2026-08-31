@@ -5,6 +5,7 @@ const { verifyToken, requireRole } = require("../middleware/auth");
 const { requireEmailVerified } = require("../middleware/verified");
 const { createNotification } = require("../services/notificationDispatch");
 const upload = require("../middleware/upload");
+const { isBlobStorage, validateBlobReference } = require("../services/storage");
 
 const VALID_TRANSITIONS = {
   posted: ["proposals_received", "cancelled"],
@@ -461,15 +462,23 @@ router.post(
     if (!jobResult.rows[0])
       return res.status(404).json({ error: "Job not found" });
 
-    if (!req.files || req.files.length === 0)
+    let photoPaths;
+    try {
+      photoPaths = isBlobStorage()
+        ? (req.body.photos || []).map(photo => validateBlobReference({ url: photo.url, kind: 'job', userId: req.user.id }))
+        : (req.files || []).map(file => `/uploads/${file.filename}`);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    if (photoPaths.length === 0 || photoPaths.length > 6)
       return res.status(400).json({ error: "No files uploaded" });
 
     const inserted = [];
-    for (let i = 0; i < req.files.length; i++) {
-      const path = `/uploads/${req.files[i].filename}`;
+    for (let i = 0; i < photoPaths.length; i++) {
       const r = await pool.query(
         "INSERT INTO job_photos (job_id, path, order_idx) VALUES ($1, $2, $3) RETURNING *",
-        [req.params.id, path, i],
+        [req.params.id, photoPaths[i], i],
       );
       inserted.push(r.rows[0]);
     }
