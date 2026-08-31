@@ -39,6 +39,10 @@ function findJobById(jobId, client) {
   return one(sql`SELECT * FROM jobs WHERE id = ${jobId}`, client);
 }
 
+function findOwnedJob(jobId, customerId) {
+  return one(sql`SELECT id FROM jobs WHERE id = ${jobId} AND customer_id = ${customerId}`);
+}
+
 function findJobForUpdate(jobId, client) {
   return one(sql`SELECT * FROM jobs WHERE id = ${jobId} FOR UPDATE`, client);
 }
@@ -438,6 +442,7 @@ module.exports = {
   createJob,
   declinePendingProposals,
   findJobById,
+  findOwnedJob,
   findAgentJobDetails,
   findJobDetail,
   findJobForUpdate,

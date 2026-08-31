@@ -4,7 +4,7 @@ const express = require('express');
 const { Readable } = require('stream');
 const { issueSignedToken } = require('@vercel/blob');
 const { handleUploadPresigned } = require('@vercel/blob/client');
-const pool = require('../db');
+const { findOwnedJob } = require('../modules/marketplace/repository');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { blobCredentials, getPrivateFile, isBlobStorage } = require('../services/storage');
 
@@ -33,8 +33,8 @@ router.post('/token', verifyToken, async (req, res) => {
     }
     if (kind === 'job') {
       if (req.user.role !== 'customer' || !jobId) return res.status(403).json({ error: 'Customer job access required' });
-      const job = await pool.query('SELECT id FROM jobs WHERE id=$1 AND customer_id=$2', [jobId, req.user.id]);
-      if (!job.rows[0]) return res.status(404).json({ error: 'Job not found' });
+      const job = await findOwnedJob(jobId, req.user.id);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
     }
 
     const expectedPrefix = `fixly/${kind}/${req.user.id}/`;

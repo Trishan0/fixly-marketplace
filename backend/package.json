@@ -21,8 +21,8 @@
     "db:audit:marketplace": "node scripts/audit-marketplace-invariants.js",
     "db:schema:verify": "node scripts/verify-drizzle-schema.js",
     "db:ratings:check": "node scripts/rebuild-worker-aggregates.js --check",
-    "db:ratings:rebuild": "node scripts/rebuild-worker-aggregates.js --apply"
-    ,"db:rate-limits:cleanup": "node scripts/cleanup-rate-limit-buckets.js"
+    "db:ratings:rebuild": "node scripts/rebuild-worker-aggregates.js --apply",
+    "db:rate-limits:cleanup": "node scripts/cleanup-rate-limit-buckets.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
