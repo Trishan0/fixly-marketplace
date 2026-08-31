@@ -16,6 +16,7 @@ import {
 import { formatDate, formatRelativeTime } from '../../lib/utils'
 import api from '../../lib/api'
 import { AppShell } from '../../components/layout/AppShell'
+import { PublicFooter } from '../../components/shared/PublicFooter'
 import { useAuth } from '../../context/AuthContext'
 
 export default function CustomerProfile() {
@@ -82,7 +83,7 @@ export default function CustomerProfile() {
     )
   }
 
-  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}</div>
+  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}<PublicFooter /></div>
 }
 
 function CustomerProfileBody({ customer, recentJobs, completionRate }) {

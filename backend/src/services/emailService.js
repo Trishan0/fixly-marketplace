@@ -14,6 +14,15 @@ const transportOptions = process.env.NODE_ENV === 'test'
 
 const transporter = nodemailer.createTransport(transportOptions);
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 const sendVerificationEmail = async (email, token) => {
   const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;
   
@@ -60,4 +69,25 @@ const sendPasswordResetEmail = async (email, token) => {
   }
 };
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail };
+const sendContactEmail = async ({ name, email, topic, message }) => {
+  const recipient = process.env.CONTACT_RECIPIENT_EMAIL;
+  if (!recipient) throw new Error('Contact recipient is not configured');
+
+  return transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: recipient,
+    replyTo: email,
+    subject: `[Fixly contact] ${topic}`,
+    text: `Name: ${name}\nEmail: ${email}\nTopic: ${topic}\n\n${message}`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
+        <h2 style="color:#0284c7">New Fixly contact message</h2>
+        <p><strong>From:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p>
+        <p><strong>Topic:</strong> ${escapeHtml(topic)}</p>
+        <div style="margin-top:20px;padding:16px;background:#f8fafc;border-radius:8px;white-space:pre-wrap">${escapeHtml(message)}</div>
+      </div>
+    `,
+  });
+};
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendContactEmail };
