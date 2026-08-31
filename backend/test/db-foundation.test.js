@@ -5,6 +5,7 @@ const { classifyDatabaseError } = require('../src/db/errors');
 const { isRetryableTransactionError, transactionStatement } = require('../src/db/transaction');
 const { normalizeSnapshot } = require('../scripts/verify-drizzle-schema');
 const { databaseTarget } = require('../scripts/release-preflight');
+const { parseArgs: parseEvidenceArgs, parseReleaseEvidence } = require('../scripts/verify-release-evidence');
 
 describe('database foundation', () => {
   test('validates and normalizes database settings without creating a pool', () => {
@@ -90,5 +91,23 @@ describe('database foundation', () => {
 
   test('redacts credentials when describing a release database target', () => {
     expect(databaseTarget('postgresql://runtime:secret@db.example:5432/fixly')).toBe('postgresql://db.example:5432/fixly');
+  });
+
+  test('requires complete, affirmative release evidence before sign-off', () => {
+    const evidence = {
+      releaseId: 'release-123', environment: 'staging', recordedAt: '2026-09-01T00:00:00.000Z',
+      owners: Object.fromEntries(['applicationRollback', 'databaseRemediation', 'incidentCommunication'].map(key => [key, { name: 'Owner', contact: 'on-call' }])),
+      backupRestore: { recoveryPointAt: '2026-09-01T00:00:00.000Z', restoreRehearsedAt: '2026-09-01T00:00:00.000Z', restoreDurationMinutes: 1, rpoMinutes: 0, rtoMinutes: 1, evidenceUrl: 'https://evidence.test/release-123' },
+      databaseAccess: { runtimeRoleVerified: true, migrationRoleVerified: true, tlsVerified: true, evidenceUrl: 'https://evidence.test/release-123' },
+      migration: { ledgerState: 'tracked', checksumsVerified: true, schemaDriftVerified: true, evidenceUrl: 'https://evidence.test/release-123' },
+      compatibility: { previousArtifactSmokePassed: true, correctiveMigrationRehearsed: true, evidenceUrl: 'https://evidence.test/release-123' },
+      reconciliation: { marketplaceAuditPassed: true, ratingsCheckPassed: true, evidenceUrl: 'https://evidence.test/release-123' },
+      canary: { completedAt: '2026-09-01T00:00:00.000Z', rollbackTested: true, metricsWithinBaseline: true, evidenceUrl: 'https://evidence.test/release-123' },
+    };
+
+    expect(parseReleaseEvidence(evidence).releaseId).toBe('release-123');
+    expect(() => parseReleaseEvidence({ ...evidence, canary: { ...evidence.canary, rollbackTested: false } })).toThrow('rollbackTested');
+    expect(() => parseReleaseEvidence({ ...evidence, releaseId: 'replace-with-release-id' })).toThrow('non-placeholder');
+    expect(parseEvidenceArgs(['--file', 'evidence.json'])).toEqual({ file: 'evidence.json' });
   });
 });

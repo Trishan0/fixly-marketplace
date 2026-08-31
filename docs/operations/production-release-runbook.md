@@ -25,4 +25,6 @@ Record the following in the release ticket or change-management system; do not s
 | Performance | p95/p99, error rate, pool waiters, deadlocks/serialization failures, slow-query rate, and retained plans for registry items. | Observability owner |
 | Rollback | Canary rollback trigger, decision owner, execution timestamp, and corrective-forward-migration outcome if used. | Incident owner |
 
+Copy [release-evidence.example.json](release-evidence.example.json), replace every placeholder with the recorded external evidence, and run `npm run db:release:evidence -- --file path/to/evidence.json`. The template intentionally fails verification until every placeholder is replaced. The verifier rejects missing, negative, placeholder, or malformed sign-off fields; it does not create evidence or contact the deployment provider.
+
 The repository can verify local and disposable-database controls. Provider-role grants, backup/PITR configuration, alerts, staging scale, and restore rehearsal require the deployment owner’s cloud account and cannot be asserted by source code alone.

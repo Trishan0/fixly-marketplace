@@ -24,7 +24,8 @@
     "db:ratings:check": "node scripts/rebuild-worker-aggregates.js --check",
     "db:ratings:rebuild": "node scripts/rebuild-worker-aggregates.js --apply",
     "db:rate-limits:cleanup": "node scripts/cleanup-rate-limit-buckets.js",
-    "db:release:preflight": "node scripts/release-preflight.js"
+    "db:release:preflight": "node scripts/release-preflight.js",
+    "db:release:evidence": "node scripts/verify-release-evidence.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
