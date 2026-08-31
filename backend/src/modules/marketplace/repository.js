@@ -132,7 +132,7 @@ function completeAgentRun(runId, client) {
   `, client);
 }
 
-function listReceivedInvites(workerId) {
+function listReceivedInvites(workerId, limit = 100) {
   return rows(sql`
     SELECT i.*, j.title AS job_title, j.district, j.urgency, j.pricing_mode, j.fixed_budget,
            j.status AS job_status, j.category_id, c.name AS category_name, c.icon AS category_icon,
@@ -142,7 +142,7 @@ function listReceivedInvites(workerId) {
     LEFT JOIN categories c ON c.id = j.category_id
     JOIN users u ON u.id = i.customer_id
     WHERE i.worker_id = ${workerId}
-    ORDER BY i.created_at DESC
+    ORDER BY i.created_at DESC LIMIT ${limit}
   `);
 }
 
@@ -230,8 +230,8 @@ function canWorkerAccessJob(jobId, workerId) {
   `);
 }
 
-function listCategories() {
-  return rows(sql`SELECT * FROM categories WHERE is_active = true ORDER BY name`);
+function listCategories(limit = 500) {
+  return rows(sql`SELECT * FROM categories WHERE is_active = true ORDER BY name LIMIT ${limit}`);
 }
 
 function listJobFeed(workerId, { category, district, page, limit }) {
@@ -276,7 +276,7 @@ function listCustomerJobs(customerId, { status, page, limit }) {
   `);
 }
 
-function listAssignedJobs(workerId) {
+function listAssignedJobs(workerId, limit = 100) {
   return rows(sql`
     SELECT j.*, c.name AS category_name, c.icon AS category_icon, u.full_name AS customer_name
     FROM jobs j
@@ -284,7 +284,7 @@ function listAssignedJobs(workerId) {
     LEFT JOIN users u ON u.id = j.customer_id
     WHERE j.assigned_worker_id = ${workerId}
       AND j.status IN ('assigned', 'in_progress', 'completed', 'payment_recorded', 'reviewed')
-    ORDER BY j.updated_at DESC
+    ORDER BY j.updated_at DESC LIMIT ${limit}
   `);
 }
 
@@ -344,7 +344,7 @@ function listAgentOpenJobsForWorker(workerId, limit) {
   `);
 }
 
-function listJobProposals(jobId, workerId = null) {
+function listJobProposals(jobId, workerId = null, limit = 100) {
   const workerCondition = workerId ? sql`AND p.worker_id = ${workerId}` : sql``;
   return rows(sql`
     SELECT p.*, u.full_name AS worker_name, u.profile_photo AS worker_photo,
@@ -353,12 +353,12 @@ function listJobProposals(jobId, workerId = null) {
     JOIN users u ON u.id = p.worker_id
     LEFT JOIN worker_profiles wp ON wp.user_id = p.worker_id
     WHERE p.job_id = ${jobId} ${workerCondition}
-    ORDER BY p.created_at ASC
+    ORDER BY p.created_at ASC LIMIT ${limit}
   `);
 }
 
-function listJobPhotos(jobId) {
-  return rows(sql`SELECT * FROM job_photos WHERE job_id = ${jobId} ORDER BY order_idx`);
+function listJobPhotos(jobId, limit = 20) {
+  return rows(sql`SELECT * FROM job_photos WHERE job_id = ${jobId} ORDER BY order_idx LIMIT ${limit}`);
 }
 
 function insertJobPhoto(jobId, photoPath, orderIdx) {
@@ -411,7 +411,7 @@ function rebuildWorkerAggregate(workerId, client) {
   `, client);
 }
 
-async function workerEarnings(workerId) {
+async function workerEarnings(workerId, limit = 100) {
   const [payments, totals] = await Promise.all([
     rows(sql`
       SELECT p.*, j.title AS job_title, j.customer_id, u.full_name AS customer_name
@@ -419,7 +419,7 @@ async function workerEarnings(workerId) {
       JOIN jobs j ON j.id = p.job_id
       JOIN users u ON u.id = j.customer_id
       WHERE j.assigned_worker_id = ${workerId}
-      ORDER BY p.created_at DESC
+      ORDER BY p.created_at DESC LIMIT ${limit}
     `),
     one(sql`
       SELECT

@@ -92,11 +92,11 @@ function selfProfile(userId) {
 }
 
 function workerProfileId(userId, client) { return one(sql`SELECT id FROM worker_profiles WHERE user_id = ${userId} FOR UPDATE`, client); }
-function workerPortfolio(workerProfileId) { return rows(sql`SELECT id, path, order_idx FROM worker_portfolio_photos WHERE worker_id = ${workerProfileId} ORDER BY order_idx`); }
+function workerPortfolio(workerProfileId) { return rows(sql`SELECT id, path, order_idx FROM worker_portfolio_photos WHERE worker_id = ${workerProfileId} ORDER BY order_idx LIMIT 20`); }
 function workerSkills(userId) { return rows(sql`
   SELECT ws.id, ws.is_primary, c.id AS category_id, c.name AS category_name
   FROM worker_skills ws JOIN categories c ON c.id = ws.category_id
-  WHERE ws.worker_id = (SELECT id FROM worker_profiles WHERE user_id = ${userId}) ORDER BY c.name
+  WHERE ws.worker_id = (SELECT id FROM worker_profiles WHERE user_id = ${userId}) ORDER BY c.name LIMIT 50
 `); }
 
 function updateProfile(input, client) {
