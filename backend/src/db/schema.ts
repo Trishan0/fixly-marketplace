@@ -109,7 +109,7 @@ export const invites = pgTable("invites", {
 			foreignColumns: [users.id],
 			name: "invites_worker_id_fkey"
 		}),
-	unique("invites_job_id_worker_id_key").on(table.workerId, table.jobId),
+	unique("invites_job_id_worker_id_key").on(table.jobId, table.workerId),
 	check("invites_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'declined'::character varying])::text[])`),
 ]);
 
@@ -138,7 +138,7 @@ export const proposals = pgTable("proposals", {
 			foreignColumns: [users.id],
 			name: "proposals_worker_id_fkey"
 		}),
-	unique("proposals_job_id_worker_id_key").on(table.workerId, table.jobId),
+	unique("proposals_job_id_worker_id_key").on(table.jobId, table.workerId),
 	check("proposals_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])`),
 	check("proposals_job_required", sql`job_id IS NOT NULL`),
 	check("proposals_worker_required", sql`worker_id IS NOT NULL`),

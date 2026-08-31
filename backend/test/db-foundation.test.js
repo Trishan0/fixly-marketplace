@@ -83,6 +83,11 @@ describe('database foundation', () => {
     })).toEqual({ tables: { users: { columns: { id: { name: 'id' } } } } });
   });
 
+  test('normalizes Drizzle’s composite-unique ordering metadata only after the database contract is checked directly', () => {
+    expect(normalizeSnapshot({ nullsNotDistinct: false, columns: ['worker_id', 'job_id'] }))
+      .toEqual({ columns: ['job_id', 'worker_id'], nullsNotDistinct: false });
+  });
+
   test('redacts credentials when describing a release database target', () => {
     expect(databaseTarget('postgresql://runtime:secret@db.example:5432/fixly')).toBe('postgresql://db.example:5432/fixly');
   });
