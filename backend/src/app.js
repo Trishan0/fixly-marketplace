@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const { checkDatabaseReadiness, closeDatabase } = require('./db/health');
 const { isBlobStorage } = require('./services/storage');
+const { currentContext, requestContext } = require('./observability/request-context');
 
 if (process.env.NODE_ENV === 'production') {
   const requiredVariables = ['CLIENT_URL', 'JWT_SECRET'];
@@ -36,6 +37,7 @@ const productionOrigins = [
 ].map(origin => origin?.trim()).filter(Boolean);
 const allowedOrigins = process.env.NODE_ENV === 'production' ? productionOrigins : localOrigins;
 
+app.use(requestContext());
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -105,14 +107,25 @@ app.get('/api/ready', async (req, res) => {
 });
 
 app.use((err, req, res, _next) => {
-  console.error(err.stack);
+  const { requestId } = currentContext();
+  console.error(JSON.stringify({
+    event: 'request_failed',
+    request_id: requestId,
+    method: req.method,
+    path: req.path,
+    error_name: err.name,
+    error_code: err.code,
+  }));
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ error: 'File too large (max 5MB)' });
   }
   if (err.message === 'Origin is not allowed by CORS') {
     return res.status(403).json({ error: err.message });
   }
-  res.status(500).json({ error: err.message || 'Internal server error' });
+  res.status(500).json({
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (err.message || 'Internal server error'),
+    requestId,
+  });
 });
 
 if (require.main === module) {

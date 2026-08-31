@@ -1,6 +1,6 @@
-# Drizzle Migration Query Inventory
+# Drizzle Migration Query Inventory and Intentional Raw-SQL Registry
 
-- Status: Phase 0 baseline
+- Status: Phase 10 enforcement registry
 - Captured: 2026-08-31
 - Source: `backend/src/**/*.js`
 - Detection: `pool.query` or `client.query`
@@ -58,3 +58,17 @@ The canonical migration assignments are in [the production migration plan](../DR
 3. Agent write tools are deleted in favor of their shared marketplace service; they are not independently converted.
 4. A source file is not considered migrated merely because it imports Drizzle. It is migrated only when no direct `pg` query remains in its runtime path.
 5. Every intentional raw SQL statement gets an operation name, repository owner, parameterization review, integration test, and query-plan evidence when performance-sensitive.
+
+## Intentional raw-SQL registry
+
+The direct pool migration is complete: application code outside `src/db` and `src/modules` has no raw-pool query access. The remaining SQL uses Drizzle's parameterized `sql` template and is limited to repository modules because it relies on PostgreSQL row locks, partial-state guards, aggregates, or response projections that are more explicit as SQL. No repository interpolates SQL identifiers; every interpolated value is a Drizzle bind parameter. Filters, page sizes, and state values are validated before a repository call.
+
+| Owner / operation namespace | Repository | Why SQL remains intentional | Verification | Query-plan evidence |
+| --- | --- | --- | --- | --- |
+| `identity.*` | `backend/src/modules/identity/repository.js` | Case-insensitive identity, profile projection, skill existence filters, and bounded public discovery reads. | `auth.integration.test.js`, `persistence-boundary.test.js` | Required for `listWorkers` and review-history searches on production-like staging. |
+| `marketplace.*` | `backend/src/modules/marketplace/repository.js` | `FOR UPDATE` locking, guarded state transitions, atomic command writes, aggregate rebuilds, and joined API read models. | `marketplace.integration.test.js`, `payments-reviews.integration.test.js`, `invitations-agents.integration.test.js` | Required for job feed, proposal list, worker earnings, and aggregate rebuild queries. |
+| `operations.*` | `backend/src/modules/operations/repository.js` | Atomic rate-limit upsert, audit writes, moderation state guards, notifications, and bounded operations dashboards. | `persistence-boundary.test.js` plus marketplace integration coverage for notification side effects. | Required for admin search/list queries and rate-limit cleanup. |
+| `agents.*` | `backend/src/modules/agents/repository.js` | Active-run lookup, JSON response composition, idempotent recommendation upsert, agent traces, and bounded candidate discovery. | `invitations-agents.integration.test.js`, `persistence-boundary.test.js` | Required for candidate-worker and run-history reads. |
+| `infrastructure.readiness` / transaction control | `backend/src/db/health.js`, `backend/src/db/transaction.js` | Readiness table check and PostgreSQL transaction control (`BEGIN`/`COMMIT`/`ROLLBACK`) are infrastructure, not domain persistence. | `db-foundation.integration.test.js` | Not performance-sensitive; check is constant-time metadata lookup. |
+
+Repository instrumentation attaches an operation name such as `marketplace.accept-proposal` and the request ID to slow-query and failure logs without recording SQL text or bind values. The Phase 11 release runbook requires retained `EXPLAIN (ANALYZE, BUFFERS)` evidence for each registry item marked as performance-sensitive before production traffic is enabled.

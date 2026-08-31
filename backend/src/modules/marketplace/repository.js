@@ -1,5 +1,6 @@
 const { sql } = require('drizzle-orm');
 const { db } = require('../../db/drizzle');
+const { instrumentRepository } = require('../../observability/request-context');
 
 function executor(client = db) {
   return client;
@@ -434,7 +435,7 @@ async function workerEarnings(workerId) {
   return { payments, totals };
 }
 
-module.exports = {
+module.exports = instrumentRepository('marketplace', {
   acceptProposal,
   assignJob,
   cancelJob,
@@ -480,4 +481,4 @@ module.exports = {
   updatePaymentStatus,
   updateJobStatus,
   workerEarnings,
-};
+});

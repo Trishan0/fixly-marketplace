@@ -14,5 +14,6 @@ describe('GET /api/health', () => {
 
     expect(response.body.status).toBe('ok');
     expect(Number.isNaN(Date.parse(response.body.timestamp))).toBe(false);
+    expect(response.headers['x-request-id']).toMatch(/^[a-zA-Z0-9_-]{8,128}$/);
   });
 });

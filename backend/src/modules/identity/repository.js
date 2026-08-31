@@ -1,5 +1,6 @@
 const { sql } = require('drizzle-orm');
 const { db } = require('../../db/drizzle');
+const { instrumentRepository } = require('../../observability/request-context');
 
 function executor(client = db) { return client; }
 async function rows(statement, client) { return (await executor(client).execute(statement)).rows; }
@@ -141,10 +142,10 @@ function workerReviews(id, limit, offset) { return rows(sql`SELECT r.id,r.rating
 function customerSummary(id) { return one(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.created_at, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id) AS jobs_posted, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('posted','proposals_received','assigned','in_progress')) AS active_jobs, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('completed','payment_recorded','reviewed')) AS jobs_completed, (SELECT COUNT(*)::int FROM reviews WHERE customer_id=u.id) AS reviews_given FROM users u WHERE u.id=${id} AND u.role='customer' AND u.is_suspended=false`); }
 function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j.created_at,c.name AS category_name,(SELECT COUNT(*)::int FROM proposals p WHERE p.job_id=j.id) AS proposal_count FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.customer_id=${id} ORDER BY j.created_at DESC LIMIT 4`); }
 
-module.exports = {
+module.exports = instrumentRepository('identity', {
   createWorkerProfile, deletePortfolioPhoto, findAuthUserByEmail, findCategoryByName, findResetEligibleUser,
   findSessionUser, insertPortfolioPhoto, insertUser, insertWorkerSkill, portfolioCount, resetPassword,
   selfProfile, setDashboardMode, setNicImage, setPasswordResetToken, setProfilePhoto, updateProfile,
   updateWorkerProfile, verifyEmail, workerPortfolio, workerProfileId, workerSkills,
   countWorkers, customerRecentJobs, customerSummary, listWorkers, publicWorker, workerReviews,
-};
+});
