@@ -3,6 +3,14 @@ import { sql } from "drizzle-orm"
 
 
 
+export const adminAuditLogs = pgTable("admin_audit_logs", {
+	id: uuid().defaultRandom().primaryKey().notNull(), actorId: uuid("actor_id").notNull(), action: varchar({ length: 100 }).notNull(), entityType: varchar("entity_type", { length: 50 }).notNull(), entityId: uuid("entity_id").notNull(), reason: text(), beforeState: jsonb("before_state"), afterState: jsonb("after_state"), createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_admin_audit_logs_actor_created").using("btree", table.actorId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	index("idx_admin_audit_logs_entity_created").using("btree", table.entityType.asc().nullsLast().op("timestamptz_ops"), table.entityId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+	foreignKey({ columns: [table.actorId], foreignColumns: [users.id], name: "admin_audit_logs_actor_id_fkey" }),
+]);
+
 export const schemaMigrations = pgTable("schema_migrations", {
 	filename: text().primaryKey().notNull(),
 	checksum: char({ length: 64 }).notNull(),
