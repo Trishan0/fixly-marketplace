@@ -17,7 +17,8 @@
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:status": "node scripts/migrate.js --status",
     "db:migrate:baseline": "node scripts/baseline-migrations.js",
-    "db:seed:demo": "node scripts/seed-demo.js"
+    "db:seed:demo": "node scripts/seed-demo.js",
+    "db:audit:marketplace": "node scripts/audit-marketplace-invariants.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
