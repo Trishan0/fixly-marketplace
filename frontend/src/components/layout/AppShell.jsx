@@ -266,7 +266,7 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
       {/* Logo */}
       <div
         className={cn(
-          "flex items-center border-b py-5",
+          "flex h-[72px] items-center border-b py-0",
           isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10",
           collapsed ? "justify-center px-3" : "justify-between px-6",
         )}
@@ -571,7 +571,7 @@ export function AppShell({ children }) {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="hidden lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/75">
+        <header className="hidden h-[72px] lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-0 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/75">
           <div className="flex items-center gap-4">
             <button
               type="button"
