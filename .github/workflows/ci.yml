@@ -55,6 +55,14 @@ jobs:
         working-directory: backend
       - run: npm run test:integration
         working-directory: backend
+      - run: npm run db:audit:marketplace
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - run: npm run db:ratings:check
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
       - run: npm audit --audit-level=high
         working-directory: backend
 
