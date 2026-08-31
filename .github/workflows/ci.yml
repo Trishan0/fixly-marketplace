@@ -41,6 +41,8 @@ jobs:
         working-directory: backend
       - run: npm run typecheck
         working-directory: backend
+      - run: npm run typecheck:persistence
+        working-directory: backend
       - run: npm run lint
         working-directory: backend
       - run: npm run build

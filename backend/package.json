@@ -10,6 +10,7 @@
     "dev": "nodemon src/app.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
+    "typecheck:persistence": "tsc -p tsconfig.persistence.json",
     "test": "vitest run --config vitest.config.mjs",
     "test:watch": "vitest --config vitest.config.mjs",
     "test:integration": "vitest run --config vitest.integration.config.mjs",

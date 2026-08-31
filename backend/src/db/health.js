@@ -1,6 +1,8 @@
 const pool = require('./index');
 
+/** @type {number} */
 let readinessFailures = 0;
+/** @type {Promise<void> | undefined} */
 let shutdownPromise;
 
 function poolMetrics() {

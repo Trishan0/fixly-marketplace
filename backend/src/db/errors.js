@@ -8,23 +8,35 @@ const SQLSTATE = {
   CONNECTION_EXCEPTION: '08000',
 };
 
+/** @typedef {{ code: string, message: string, retryable?: boolean, cause?: unknown }} DatabaseErrorOptions */
+
 class DatabaseError extends Error {
+  /** @param {DatabaseErrorOptions} options */
   constructor({ code, message, retryable = false, cause }) {
     super(message, { cause });
     this.name = 'DatabaseError';
+    /** @type {string} */
     this.code = code;
+    /** @type {boolean} */
     this.retryable = retryable;
   }
 }
 
+/** @param {unknown} value @returns {value is { code?: unknown, cause?: unknown }} */
+function hasDriverShape(value) {
+  return typeof value === 'object' && value !== null;
+}
+
+/** @param {unknown} error @returns {string | undefined} */
 function sqlState(error) {
   let current = error;
-  for (let depth = 0; current && depth < 4; depth += 1, current = current.cause) {
+  for (let depth = 0; hasDriverShape(current) && depth < 4; depth += 1, current = current.cause) {
     if (typeof current.code === 'string') return current.code;
   }
   return undefined;
 }
 
+/** @param {unknown} error @returns {DatabaseError} */
 function classifyDatabaseError(error) {
   switch (sqlState(error)) {
     case SQLSTATE.UNIQUE_VIOLATION:

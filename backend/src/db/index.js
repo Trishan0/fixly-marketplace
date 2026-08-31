@@ -3,6 +3,10 @@ require('dotenv').config();
 const { loadDatabaseConfig } = require('../config/env');
 const { currentContext } = require('../observability/request-context');
 
+/** @typedef {{ queries: number, failures: number, slowQueries: number, totalDurationMs: number }} QueryMetrics */
+/** @typedef {import('pg').PoolClient} PoolClient */
+/** @typedef {import('pg').Pool & { queryMetrics: () => QueryMetrics }} ObservablePool */
+
 const databaseConfig = loadDatabaseConfig();
 const pool = new Pool({
   connectionString: databaseConfig.connectionString,
@@ -16,15 +20,25 @@ const pool = new Pool({
   ssl: databaseConfig.ssl,
 });
 
+/** @type {QueryMetrics} */
 const metrics = { queries: 0, failures: 0, slowQueries: 0, totalDurationMs: 0 };
+/** @type {WeakSet<PoolClient>} */
 const instrumentedClients = new WeakSet();
 
+/** @param {unknown[]} args */
 function queryName(args) {
-  const statement = typeof args[0] === 'string' ? args[0] : args[0]?.text;
+  const input = args[0];
+  const statement = typeof input === 'string'
+    ? input
+    : typeof input === 'object' && input !== null && 'text' in input && typeof input.text === 'string'
+      ? input.text
+      : undefined;
   return typeof statement === 'string' ? statement.trim().split(/\s+/, 1)[0]?.toUpperCase() : 'QUERY';
 }
 
+/** @param {(...args: any[]) => Promise<any>} query */
 function instrumentQuery(query) {
+  /** @param {...any} args */
   return async (...args) => {
   const started = performance.now();
   const context = currentContext();
@@ -37,7 +51,7 @@ function instrumentQuery(query) {
       operation: context.databaseOperation || 'infrastructure',
       request_id: context.requestId,
       statement_kind: queryName(args),
-      sqlstate: error.code,
+      sqlstate: typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined,
     }));
     throw error;
   }
@@ -59,7 +73,9 @@ function instrumentQuery(query) {
 
 const poolQuery = pool.query.bind(pool);
 pool.query = instrumentQuery(poolQuery);
+/** @type {(...args: any[]) => any} */
 const poolConnect = pool.connect.bind(pool);
+/** @param {PoolClient} client @returns {PoolClient} */
 function instrumentClient(client) {
   if (!instrumentedClients.has(client)) {
     client.query = instrumentQuery(client.query.bind(client));
@@ -67,17 +83,22 @@ function instrumentClient(client) {
   }
   return client;
 }
-pool.connect = (...args) => {
+const instrumentedConnect = /** @param {...any} args */ (...args) => {
   const callback = args.find(argument => typeof argument === 'function');
   if (callback) {
-    return poolConnect((error, client, release) => callback(error, client && instrumentClient(client), release));
+    return poolConnect(/** @param {Error | undefined} error @param {PoolClient | undefined} client @param {(release?: any) => void} release */
+      (error, client, release) => callback(error, client && instrumentClient(client), release));
   }
   return poolConnect(...args).then(instrumentClient);
 };
+/** @type {any} */ (pool).connect = instrumentedConnect;
 
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
 });
 
-module.exports = pool;
-module.exports.queryMetrics = () => ({ ...metrics, averageDurationMs: metrics.queries ? metrics.totalDurationMs / metrics.queries : 0 });
+/** @type {ObservablePool} */
+const observablePool = /** @type {any} */ (pool);
+observablePool.queryMetrics = () => ({ ...metrics, averageDurationMs: metrics.queries ? metrics.totalDurationMs / metrics.queries : 0 });
+
+module.exports = observablePool;
