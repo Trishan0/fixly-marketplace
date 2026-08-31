@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { cn, getInitials } from "../../lib/utils";
+import { BrandLogo } from "../shared/BrandLogo";
 import api from "../../lib/api";
 import { ThemeToggleIconButton } from "../shared/ThemeToggle";
 
@@ -271,16 +272,10 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
         )}
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center">
-            <Wrench className="w-4 h-4 text-white" />
-          </div>
-          {!collapsed && (
-            <span
-              className="font-bold text-xl tracking-tight"
-              style={{ fontFamily: "Syne, sans-serif" }}
-            >
-              Fixly
-            </span>
+          {collapsed ? (
+            <BrandLogo compact className="h-8 w-8" />
+          ) : (
+            <BrandLogo onDark={!isMobileDrawer} className="h-8 w-[7.5rem]" />
           )}
         </div>
         {onClose && (
@@ -620,9 +615,7 @@ export function AppShell({ children }) {
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-sky-500 rounded-lg flex items-center justify-center">
-              <Wrench className="w-3 h-3 text-white" />
-            </div>
+            <BrandLogo compact className="h-6 w-6" />
               <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
                 {currentSection}
               </span>

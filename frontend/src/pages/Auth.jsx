@@ -12,12 +12,12 @@ import {
   ShieldCheck,
   Sparkles,
   User,
-  Wrench,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Button, Input, Select } from '../components/shared/UI'
 import { DISTRICTS, cn } from '../lib/utils'
 import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
+import { BrandLogo } from '../components/shared/BrandLogo'
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
 const ENABLE_DEMO_ACCOUNTS = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true'
@@ -196,10 +196,7 @@ export default function Auth() {
     <div className="fixly-page-shell min-h-[100dvh]">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6 md:px-10 md:py-8">
         <Link to="/" className="flex min-h-11 items-center gap-3" aria-label="Fixly home">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600 shadow-sm shadow-sky-200 dark:shadow-none">
-            <Wrench className="h-5 w-5 text-white" />
-          </span>
-          <span className="text-xl font-black text-slate-950">Fixly</span>
+          <BrandLogo className="h-9 w-[8.45rem]" />
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggleIconButton className="h-11 w-11" />

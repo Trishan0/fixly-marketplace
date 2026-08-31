@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
+import { BrandLogo } from '../../components/shared/BrandLogo'
 import { WorkerCard } from '../../components/shared/Cards'
 import { Button, Spinner, EmptyState } from '../../components/shared/UI'
 import { DISTRICTS, cn } from '../../lib/utils'
@@ -103,10 +104,7 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
       {/* Navbar */}
       <nav className="fixly-topbar sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-slate-100 px-4 dark:border-slate-800 sm:px-6">
         <Link to="/" className="flex min-h-11 items-center gap-2">
-          <div className="w-8 h-8 bg-sky-600 rounded-xl flex items-center justify-center">
-            <Wrench className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="font-black text-slate-900 dark:text-white" style={{ fontFamily: 'Syne, sans-serif' }}>Fixly</span>
+          <BrandLogo className="h-8 w-[7.5rem]" />
         </Link>
         <div className="flex items-center gap-1.5 sm:gap-2">
           <ThemeToggleIconButton className="h-11 w-11 rounded-xl" />

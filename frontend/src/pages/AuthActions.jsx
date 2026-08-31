@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ShieldCheck, KeyRound, MailCheck, Wrench } from 'lucide-react'
+import { ShieldCheck, KeyRound, MailCheck } from 'lucide-react'
 import api from '../lib/api'
 import { Button, Input, Card } from '../components/shared/UI'
+import { BrandLogo } from '../components/shared/BrandLogo'
 
 function AuthActionLayout({ icon: Icon, title, description, children }) {
   return (
     <div className="fixly-page-shell min-h-screen">
       <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
         <Link to="/" className="mb-8 inline-flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600">
-            <Wrench className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-2xl font-bold text-slate-900 dark:text-white">Fixly</span>
+          <BrandLogo className="h-10 w-[9.4rem]" />
         </Link>
 
         <Card className="p-5 sm:p-8">

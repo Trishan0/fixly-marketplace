@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MoreHorizontal, Settings, Pencil, LogOut, Wrench } from 'lucide-react'
+import { MoreHorizontal, Settings, Pencil, LogOut } from 'lucide-react'
 import { Card, Avatar } from './UI'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../../context/AuthContext'
 import { ThemeToggleIconButton } from './ThemeToggle'
+import { BrandLogo } from './BrandLogo'
 
 export function ProfileActionsMenu({ className }) {
   const navigate = useNavigate()
@@ -82,10 +83,7 @@ export function PublicPageChrome({ crumbLabel, crumbTo, currentLabel }) {
     <nav className="fixly-topbar border-b border-white/70 dark:border-slate-800">
       <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-600">
-            <Wrench className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-bold text-slate-950" style={{ fontFamily: 'Syne, sans-serif' }}>Fixly</span>
+          <BrandLogo className="h-8 w-[7.5rem]" />
         </Link>
         {crumbLabel && (
           <>

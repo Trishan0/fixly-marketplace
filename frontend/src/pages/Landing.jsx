@@ -2,11 +2,12 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Wrench, ChevronRight, Droplets, Zap, Hammer, Sparkles, ShieldCheck,
+  ChevronRight, Droplets, Zap, Hammer, Sparkles, ShieldCheck,
   Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search, Menu, X
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
+import { BrandLogo } from '../components/shared/BrandLogo'
 
 const categories = [
   { icon: Droplets, name: 'Plumbing', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300' },
@@ -191,10 +192,7 @@ export default function Landing() {
       <nav className="fixly-topbar sticky top-0 z-30 border-b px-4 py-3 sm:px-6 md:px-12">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <Link to="/" className="flex min-h-11 items-center gap-3" aria-label="Fixly home">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-600">
-              <Wrench className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-xl font-black text-slate-900">Fixly</span>
+            <BrandLogo className="h-9 w-[8.45rem]" />
           </Link>
           <div className="hidden items-center gap-3 sm:flex">
             <ThemeToggleIconButton className="h-11 w-11" />
@@ -345,10 +343,7 @@ export default function Landing() {
       <footer className="border-t border-slate-200 bg-slate-950 py-10 text-slate-400 dark:border-slate-800">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 md:flex-row md:px-12">
           <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:justify-start sm:text-left">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-500">
-              <Wrench className="h-3 w-3 text-white" />
-            </div>
-            <span className="text-sm font-bold text-white">Fixly</span>
+            <BrandLogo onDark className="h-7 w-[6.6rem]" />
             <span className="text-xs">Sri Lanka&apos;s Local Service Marketplace</span>
           </div>
           <p className="text-xs">© {new Date().getFullYear()} Fixly. All rights reserved.</p>

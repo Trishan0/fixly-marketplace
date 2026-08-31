@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">Fixly logo for dark backgrounds</title>
+  <desc id="desc">A blue rounded-square monogram combining the letter F with a completion check, followed by the Fixly wordmark in white.</desc>
+  <defs>
+    <linearGradient id="fixlyBlue" x1="32" y1="24" x2="276" y2="296" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#0284C7"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="272" height="272" rx="76" fill="url(#fixlyBlue)"/>
+  <path d="M94 226V102c0-17.7 14.3-32 32-32h94" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M111 145h85" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
+  <path d="m184 221 25 25 53-64" fill="none" stroke="#E0F2FE" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="352" y="212" fill="#F8FAFC" font-family="'Syne','Plus Jakarta Sans',Arial,sans-serif" font-size="170" font-weight="800" letter-spacing="-8">Fixly</text>
+</svg>
