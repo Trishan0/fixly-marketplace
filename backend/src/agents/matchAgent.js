@@ -2,7 +2,7 @@
  * matchAgent.js — Customer-side Job Match Agent (Gemini-powered with deterministic fallback).
  */
 
-const pool = require('../db');
+const repository = require('../modules/agents/repository');
 const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./gemini');
 const { getJobDetails } = require('./tools/getJobDetails');
 const { getCandidateWorkers } = require('./tools/getCandidateWorkers');
@@ -156,14 +156,10 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
   const recommendations = [];
   for (let i = 0; i < top.length; i++) {
     const { worker, total, factors, rationale } = top[i];
-    const recResult = await pool.query(
-      `INSERT INTO agent_recommendations (run_id, entity_type, entity_id, score, factors_json, rationale, rank)
-       VALUES ($1, 'worker', $2, $3, $4, $5, $6) RETURNING id`,
-      [runId, worker.id, total, JSON.stringify(factors), rationale, i + 1]
-    );
+    const recResult = await repository.addRecommendation(runId, 'worker', worker.id, total, factors, rationale, i + 1);
 
     recommendations.push({
-      recommendation_id: recResult.rows[0].id,
+      recommendation_id: recResult.id,
       rank: i + 1,
       score: total,
       factors,
@@ -185,10 +181,7 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
     'Send invites to selected workers',
   ];
 
-  await pool.query(
-    `UPDATE agent_runs SET status = 'awaiting_confirmation', plan_json = $1 WHERE id = $2`,
-    [JSON.stringify(plan), runId]
-  );
+  await repository.awaitConfirmation(runId, plan);
 
   return {
     run_id: runId,
@@ -203,20 +196,12 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
 
 // ── Main Entry ─────────────────────────────────────────────────────────────
 async function runMatchAgent(jobId, customerId) {
-  const runResult = await pool.query(
-    `INSERT INTO agent_runs (user_id, agent_type, objective, status, job_id)
-     VALUES ($1, 'match', $2, 'running', $3) RETURNING id`,
-    [customerId, `Find best workers for job ${jobId}`, jobId]
-  );
-  const runId = runResult.rows[0].id;
+  const run = await repository.createRun(customerId, 'match', `Find best workers for job ${jobId}`, jobId);
+  const runId = run.id;
 
   const loggedSteps = [];
   async function logStep(stepIndex, stepName, input, output, decision = null) {
-    await pool.query(
-      `INSERT INTO agent_run_steps (run_id, step_index, step_name, input_json, output_json, decision)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [runId, stepIndex, stepName, JSON.stringify(input), JSON.stringify(output), decision]
-    );
+    await repository.addStep(runId, stepIndex, stepName, input, output, decision);
     loggedSteps.push({ stepIndex, stepName, decision });
   }
 
@@ -253,14 +238,10 @@ async function runMatchAgent(jobId, customerId) {
             if (!worker) continue;
 
             const { factors } = scoreWorkerForJob(worker, job);
-            const recResult = await pool.query(
-              `INSERT INTO agent_recommendations (run_id, entity_type, entity_id, score, factors_json, rationale, rank)
-               VALUES ($1, 'worker', $2, $3, $4, $5, $6) RETURNING id`,
-              [runId, worker.id, rec.score, JSON.stringify(factors), rec.ai_rationale, rec.rank || i + 1]
-            );
+            const recResult = await repository.addRecommendation(runId, 'worker', worker.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1);
 
             recommendations.push({
-              recommendation_id: recResult.rows[0].id,
+              recommendation_id: recResult.id,
               rank: rec.rank || i + 1,
               score: rec.score,
               factors,
@@ -279,10 +260,7 @@ async function runMatchAgent(jobId, customerId) {
             'Send invites',
           ];
 
-          await pool.query(
-            `UPDATE agent_runs SET status = 'awaiting_confirmation', plan_json = $1 WHERE id = $2`,
-            [JSON.stringify(plan), runId]
-          );
+          await repository.awaitConfirmation(runId, plan);
 
           return {
             run_id: runId,
@@ -303,7 +281,7 @@ async function runMatchAgent(jobId, customerId) {
     return await runDeterministicMatch(job, customerId, runId, logStep);
 
   } catch (err) {
-    await pool.query(`UPDATE agent_runs SET status = 'error' WHERE id = $1`, [runId]);
+    await repository.failRun(runId);
     throw err;
   }
 }

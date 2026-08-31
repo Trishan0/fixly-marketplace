@@ -2,7 +2,7 @@
  * proposalAgent.js — Worker-side Proposal Agent (Gemini-powered with deterministic fallback).
  */
 
-const pool = require('../db');
+const repository = require('../modules/agents/repository');
 const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./gemini');
 const { getOpenJobsForWorker } = require('./tools/getOpenJobs');
 const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
@@ -96,25 +96,9 @@ Output Format (ONLY valid JSON):
 }`;
 
 async function getWorkerProfile(workerId) {
-  const r = await pool.query(
-    `SELECT u.id, u.full_name, u.district, u.area, u.is_nic_verified,
-            wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating
-     FROM users u
-     LEFT JOIN worker_profiles wp ON wp.user_id = u.id
-     WHERE u.id = $1 AND u.role = 'worker'`,
-    [workerId]
-  );
-  if (!r.rows[0]) return null;
-  const worker = r.rows[0];
-
-  const skills = await pool.query(
-    `SELECT ws.category_id, ws.is_primary, c.name AS category_name
-     FROM worker_skills ws
-     JOIN categories c ON c.id = ws.category_id
-     WHERE ws.worker_id = (SELECT id FROM worker_profiles WHERE user_id = $1)`,
-    [workerId]
-  );
-  worker.skills = skills.rows;
+  const worker = await repository.agentWorker(workerId);
+  if (!worker) return null;
+  worker.skills = await repository.agentWorkerSkills(workerId);
   return worker;
 }
 
@@ -170,14 +154,10 @@ async function runDeterministicProposal(worker, runId, logStep) {
     const { job, total, factors, rationale } = top[i];
     const proposalDraft = draftProposalMessage(job, worker);
 
-    const recResult = await pool.query(
-      `INSERT INTO agent_recommendations (run_id, entity_type, entity_id, score, factors_json, rationale, rank)
-       VALUES ($1, 'job', $2, $3, $4, $5, $6) RETURNING id`,
-      [runId, job.id, total, JSON.stringify(factors), rationale, i + 1]
-    );
+    const recResult = await repository.addRecommendation(runId, 'job', job.id, total, factors, rationale, i + 1);
 
     recommendations.push({
-      recommendation_id: recResult.rows[0].id,
+      recommendation_id: recResult.id,
       rank: i + 1,
       score: total,
       factors,
@@ -211,10 +191,7 @@ async function runDeterministicProposal(worker, runId, logStep) {
     'Submit proposals',
   ];
 
-  await pool.query(
-    `UPDATE agent_runs SET status = 'awaiting_confirmation', plan_json = $1 WHERE id = $2`,
-    [JSON.stringify(plan), runId]
-  );
+  await repository.awaitConfirmation(runId, plan);
 
   return {
     run_id: runId,
@@ -229,20 +206,12 @@ async function runDeterministicProposal(worker, runId, logStep) {
 
 // ── Main Entry ─────────────────────────────────────────────────────────────
 async function runProposalAgent(workerId) {
-  const runResult = await pool.query(
-    `INSERT INTO agent_runs (user_id, agent_type, objective, status)
-     VALUES ($1, 'proposal', $2, 'running') RETURNING id`,
-    [workerId, `Find best job opportunities for worker ${workerId}`]
-  );
-  const runId = runResult.rows[0].id;
+  const run = await repository.createRun(workerId, 'proposal', `Find best job opportunities for worker ${workerId}`);
+  const runId = run.id;
 
   const loggedSteps = [];
   async function logStep(stepIndex, stepName, input, output, decision = null) {
-    await pool.query(
-      `INSERT INTO agent_run_steps (run_id, step_index, step_name, input_json, output_json, decision)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [runId, stepIndex, stepName, JSON.stringify(input), JSON.stringify(output), decision]
-    );
+    await repository.addStep(runId, stepIndex, stepName, input, output, decision);
     loggedSteps.push({ stepIndex, stepName, decision });
   }
 
@@ -277,14 +246,10 @@ async function runProposalAgent(workerId) {
             if (!job) continue;
 
             const { factors } = scoreJobForWorker(job, worker);
-            const recResult = await pool.query(
-              `INSERT INTO agent_recommendations (run_id, entity_type, entity_id, score, factors_json, rationale, rank)
-               VALUES ($1, 'job', $2, $3, $4, $5, $6) RETURNING id`,
-              [runId, job.id, rec.score, JSON.stringify(factors), rec.ai_rationale, rec.rank || i + 1]
-            );
+            const recResult = await repository.addRecommendation(runId, 'job', job.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1);
 
             recommendations.push({
-              recommendation_id: recResult.rows[0].id,
+              recommendation_id: recResult.id,
               rank: rec.rank || i + 1,
               score: rec.score,
               factors,
@@ -304,10 +269,7 @@ async function runProposalAgent(workerId) {
             'Submit proposals',
           ];
 
-          await pool.query(
-            `UPDATE agent_runs SET status = 'awaiting_confirmation', plan_json = $1 WHERE id = $2`,
-            [JSON.stringify(plan), runId]
-          );
+          await repository.awaitConfirmation(runId, plan);
 
           return {
             run_id: runId,
@@ -328,7 +290,7 @@ async function runProposalAgent(workerId) {
     return await runDeterministicProposal(worker, runId, logStep);
 
   } catch (err) {
-    await pool.query(`UPDATE agent_runs SET status = 'error' WHERE id = $1`, [runId]);
+    await repository.failRun(runId);
     throw err;
   }
 }
