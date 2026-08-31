@@ -14,6 +14,7 @@ const pool = require('../db');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { runMatchAgent, confirmMatchAgent } = require('../agents/matchAgent');
 const { runProposalAgent, confirmProposalAgent } = require('../agents/proposalAgent');
+const { MarketplaceError } = require('../modules/marketplace/errors');
 
 // ── POST /api/agent/match/run ─────────────────────────────────────────────────
 // Customer triggers the match agent for a specific job.
@@ -114,6 +115,9 @@ router.post('/run/:id/confirm', verifyToken, async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('[agent/confirm]', err.message);
+    if (err instanceof MarketplaceError) {
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
     if (err.message.includes('not found')) return res.status(404).json({ error: err.message });
     if (err.message.includes('not awaiting')) return res.status(400).json({ error: err.message });
     res.status(500).json({ error: 'Confirmation failed: ' + err.message });

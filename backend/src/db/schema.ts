@@ -253,6 +253,7 @@ export const agentRecommendations = pgTable("agent_recommendations", {
 }, (table) => [
 	index("idx_agent_recommendations_rank").using("btree", table.runId.asc().nullsLast().op("int4_ops"), table.rank.asc().nullsLast().op("int4_ops")),
 	index("idx_agent_recommendations_run_id").using("btree", table.runId.asc().nullsLast().op("uuid_ops")),
+	uniqueIndex("uq_agent_recommendations_run_entity").using("btree", table.runId.asc().nullsLast().op("text_ops"), table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("text_ops")),
 	foreignKey({
 			columns: [table.runId],
 			foreignColumns: [agentRuns.id],
@@ -294,6 +295,8 @@ export const agentRuns = pgTable("agent_runs", {
 	index("idx_agent_runs_job_id").using("btree", table.jobId.asc().nullsLast().op("uuid_ops")),
 	index("idx_agent_runs_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
 	index("idx_agent_runs_user_id").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
+	uniqueIndex("uq_agent_runs_active_match").using("btree", table.userId.asc().nullsLast().op("uuid_ops"), table.jobId.asc().nullsLast().op("uuid_ops")).where(sql`(((agent_type)::text = 'match'::text) AND (job_id IS NOT NULL) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'awaiting_confirmation'::character varying])::text[])))`),
+	uniqueIndex("uq_agent_runs_active_proposal").using("btree", table.userId.asc().nullsLast().op("uuid_ops")).where(sql`(((agent_type)::text = 'proposal'::text) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'awaiting_confirmation'::character varying])::text[])))`),
 	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],

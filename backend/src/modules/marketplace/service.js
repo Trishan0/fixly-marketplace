@@ -39,6 +39,27 @@ const reviewInput = z.object({
   rating: z.coerce.number().int().min(1).max(5),
   feedback: optionalText,
 });
+const invitationInput = z.object({
+  worker_id: z.string().uuid(),
+  message: optionalText,
+});
+const inviteSelections = z.array(z.string().uuid()).min(1).superRefine((selections, context) => {
+  if (new Set(selections).size !== selections.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Worker selections must be unique' });
+  }
+});
+const proposalSelections = z.array(z.object({
+  job_id: z.string().uuid(),
+  proposed_price: decimal.optional().nullable(),
+  inspection_needed: z.boolean().optional().default(false),
+  availability: z.string().trim().max(255).optional().nullable(),
+  message: optionalText,
+})).min(1).superRefine((selections, context) => {
+  const jobIds = selections.map(selection => selection.job_id);
+  if (new Set(jobIds).size !== jobIds.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Job selections must be unique' });
+  }
+});
 
 const jobStatus = z.enum(['proposals_received', 'assigned', 'in_progress', 'completed', 'payment_recorded', 'reviewed', 'cancelled']);
 const transitions = {
@@ -117,6 +138,187 @@ async function submitProposal({ jobId, worker, input }) {
         meta: { job_id: jobId, worker_id: worker.id },
       }, tx);
       return proposal;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function createInviteInTransaction({ jobId, customerId, workerId, message }, tx) {
+  const job = await repository.findJobForUpdate(jobId, tx);
+  if (!job || job.customer_id !== customerId) throw notFound('Job not found');
+  if (!job.is_active || !['posted', 'proposals_received'].includes(job.status)) {
+    throw conflict('Job is not accepting invites');
+  }
+
+  const worker = await repository.findWorker(workerId, tx);
+  if (!worker) throw notFound('Worker not found');
+  const invite = await repository.insertInvite({ jobId, customerId, workerId, message }, tx);
+  if (!invite) {
+    const existing = await repository.findInviteByJobAndWorker(jobId, workerId, tx);
+    if (!existing) throw conflict('Unable to create invite');
+    return { invite: existing, alreadyExists: true };
+  }
+  await repository.insertNotification({
+    userId: workerId,
+    type: 'new_invite',
+    title: 'New Job Invite',
+    body: `You have been invited to a job: ${job.title}`,
+    meta: { job_id: jobId, customer_id: customerId },
+  }, tx);
+  return { invite, alreadyExists: false };
+}
+
+async function createInvitation({ jobId, customerId, input }) {
+  const data = parse(invitationInput, input);
+  try {
+    return await withTransaction(
+      ({ tx }) => createInviteInTransaction({
+        jobId,
+        customerId,
+        workerId: data.worker_id,
+        message: data.message,
+      }, tx),
+      { isolationLevel: 'serializable', maxRetries: 2 }
+    );
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function acceptInvitation({ inviteId, worker }) {
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const invite = await repository.findInviteForUpdate(inviteId, tx);
+      if (!invite || invite.worker_id !== worker.id) throw notFound('Invite not found');
+      if (invite.status === 'accepted') return { alreadyAccepted: true, proposal: null };
+      if (invite.status !== 'pending') throw conflict('Invite already responded to');
+      if (!invite.job_is_active || !['posted', 'proposals_received'].includes(invite.job_status)) {
+        throw conflict('Job is not accepting proposals');
+      }
+      const accepted = await repository.updateInviteStatus(inviteId, 'pending', 'accepted', tx);
+      if (!accepted) throw conflict('Invite already responded to');
+
+      let proposal = await repository.findProposalByJobAndWorker(invite.job_id, worker.id, tx);
+      if (!proposal) {
+        proposal = await repository.insertProposal({
+          jobId: invite.job_id,
+          workerId: worker.id,
+          proposedPrice: null,
+          inspectionNeeded: false,
+          availability: null,
+          message: 'Accepted via invite',
+        }, tx);
+        if (!proposal) proposal = await repository.findProposalByJobAndWorker(invite.job_id, worker.id, tx);
+        if (!proposal) throw conflict('Unable to create proposal from invite');
+        await repository.markJobHasProposals(invite.job_id, tx);
+      }
+      await repository.insertNotification({
+        userId: invite.customer_id,
+        type: 'invite_accepted',
+        title: 'Invite Accepted',
+        body: `A worker accepted your invite for: ${invite.job_title}`,
+        meta: { job_id: invite.job_id, worker_id: worker.id },
+      }, tx);
+      return { alreadyAccepted: false, proposal };
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function declineInvitation({ inviteId, workerId }) {
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const invite = await repository.findInviteForUpdate(inviteId, tx);
+      if (!invite || invite.worker_id !== workerId) throw notFound('Invite not found');
+      if (invite.status === 'declined') return invite;
+      if (invite.status !== 'pending') throw conflict('Invite already responded to');
+      const declined = await repository.updateInviteStatus(inviteId, 'pending', 'declined', tx);
+      if (!declined) throw conflict('Invite already responded to');
+      return declined;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function confirmMatchAgent({ runId, customerId, selections }) {
+  const workerIds = parse(inviteSelections, selections);
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const run = await repository.findAgentRunForUpdate(runId, customerId, 'match', tx);
+      if (!run) throw notFound('Agent run not found');
+      if (run.status !== 'awaiting_confirmation') throw conflict('Run is not awaiting confirmation');
+      const job = await repository.findJobForUpdate(run.job_id, tx);
+      if (!job || job.customer_id !== customerId) throw notFound('Job not found');
+      for (const workerId of workerIds) {
+        const recommendation = await repository.findRecommendation(runId, 'worker', workerId, tx);
+        if (!recommendation) throw badRequest('Selected worker was not recommended by this run');
+      }
+      const results = [];
+      for (const workerId of workerIds) {
+        const { invite, alreadyExists } = await createInviteInTransaction({
+          jobId: run.job_id, customerId, workerId, message: null,
+        }, tx);
+        await repository.markRecommendationAction(runId, 'worker', workerId, 'invited', tx);
+        results.push({ workerId, status: alreadyExists ? 'already_invited' : 'invited', inviteId: invite.id });
+      }
+      const completed = await repository.completeAgentRun(runId, tx);
+      if (!completed) throw conflict('Run is not awaiting confirmation');
+      return { run_id: runId, status: 'completed', results };
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function confirmProposalAgent({ runId, worker, selections }) {
+  const proposals = parse(proposalSelections, selections);
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const run = await repository.findAgentRunForUpdate(runId, worker.id, 'proposal', tx);
+      if (!run) throw notFound('Agent run not found');
+      if (run.status !== 'awaiting_confirmation') throw conflict('Run is not awaiting confirmation');
+      const persistedWorker = await repository.findWorker(worker.id, tx);
+      if (!persistedWorker) throw forbidden('Only workers can confirm proposals');
+      for (const proposal of proposals) {
+        const recommendation = await repository.findRecommendation(runId, 'job', proposal.job_id, tx);
+        if (!recommendation) throw badRequest('Selected job was not recommended by this run');
+      }
+      const results = [];
+      for (const proposal of proposals) {
+        const job = await repository.findJobForUpdate(proposal.job_id, tx);
+        if (!job) throw notFound('Job not found');
+        if (!job.is_active || !['posted', 'proposals_received'].includes(job.status)) {
+          throw conflict('Job is not accepting proposals');
+        }
+        const inserted = await repository.insertProposal({
+          jobId: proposal.job_id,
+          workerId: worker.id,
+          proposedPrice: proposal.proposed_price || null,
+          inspectionNeeded: proposal.inspection_needed,
+          availability: proposal.availability || null,
+          message: proposal.message,
+        }, tx);
+        const persistedProposal = inserted || await repository.findProposalByJobAndWorker(proposal.job_id, worker.id, tx);
+        if (!persistedProposal) throw conflict('Unable to submit proposal');
+        if (inserted) {
+          await repository.markJobHasProposals(proposal.job_id, tx);
+          await repository.insertNotification({
+            userId: job.customer_id,
+            type: 'new_proposal',
+            title: 'New Proposal Received',
+            body: `${worker.full_name || persistedWorker.full_name || 'A worker'} sent a proposal for: ${job.title}`,
+            meta: { job_id: proposal.job_id, worker_id: worker.id },
+          }, tx);
+        }
+        await repository.markRecommendationAction(runId, 'job', proposal.job_id, 'proposal_submitted', tx);
+        results.push({ job_id: proposal.job_id, status: inserted ? 'submitted' : 'already_proposed', proposalId: persistedProposal.id });
+      }
+      const completed = await repository.completeAgentRun(runId, tx);
+      if (!completed) throw conflict('Run is not awaiting confirmation');
+      return { run_id: runId, status: 'completed', results };
     }, { isolationLevel: 'serializable', maxRetries: 2 });
   } catch (error) {
     translate(error);
@@ -365,9 +567,14 @@ async function createReview({ jobId, customerId, input }) {
 
 module.exports = {
   acceptProposal,
+  acceptInvitation,
   cancelJob,
+  confirmMatchAgent,
+  confirmProposalAgent,
   createJob,
+  createInvitation,
   createReview,
+  declineInvitation,
   declineProposal,
   setFinalPrice,
   recordPayment,

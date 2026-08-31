@@ -84,6 +84,15 @@ const AUDITS = [
     `,
   },
   {
+    name: 'duplicate_agent_recommendations',
+    sql: `
+      SELECT run_id, entity_type, entity_id, COUNT(*)::int AS count
+      FROM agent_recommendations
+      GROUP BY run_id, entity_type, entity_id
+      HAVING COUNT(*) > 1
+    `,
+  },
+  {
     name: 'missing_critical_relationships',
     sql: `
       SELECT 'jobs.customer_id' AS relationship, id AS record_id FROM jobs WHERE customer_id IS NULL

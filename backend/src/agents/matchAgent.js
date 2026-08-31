@@ -309,33 +309,8 @@ async function runMatchAgent(jobId, customerId) {
 }
 
 async function confirmMatchAgent(runId, customerId, selectedWorkerIds) {
-  const { createInvite } = require('./tools/createInvite');
-
-  const runResult = await pool.query(
-    `SELECT * FROM agent_runs WHERE id = $1 AND user_id = $2 AND agent_type = 'match'`,
-    [runId, customerId]
-  );
-  const run = runResult.rows[0];
-  if (!run) throw new Error('Agent run not found');
-  if (run.status !== 'awaiting_confirmation') throw new Error('Run is not awaiting confirmation');
-
-  const results = [];
-  for (const workerId of selectedWorkerIds) {
-    try {
-      const { invite, alreadyExists } = await createInvite(run.job_id, customerId, workerId);
-      await pool.query(
-        `UPDATE agent_recommendations SET action_taken = 'invited', action_at = NOW()
-         WHERE run_id = $1 AND entity_type = 'worker' AND entity_id = $2`,
-        [runId, workerId]
-      );
-      results.push({ workerId, status: alreadyExists ? 'already_invited' : 'invited', inviteId: invite.id });
-    } catch (err) {
-      results.push({ workerId, status: 'error', error: err.message });
-    }
-  }
-
-  await pool.query(`UPDATE agent_runs SET status = 'completed', completed_at = NOW() WHERE id = $1`, [runId]);
-  return { run_id: runId, status: 'completed', results };
+  const { confirmMatchAgent: confirm } = require('../modules/marketplace/service');
+  return confirm({ runId, customerId, selections: selectedWorkerIds });
 }
 
 module.exports = { runMatchAgent, confirmMatchAgent };

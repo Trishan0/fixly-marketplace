@@ -61,6 +61,86 @@ function findUserSummary(userId) {
   return one(sql`SELECT id, full_name FROM users WHERE id = ${userId}`);
 }
 
+function findWorker(userId, client) {
+  return one(sql`SELECT id, full_name FROM users WHERE id = ${userId} AND role = 'worker'`, client);
+}
+
+function insertInvite(input, client) {
+  return one(sql`
+    INSERT INTO invites (job_id, customer_id, worker_id, message)
+    VALUES (${input.jobId}, ${input.customerId}, ${input.workerId}, ${input.message})
+    ON CONFLICT (job_id, worker_id) DO NOTHING
+    RETURNING *
+  `, client);
+}
+
+function findInviteByJobAndWorker(jobId, workerId, client) {
+  return one(sql`SELECT * FROM invites WHERE job_id = ${jobId} AND worker_id = ${workerId}`, client);
+}
+
+function findInviteForUpdate(inviteId, client) {
+  return one(sql`
+    SELECT i.*, j.title AS job_title, j.status AS job_status, j.is_active AS job_is_active
+    FROM invites i
+    JOIN jobs j ON j.id = i.job_id
+    WHERE i.id = ${inviteId}
+    FOR UPDATE OF i, j
+  `, client);
+}
+
+function updateInviteStatus(inviteId, fromStatus, toStatus, client) {
+  return one(sql`
+    UPDATE invites SET status = ${toStatus}
+    WHERE id = ${inviteId} AND status = ${fromStatus}
+    RETURNING *
+  `, client);
+}
+
+function findAgentRunForUpdate(runId, userId, agentType, client) {
+  return one(sql`
+    SELECT * FROM agent_runs
+    WHERE id = ${runId} AND user_id = ${userId} AND agent_type = ${agentType}
+    FOR UPDATE
+  `, client);
+}
+
+function findRecommendation(runId, entityType, entityId, client) {
+  return one(sql`
+    SELECT * FROM agent_recommendations
+    WHERE run_id = ${runId} AND entity_type = ${entityType} AND entity_id = ${entityId}
+  `, client);
+}
+
+function markRecommendationAction(runId, entityType, entityId, action, client) {
+  return one(sql`
+    UPDATE agent_recommendations SET action_taken = ${action}, action_at = NOW()
+    WHERE run_id = ${runId} AND entity_type = ${entityType} AND entity_id = ${entityId}
+    RETURNING *
+  `, client);
+}
+
+function completeAgentRun(runId, client) {
+  return one(sql`
+    UPDATE agent_runs SET status = 'completed', completed_at = NOW()
+    WHERE id = ${runId} AND status = 'awaiting_confirmation'
+    RETURNING *
+  `, client);
+}
+
+function listReceivedInvites(workerId) {
+  return rows(sql`
+    SELECT i.*, j.title AS job_title, j.district, j.urgency, j.pricing_mode, j.fixed_budget,
+           j.status AS job_status, j.category_id, c.name AS category_name, c.icon AS category_icon,
+           u.full_name AS customer_name, u.profile_photo AS customer_photo
+    FROM invites i
+    JOIN jobs j ON j.id = i.job_id
+    LEFT JOIN categories c ON c.id = j.category_id
+    JOIN users u ON u.id = i.customer_id
+    WHERE i.worker_id = ${workerId}
+    ORDER BY i.created_at DESC
+  `);
+}
+
 function insertProposal(input, client) {
   return one(sql`
     INSERT INTO proposals (job_id, worker_id, proposed_price, inspection_needed, availability, message)
@@ -361,10 +441,16 @@ module.exports = {
   findAgentJobDetails,
   findJobDetail,
   findJobForUpdate,
+  findAgentRunForUpdate,
+  findInviteByJobAndWorker,
+  findInviteForUpdate,
   findProposalByJobAndWorker,
   findProposalForUpdate,
+  findRecommendation,
+  findWorker,
   findUserSummary,
   insertJobPhoto,
+  insertInvite,
   insertPayment,
   insertReview,
   insertNotification,
@@ -377,11 +463,15 @@ module.exports = {
   listCategories,
   listJobPhotos,
   listJobProposals,
+  listReceivedInvites,
   markJobHasProposals,
+  markRecommendationAction,
+  completeAgentRun,
   setProposalStatus,
   findPaymentForUpdate,
   rebuildWorkerAggregate,
   updateFinalPrice,
+  updateInviteStatus,
   updatePaymentStatus,
   updateJobStatus,
   workerEarnings,

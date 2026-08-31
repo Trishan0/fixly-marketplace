@@ -334,39 +334,8 @@ async function runProposalAgent(workerId) {
 }
 
 async function confirmProposalAgent(runId, workerId, selections) {
-  const { submitProposal } = require('./tools/submitProposal');
-
-  const runResult = await pool.query(
-    `SELECT * FROM agent_runs WHERE id = $1 AND user_id = $2 AND agent_type = 'proposal'`,
-    [runId, workerId]
-  );
-  const run = runResult.rows[0];
-  if (!run) throw new Error('Agent run not found');
-  if (run.status !== 'awaiting_confirmation') throw new Error('Run is not awaiting confirmation');
-
-  const results = [];
-  for (const sel of selections) {
-    const { job_id, message, proposed_price, inspection_needed, availability } = sel;
-    try {
-      const { proposal, alreadyExists } = await submitProposal(job_id, workerId, {
-        message,
-        proposed_price: proposed_price || null,
-        inspection_needed: inspection_needed || false,
-        availability: availability || '',
-      });
-      await pool.query(
-        `UPDATE agent_recommendations SET action_taken = 'proposal_submitted', action_at = NOW()
-         WHERE run_id = $1 AND entity_type = 'job' AND entity_id = $2`,
-        [runId, job_id]
-      );
-      results.push({ job_id, status: alreadyExists ? 'already_proposed' : 'submitted', proposalId: proposal.id });
-    } catch (err) {
-      results.push({ job_id, status: 'error', error: err.message });
-    }
-  }
-
-  await pool.query(`UPDATE agent_runs SET status = 'completed', completed_at = NOW() WHERE id = $1`, [runId]);
-  return { run_id: runId, status: 'completed', results };
+  const { confirmProposalAgent: confirm } = require('../modules/marketplace/service');
+  return confirm({ runId, worker: { id: workerId }, selections });
 }
 
 module.exports = { runProposalAgent, confirmProposalAgent };

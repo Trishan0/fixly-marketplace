@@ -347,7 +347,7 @@ describe('Phase 3 jobs and proposals invariants', () => {
       .expect(409);
   });
 
-  test.fails('requires a selected agent worker to belong to the stored recommendations', async () => {
+  test('requires a selected agent worker to belong to the stored recommendations', async () => {
     const customer = await createUser(testPool, {
       email: 'customer-agent-selection@fixly-test.local',
       fullName: 'Agent Customer',
