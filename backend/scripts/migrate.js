@@ -5,6 +5,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { inspectMigrations, runMigrations } = require('./lib/migrations');
+const { loadDatabaseConfig } = require('../src/config/env');
 
 function usage() {
   console.log(`Usage: node scripts/migrate.js [--status] [--env VARIABLE]
@@ -52,11 +53,11 @@ async function main() {
   }
 
   const connectionString = options.envName === 'DATABASE_URL'
-    ? process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL
+    ? loadDatabaseConfig().migrationConnectionString
     : process.env[options.envName];
   if (!connectionString) {
     throw new Error(options.envName === 'DATABASE_URL'
-      ? 'MIGRATION_DATABASE_URL or DATABASE_URL is required'
+      ? 'DATABASE_MIGRATION_URL, MIGRATION_DATABASE_URL, or DATABASE_URL is required'
       : `${options.envName} is required`);
   }
 

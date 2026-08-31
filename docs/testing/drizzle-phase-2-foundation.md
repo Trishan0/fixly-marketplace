@@ -1,0 +1,9 @@
+# Drizzle Phase 2 Foundation Evidence
+
+Phase 2 introduces a single Drizzle wrapper over the existing application `pg.Pool`. Legacy consumers continue to import that same pool while vertical slices are migrated; no second pool and no Drizzle migration ledger are created. The reviewed schema intentionally normalizes `TIMESTAMPTZ` to Drizzle `Date` mode, even though Drizzle Kit’s introspection default is string mode; drift verification treats those equivalent because they describe the same PostgreSQL type.
+
+The numbered SQL migrations and `schema_migrations` remain the sole production schema mutator. The canonical `DATABASE_MIGRATION_URL` takes precedence over the existing `MIGRATION_DATABASE_URL` compatibility variable. `db:schema:verify` is intentionally restricted to a URL named as a test database. It verifies the numbered-migration ledger, introspects the disposable migrated database with the pinned Drizzle Kit version, generates a schema snapshot from the checked-in TypeScript contract, and compares the snapshots semantically. This avoids false failures from catalog-order differences while checking tables, columns, defaults, nullability, constraints, relationships, and indexes. It never runs `drizzle-kit push`.
+
+The database runtime adds validated connection settings, explicit TLS mode, readiness checks, pool metrics for the application observability boundary, graceful pool shutdown, timeout settings, SQLSTATE classification, and a bounded transaction retry policy limited to PostgreSQL serialization and deadlock errors.
+
+The runtime remains CommonJS during the staged conversion because production starts Node directly against `src/app.js`. The TypeScript schema and compile-time contract now provide the typed database foundation; replacing the CommonJS bootstrap with strict TypeScript is completed only when the runtime compilation/deployment path is changed as part of Phase 10.

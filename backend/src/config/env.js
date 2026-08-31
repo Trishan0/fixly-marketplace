@@ -1,0 +1,42 @@
+const { z } = require('zod');
+
+const environmentSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  DATABASE_URL: z.string().url('DATABASE_URL must be a valid PostgreSQL URL'),
+  DATABASE_MIGRATION_URL: z.string().url().optional(),
+  // Compatibility for deployments configured before the Drizzle migration.
+  MIGRATION_DATABASE_URL: z.string().url().optional(),
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().max(100).optional(),
+  DATABASE_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().max(600_000).optional(),
+  DATABASE_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).optional(),
+  DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().max(600_000).optional(),
+  DATABASE_IDLE_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().max(600_000).optional(),
+  DATABASE_SSL_MODE: z.enum(['disable', 'require', 'verify-full']).optional(),
+}).passthrough();
+
+function loadDatabaseConfig(source = process.env) {
+  const parsed = environmentSchema.safeParse(source);
+  if (!parsed.success) {
+    throw new Error(`Invalid database configuration: ${parsed.error.issues.map(issue => issue.message).join('; ')}`);
+  }
+
+  const env = parsed.data;
+  const ssl = env.DATABASE_SSL_MODE === 'disable'
+    ? false
+    : env.DATABASE_SSL_MODE
+      ? { rejectUnauthorized: env.DATABASE_SSL_MODE === 'verify-full' }
+      : undefined;
+
+  return {
+    connectionString: env.DATABASE_URL,
+    max: env.DATABASE_POOL_MAX || (env.NODE_ENV === 'production' ? 3 : 10),
+    idleTimeoutMillis: env.DATABASE_IDLE_TIMEOUT_MS || 30_000,
+    connectionTimeoutMillis: env.DATABASE_CONNECT_TIMEOUT_MS || 10_000,
+    statement_timeout: env.DATABASE_STATEMENT_TIMEOUT_MS || 30_000,
+    idle_in_transaction_session_timeout: env.DATABASE_IDLE_TRANSACTION_TIMEOUT_MS || 30_000,
+    ssl,
+    migrationConnectionString: env.DATABASE_MIGRATION_URL || env.MIGRATION_DATABASE_URL || env.DATABASE_URL,
+  };
+}
+
+module.exports = { loadDatabaseConfig };

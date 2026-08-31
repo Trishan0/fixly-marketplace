@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const pool = require('./db');
+const { checkDatabaseReadiness, closeDatabase } = require('./db/health');
 const { isBlobStorage } = require('./services/storage');
 
 if (process.env.NODE_ENV === 'production') {
@@ -91,11 +91,13 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 
 app.get('/api/ready', async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT to_regclass('public.rate_limit_buckets') IS NOT NULL AS schema_current"
-    );
-    if (!result.rows[0]?.schema_current) throw new Error('Database migrations are not current');
-    res.json({ status: 'ready', database: 'connected', migrations: 'current', timestamp: new Date().toISOString() });
+    await checkDatabaseReadiness();
+    res.json({
+      status: 'ready',
+      database: 'connected',
+      migrations: 'current',
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     console.error('Readiness check failed:', error.message);
     res.status(503).json({ status: 'not_ready', database: 'unavailable' });
@@ -115,15 +117,17 @@ app.use((err, req, res, _next) => {
 
 if (require.main === module) {
   const basePort = Number(process.env.PORT) || 4000;
+  let activeServer;
+  let shuttingDown = false;
 
   const startServer = (port, retriesLeft = 10) => {
-    const server = app.listen(port, () => {
+    activeServer = app.listen(port, () => {
       console.log(`Fixly API running on port ${port}`);
       console.log('Uploads served at /uploads');
       console.log(`CORS allowed: ${process.env.CLIENT_URL}`);
     });
 
-    server.on('error', (err) => {
+    activeServer.on('error', (err) => {
       if (err.code === 'EADDRINUSE' && retriesLeft > 0) {
         console.warn(`Port ${port} is in use, trying ${port + 1}...`);
         startServer(port + 1, retriesLeft - 1);
@@ -133,6 +137,18 @@ if (require.main === module) {
       throw err;
     });
   };
+
+  const shutdown = async (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.info(`Received ${signal}; closing HTTP server and database pool`);
+    if (activeServer) await new Promise(resolve => activeServer.close(resolve));
+    await closeDatabase();
+    process.exit(0);
+  };
+
+  process.once('SIGTERM', () => { shutdown('SIGTERM').catch(error => { console.error(error); process.exit(1); }); });
+  process.once('SIGINT', () => { shutdown('SIGINT').catch(error => { console.error(error); process.exit(1); }); });
 
   startServer(basePort);
 }
