@@ -78,6 +78,7 @@
 
   html {
     min-width: 320px;
+    overflow-x: hidden;
     scroll-behavior: smooth;
   }
 
@@ -87,6 +88,7 @@
     font-family: 'Plus Jakarta Sans', sans-serif;
     min-width: 320px;
     min-height: 100dvh;
+    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
 

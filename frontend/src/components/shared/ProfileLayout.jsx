@@ -4,8 +4,7 @@ import { MoreHorizontal, Settings, Pencil, LogOut } from 'lucide-react'
 import { Card, Avatar } from './UI'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../../context/AuthContext'
-import { ThemeToggleIconButton } from './ThemeToggle'
-import { BrandLogo } from './BrandLogo'
+import { PublicNavbar } from './PublicNavbar'
 
 export function ProfileActionsMenu({ className }) {
   const navigate = useNavigate()
@@ -80,14 +79,12 @@ export function ProfilePageIntro({ title = 'Public Profile', subtitle, ownView =
 
 export function PublicPageChrome({ crumbLabel, crumbTo, currentLabel }) {
   return (
-    <nav className="fixly-topbar border-b border-white/70 dark:border-slate-800">
-      <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <BrandLogo className="h-8 w-[7.5rem]" />
-        </Link>
+    <>
+      <PublicNavbar />
+      <div className="border-b border-white/70 bg-white/50 dark:border-slate-800 dark:bg-slate-950/30">
+        <div className="mx-auto flex min-h-12 max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6 md:px-12">
         {crumbLabel && (
           <>
-            <span className="text-slate-300">/</span>
             {crumbTo ? (
               <Link to={crumbTo} className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white">{crumbLabel}</Link>
             ) : (
@@ -101,11 +98,9 @@ export function PublicPageChrome({ crumbLabel, crumbTo, currentLabel }) {
             <span className="truncate text-sm font-medium text-slate-800">{currentLabel}</span>
           </span>
         )}
-        <div className="ml-auto">
-          <ThemeToggleIconButton />
         </div>
       </div>
-    </nav>
+    </>
   )
 }
 
