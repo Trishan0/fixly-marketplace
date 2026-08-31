@@ -11,6 +11,8 @@
     "src/db/index.js",
     "src/db/errors.js",
     "src/db/health.js",
+    "src/db/drizzle.js",
+    "src/db/transaction.js",
     "src/db/schema.ts",
     "src/db/schema.contract.ts",
     "src/db/relations.ts"

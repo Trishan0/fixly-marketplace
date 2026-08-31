@@ -2,9 +2,16 @@ const { drizzle } = require('drizzle-orm/node-postgres');
 const pool = require('./index');
 const { SQLSTATE, sqlState } = require('./errors');
 
+/** @typedef {'read committed' | 'repeatable read' | 'serializable'} IsolationLevel */
+/** @typedef {'read only' | 'read write'} AccessMode */
+/** @typedef {{ isolationLevel?: IsolationLevel, accessMode?: AccessMode, deferrable?: boolean, maxRetries?: number, retryDelayMs?: number, onRetry?: (event: { attempt: number, error: unknown, delay: number }) => void }} TransactionOptions */
+/** @typedef {ReturnType<typeof drizzle<Record<string, never>, import('pg').PoolClient>>} DrizzleTransactionClient */
+/** @typedef {{ tx: DrizzleTransactionClient, client: import('pg').PoolClient, attempt: number }} TransactionContext */
+
 const ISOLATION_LEVELS = new Set(['read committed', 'repeatable read', 'serializable']);
 const ACCESS_MODES = new Set(['read only', 'read write']);
 
+/** @param {TransactionOptions} [options] */
 function transactionStatement({ isolationLevel = 'read committed', accessMode = 'read write', deferrable = false } = {}) {
   if (!ISOLATION_LEVELS.has(isolationLevel)) throw new Error('Unsupported transaction isolation level');
   if (!ACCESS_MODES.has(accessMode)) throw new Error('Unsupported transaction access mode');
@@ -15,15 +22,18 @@ function transactionStatement({ isolationLevel = 'read committed', accessMode = 
   return `BEGIN ISOLATION LEVEL ${isolationLevel.toUpperCase()} ${accessMode.toUpperCase()}${deferrableClause}`;
 }
 
+/** @param {unknown} error */
 function isRetryableTransactionError(error) {
   const code = sqlState(error);
   return code === SQLSTATE.SERIALIZATION_FAILURE || code === SQLSTATE.DEADLOCK_DETECTED;
 }
 
+/** @param {number} milliseconds */
 function wait(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
+/** @template T @param {(context: TransactionContext) => Promise<T> | T} work @param {TransactionOptions} [options] @returns {Promise<T>} */
 async function withTransaction(work, options = {}) {
   if (typeof work !== 'function') throw new TypeError('withTransaction requires a callback');
 
