@@ -4,6 +4,7 @@ const { loadDatabaseConfig } = require('../src/config/env');
 const { classifyDatabaseError } = require('../src/db/errors');
 const { isRetryableTransactionError, transactionStatement } = require('../src/db/transaction');
 const { normalizeSnapshot } = require('../scripts/verify-drizzle-schema');
+const { databaseTarget } = require('../scripts/release-preflight');
 
 describe('database foundation', () => {
   test('validates and normalizes database settings without creating a pool', () => {
@@ -26,6 +27,7 @@ describe('database foundation', () => {
 
   test('prefers the canonical migration URL over the legacy compatibility name', () => {
     const config = loadDatabaseConfig({
+      NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://runtime:password@db.example/fixly',
       DATABASE_MIGRATION_URL: 'postgresql://canonical:password@db.example/fixly',
       MIGRATION_DATABASE_URL: 'postgresql://legacy:password@db.example/fixly',
@@ -40,6 +42,18 @@ describe('database foundation', () => {
       DATABASE_URL: 'postgresql://user:password@db.example/fixly',
       DATABASE_POOL_MAX: '0',
     })).toThrow('Invalid database configuration');
+  });
+
+  test('requires separate TLS-verified runtime and migration credentials in production', () => {
+    const runtime = 'postgresql://runtime:password@db.example/fixly';
+    const migrator = 'postgresql://migrator:password@db.example/fixly';
+
+    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_SSL_MODE: 'verify-full' }))
+      .toThrow('DATABASE_MIGRATION_URL is required');
+    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_MIGRATION_URL: runtime, DATABASE_SSL_MODE: 'verify-full' }))
+      .toThrow('separate credentials');
+    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_MIGRATION_URL: migrator, DATABASE_SSL_MODE: 'require' }))
+      .toThrow('verify-full');
   });
 
   test('builds only valid transaction statements', () => {
@@ -67,5 +81,9 @@ describe('database foundation', () => {
       id: 'generator-id',
       tables: { users: { schemaTo: 'public', columns: { id: { name: 'id', opclass: 'uuid_ops' } } } },
     })).toEqual({ tables: { users: { columns: { id: { name: 'id' } } } } });
+  });
+
+  test('redacts credentials when describing a release database target', () => {
+    expect(databaseTarget('postgresql://runtime:secret@db.example:5432/fixly')).toBe('postgresql://db.example:5432/fixly');
   });
 });

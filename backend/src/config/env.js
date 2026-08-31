@@ -22,6 +22,18 @@ function loadDatabaseConfig(source = process.env) {
   }
 
   const env = parsed.data;
+  const migrationConnectionString = env.DATABASE_MIGRATION_URL || env.MIGRATION_DATABASE_URL;
+  if (env.NODE_ENV === 'production') {
+    if (!migrationConnectionString) {
+      throw new Error('Invalid database configuration: DATABASE_MIGRATION_URL is required in production');
+    }
+    if (migrationConnectionString === env.DATABASE_URL) {
+      throw new Error('Invalid database configuration: runtime and migration database URLs must use separate credentials in production');
+    }
+    if (env.DATABASE_SSL_MODE !== 'verify-full') {
+      throw new Error('Invalid database configuration: DATABASE_SSL_MODE=verify-full is required in production');
+    }
+  }
   const ssl = env.DATABASE_SSL_MODE === 'disable'
     ? false
     : env.DATABASE_SSL_MODE
@@ -37,7 +49,7 @@ function loadDatabaseConfig(source = process.env) {
     idle_in_transaction_session_timeout: env.DATABASE_IDLE_TRANSACTION_TIMEOUT_MS || 30_000,
     slowQueryMs: env.DATABASE_SLOW_QUERY_MS || 500,
     ssl,
-    migrationConnectionString: env.DATABASE_MIGRATION_URL || env.MIGRATION_DATABASE_URL || env.DATABASE_URL,
+    migrationConnectionString: migrationConnectionString || env.DATABASE_URL,
   };
 }
 
