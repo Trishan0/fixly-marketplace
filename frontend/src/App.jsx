@@ -5,6 +5,9 @@ import { ToastProvider } from './hooks/useToast'
 import { ProtectedRoute, RoleRoute, GuestRoute } from './router/guards'
 
 import Landing from './pages/Landing'
+import HowItWorks from './pages/HowItWorks'
+import Blog from './pages/Blog'
+import Contact from './pages/Contact'
 import Auth from './pages/Auth'
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/AuthActions'
 import WorkerCatalogPublic from './pages/public/WorkerCatalog'
@@ -58,6 +61,9 @@ export default function App() {
         <ToastProvider>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<GuestRoute><Auth /></GuestRoute>} />
             <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

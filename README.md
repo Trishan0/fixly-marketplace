@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/fixly-icon.svg" alt="Fixly" width="88" />
+  <img src="frontend/public/fixly-mark-192.png" alt="Fixly" width="88" />
 </p>
 
 <h1 align="center">Fixly</h1>
@@ -178,8 +178,8 @@ Visit [http://localhost:5173](http://localhost:5173). The API health check is av
 | Role | Email | Password |
 | --- | --- | --- |
 | Admin | `admin@fixly.lk` | `admin123` |
-| Customer | `customer@demo.lk` | `demo123` |
-| Worker | `worker@demo.lk` | `demo123` |
+| Customer | `customer@demo.lk` | `password123` |
+| Worker | `worker@demo.lk` | `password123` |
 
 After running the optional rich demo seed, use `password123` for the additional worker accounts, such as `kamal.plumber@demo.lk`, `nimal.electrician@demo.lk`, and `chaminda.ac@demo.lk`.
 
