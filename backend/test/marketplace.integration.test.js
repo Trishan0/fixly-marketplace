@@ -3,6 +3,8 @@
 const request = require('supertest');
 const app = require('../src/app');
 const appPool = require('../src/db');
+const marketplaceRepository = require('../src/modules/marketplace/repository');
+const { acceptProposal: acceptProposalService } = require('../src/modules/marketplace/service');
 const {
   createTestPool,
   migrateTestDatabase,
@@ -165,12 +167,9 @@ describe('marketplace workflow characterization', () => {
       fullName: 'Duplicate Worker',
       role: 'worker',
     });
-    const job = await createJob(testPool, {
-      customerId: customer.id,
-      status: 'completed',
-    });
+    const job = await createJob(testPool, { customerId: customer.id });
     await testPool.query(
-      'UPDATE jobs SET assigned_worker_id = $1, final_price = $2 WHERE id = $3',
+      "UPDATE jobs SET assigned_worker_id = $1, final_price = $2, status = 'completed' WHERE id = $3",
       [worker.id, '7500.00', job.id]
     );
     const customerAuth = authorizationFor(customer);
@@ -201,8 +200,39 @@ describe('marketplace workflow characterization', () => {
   });
 });
 
-describe('production invariants not yet enforced', () => {
-  test.fails('prevents a worker from withdrawing an accepted proposal', async () => {
+describe('Phase 3 jobs and proposals invariants', () => {
+  test('rolls back proposal acceptance if its required notification cannot be inserted', async () => {
+    const customer = await createUser(testPool, {
+      email: 'customer-accept-rollback@fixly-test.local',
+      fullName: 'Rollback Customer',
+      role: 'customer',
+    });
+    const worker = await createUser(testPool, {
+      email: 'worker-accept-rollback@fixly-test.local',
+      fullName: 'Rollback Worker',
+      role: 'worker',
+    });
+    const job = await createJob(testPool, { customerId: customer.id, status: 'proposals_received' });
+    const proposal = await createProposal(testPool, { jobId: job.id, workerId: worker.id });
+    const originalInsertNotification = marketplaceRepository.insertNotification;
+    marketplaceRepository.insertNotification = async () => {
+      throw new Error('injected notification failure');
+    };
+
+    try {
+      await expect(acceptProposalService({ proposalId: proposal.id, customerId: customer.id }))
+        .rejects.toThrow('injected notification failure');
+    } finally {
+      marketplaceRepository.insertNotification = originalInsertNotification;
+    }
+
+    const jobState = await testPool.query('SELECT status, assigned_worker_id FROM jobs WHERE id = $1', [job.id]);
+    const proposalState = await testPool.query('SELECT status FROM proposals WHERE id = $1', [proposal.id]);
+    expect(jobState.rows[0]).toMatchObject({ status: 'proposals_received', assigned_worker_id: null });
+    expect(proposalState.rows[0].status).toBe('pending');
+  });
+
+  test('prevents a worker from withdrawing an accepted proposal', async () => {
     const customer = await createUser(testPool, {
       email: 'customer-withdraw-accepted@fixly-test.local',
       fullName: 'Accepted Customer',
@@ -213,10 +243,10 @@ describe('production invariants not yet enforced', () => {
       fullName: 'Accepted Worker',
       role: 'worker',
     });
-    const job = await createJob(testPool, { customerId: customer.id, status: 'assigned' });
+    const job = await createJob(testPool, { customerId: customer.id });
     const proposal = await createProposal(testPool, { jobId: job.id, workerId: worker.id });
     await testPool.query("UPDATE proposals SET status = 'accepted' WHERE id = $1", [proposal.id]);
-    await testPool.query('UPDATE jobs SET assigned_worker_id = $1 WHERE id = $2', [worker.id, job.id]);
+    await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'assigned' WHERE id = $2", [worker.id, job.id]);
 
     await request(app)
       .put(`/api/proposals/${proposal.id}/withdraw`)
@@ -224,7 +254,7 @@ describe('production invariants not yet enforced', () => {
       .expect(409);
   });
 
-  test.fails('enforces one accepted proposal per job at the database boundary', async () => {
+  test('enforces one accepted proposal per job at the database boundary', async () => {
     const customer = await createUser(testPool, {
       email: 'customer-accepted-constraint@fixly-test.local',
       fullName: 'Constraint Customer',
@@ -250,7 +280,7 @@ describe('production invariants not yet enforced', () => {
     ).rejects.toMatchObject({ code: '23505' });
   });
 
-  test.fails('keeps two independently accepted proposals from a concurrent acceptance interleaving', async () => {
+  test('serializes concurrent proposal acceptance for one job', async () => {
     const customer = await createUser(testPool, {
       email: 'customer-accept-race@fixly-test.local',
       fullName: 'Race Customer',
@@ -270,24 +300,21 @@ describe('production invariants not yet enforced', () => {
     const proposalA = await createProposal(testPool, { jobId: job.id, workerId: workerA.id });
     const proposalB = await createProposal(testPool, { jobId: job.id, workerId: workerB.id });
 
-    await Promise.all([
-      testPool.query("UPDATE proposals SET status = 'accepted' WHERE id = $1", [proposalA.id]),
-      testPool.query("UPDATE proposals SET status = 'accepted' WHERE id = $1", [proposalB.id]),
+    const customerAuth = authorizationFor(customer);
+    const responses = await Promise.all([
+      request(app).put(`/api/proposals/${proposalA.id}/accept`).set('Authorization', customerAuth),
+      request(app).put(`/api/proposals/${proposalB.id}/accept`).set('Authorization', customerAuth),
     ]);
-    await Promise.all([
-      testPool.query("UPDATE proposals SET status = 'declined' WHERE job_id = $1 AND id != $2 AND status = 'pending'", [job.id, proposalA.id]),
-      testPool.query("UPDATE proposals SET status = 'declined' WHERE job_id = $1 AND id != $2 AND status = 'pending'", [job.id, proposalB.id]),
-    ]);
-    await Promise.all([
-      testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'assigned' WHERE id = $2", [workerA.id, job.id]),
-      testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'assigned' WHERE id = $2", [workerB.id, job.id]),
-    ]);
+    expect(responses.map(response => response.status).sort()).toEqual([200, 409]);
 
     const accepted = await testPool.query(
       "SELECT COUNT(*)::int AS count FROM proposals WHERE job_id = $1 AND status = 'accepted'",
       [job.id]
     );
     expect(accepted.rows[0].count).toBe(1);
+    const assigned = await testPool.query('SELECT assigned_worker_id, status FROM jobs WHERE id = $1', [job.id]);
+    expect(assigned.rows[0].status).toBe('assigned');
+    expect([workerA.id, workerB.id]).toContain(assigned.rows[0].assigned_worker_id);
   });
 
   test.fails('rejects a payment dispute after that payment was confirmed', async () => {

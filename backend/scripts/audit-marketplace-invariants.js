@@ -88,6 +88,10 @@ const AUDITS = [
     sql: `
       SELECT 'jobs.customer_id' AS relationship, id AS record_id FROM jobs WHERE customer_id IS NULL
       UNION ALL
+      SELECT 'jobs.category_id', id FROM jobs WHERE category_id IS NULL
+      UNION ALL
+      SELECT 'proposals.job_id', id FROM proposals WHERE job_id IS NULL
+      UNION ALL
       SELECT 'proposals.worker_id', id FROM proposals WHERE worker_id IS NULL
       UNION ALL
       SELECT 'invites.customer_id', id FROM invites WHERE customer_id IS NULL

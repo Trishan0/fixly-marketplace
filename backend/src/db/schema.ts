@@ -119,6 +119,7 @@ export const proposals = pgTable("proposals", {
 }, (table) => [
 	index("idx_proposals_job_status").using("btree", table.jobId.asc().nullsLast().op("text_ops"), table.status.asc().nullsLast().op("uuid_ops")),
 	index("idx_proposals_worker_created").using("btree", table.workerId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	uniqueIndex("uq_proposals_one_accepted_per_job").using("btree", table.jobId.asc().nullsLast().op("uuid_ops")).where(sql`((status)::text = 'accepted'::text)`),
 	foreignKey({
 			columns: [table.jobId],
 			foreignColumns: [jobs.id],
@@ -131,6 +132,9 @@ export const proposals = pgTable("proposals", {
 		}),
 	unique("proposals_job_id_worker_id_key").on(table.workerId, table.jobId),
 	check("proposals_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'accepted'::character varying, 'declined'::character varying, 'withdrawn'::character varying])::text[])`),
+	check("proposals_job_required", sql`job_id IS NOT NULL`),
+	check("proposals_worker_required", sql`worker_id IS NOT NULL`),
+	check("proposals_price_positive", sql`(proposed_price IS NULL) OR (proposed_price > (0)::numeric)`),
 ]);
 
 export const payments = pgTable("payments", {
@@ -362,6 +366,9 @@ export const jobs = pgTable("jobs", {
 	check("jobs_urgency_check", sql`(urgency)::text = ANY ((ARRAY['today'::character varying, 'tomorrow'::character varying, 'this_week'::character varying, 'flexible'::character varying])::text[])`),
 	check("jobs_pricing_mode_check", sql`(pricing_mode)::text = ANY ((ARRAY['fixed'::character varying, 'ask_quotes'::character varying, 'inspection'::character varying])::text[])`),
 	check("jobs_status_check", sql`(status)::text = ANY ((ARRAY['posted'::character varying, 'proposals_received'::character varying, 'assigned'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'payment_recorded'::character varying, 'reviewed'::character varying, 'cancelled'::character varying])::text[])`),
+	check("jobs_category_required", sql`category_id IS NOT NULL`),
+	check("jobs_customer_required", sql`customer_id IS NOT NULL`),
+	check("jobs_assigned_status_requires_worker", sql`((status)::text <> ALL ((ARRAY['assigned'::character varying, 'in_progress'::character varying, 'completed'::character varying, 'payment_recorded'::character varying, 'reviewed'::character varying])::text[])) OR (assigned_worker_id IS NOT NULL)`),
 ]);
 
 export const workerSkills = pgTable("worker_skills", {
