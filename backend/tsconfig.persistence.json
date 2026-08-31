@@ -16,7 +16,8 @@
     "src/db/schema.ts",
     "src/db/schema.contract.ts",
     "src/db/relations.ts",
-    "src/modules/agents/repository.js"
+    "src/modules/agents/repository.js",
+    "src/modules/operations/repository.js"
   ],
   "exclude": [
     "dist",
