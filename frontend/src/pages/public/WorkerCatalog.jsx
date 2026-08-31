@@ -1,14 +1,13 @@
 import React, { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
-import { BrandLogo } from '../../components/shared/BrandLogo'
 import { WorkerCard } from '../../components/shared/Cards'
 import { Button, Spinner, EmptyState } from '../../components/shared/UI'
 import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
-import { ThemeToggleIconButton } from '../../components/shared/ThemeToggle'
+import { PublicNavbar } from '../../components/shared/PublicNavbar'
 
 const CATEGORIES = ['All','Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
@@ -101,23 +100,7 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
-      {/* Navbar */}
-      <nav className="fixly-topbar sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-slate-100 px-4 dark:border-slate-800 sm:px-6">
-        <Link to="/" className="flex min-h-11 items-center gap-2">
-          <BrandLogo className="h-8 w-[7.5rem]" />
-        </Link>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <ThemeToggleIconButton className="h-11 w-11 rounded-xl" />
-          {user ? (
-            <Link to="/dashboard"><Button variant="primary" size="sm">Dashboard</Button></Link>
-          ) : (
-            <>
-              <Link to="/auth" className="hidden min-h-11 items-center px-2 text-sm font-semibold text-slate-600 dark:text-slate-300 min-[370px]:flex">Sign in</Link>
-              <Link to="/auth?tab=register"><Button variant="primary" size="sm" className="px-3 sm:px-4">Join</Button></Link>
-            </>
-          )}
-        </div>
-      </nav>
+      <PublicNavbar />
       <div className="fixly-page max-w-7xl">
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Local professionals</p>

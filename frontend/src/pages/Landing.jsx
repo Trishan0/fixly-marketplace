@@ -1,13 +1,12 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ChevronRight, Droplets, Zap, Hammer, Sparkles, ShieldCheck,
-  Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search, Menu, X
+  Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
-import { BrandLogo } from '../components/shared/BrandLogo'
+import { PublicNavbar } from '../components/shared/PublicNavbar'
 
 const categories = [
   { icon: Droplets, name: 'Plumbing', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300' },
@@ -22,29 +21,6 @@ const features = [
   { icon: Banknote, title: 'Pay Offline Safely', desc: 'Record cash or bank payments directly in the app' },
   { icon: Star, title: 'Leave Reviews', desc: 'Help your community find the best workers' },
 ]
-
-function getNavActions(user) {
-  if (!user) {
-    return [
-      { to: '/workers', label: 'Browse Workers', variant: 'link' },
-      { to: '/auth', label: 'Sign In', variant: 'secondary' },
-      { to: '/auth?tab=register', label: 'Get Started', variant: 'primary' },
-    ]
-  }
-  if (user.role === 'customer') {
-    return [
-      { to: '/find-workers', label: 'Browse Workers', variant: 'link' },
-      { to: '/jobs/new', label: 'Post a Job', variant: 'primary' },
-    ]
-  }
-  if (user.role === 'worker') {
-    return [
-      { to: '/jobs/feed', label: 'Browse Open Jobs', variant: 'primary' },
-      { to: '/worker-dashboard', label: 'Go to Dashboard', variant: 'secondary' },
-    ]
-  }
-  return [{ to: '/admin', label: 'Go to Dashboard', variant: 'primary' }]
-}
 
 function getHeroContent(user) {
   if (!user) {
@@ -89,12 +65,6 @@ function getHeroContent(user) {
     secondary: { to: '/admin/users', label: 'Manage Users' },
     tertiary: { to: '/admin/reports', label: 'Open Reports' },
   }
-}
-
-function actionClass(variant) {
-  if (variant === 'primary') return 'fixly-btn-primary text-sm'
-  if (variant === 'secondary') return 'fixly-btn-secondary text-sm'
-  return 'text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
 }
 
 function HeroVisual({ user }) {
@@ -183,55 +153,11 @@ function HeroVisual({ user }) {
 
 export default function Landing() {
   const { user } = useAuth()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const navActions = getNavActions(user)
   const hero = getHeroContent(user)
 
   return (
     <div className="fixly-page-shell min-h-[100dvh]">
-      <nav className="fixly-topbar sticky top-0 z-30 border-b px-4 py-3 sm:px-6 md:px-12">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-          <Link to="/" className="flex min-h-11 items-center gap-3" aria-label="Fixly home">
-            <BrandLogo className="h-9 w-[8.45rem]" />
-          </Link>
-          <div className="hidden items-center gap-3 sm:flex">
-            <ThemeToggleIconButton className="h-11 w-11" />
-            {navActions.map(action => (
-              <Link key={action.label} to={action.to} className={actionClass(action.variant)}>
-                {action.label}
-              </Link>
-            ))}
-          </div>
-          <div className="flex items-center gap-1 sm:hidden">
-            <ThemeToggleIconButton className="h-11 w-11 rounded-xl" />
-            <button
-              type="button"
-              onClick={() => setMenuOpen((current) => !current)}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={menuOpen}
-            >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-        {menuOpen && (
-          <div className="mx-auto grid max-w-6xl gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:hidden">
-            {navActions.map((action) => (
-              <Link
-                key={action.label}
-                to={action.to}
-                onClick={() => setMenuOpen(false)}
-                className={action.variant === 'primary'
-                  ? 'fixly-btn-primary w-full text-sm'
-                  : 'flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'}
-              >
-                {action.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </nav>
+      <PublicNavbar />
 
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 opacity-80">
@@ -320,6 +246,9 @@ export default function Landing() {
               </div>
             ))}
           </div>
+          <Link to="/how-it-works" className="mt-7 inline-flex min-h-11 items-center gap-1 text-sm font-bold text-sky-700 transition hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200">
+            See the full customer and worker journey <ChevronRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 
