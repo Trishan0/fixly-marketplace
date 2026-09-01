@@ -27,6 +27,12 @@ export default [
     },
   },
   {
+    files: ['src/routes/**/*.js', 'src/middleware/**/*.js', 'src/services/**/*.js', 'src/agents/**/*.js'],
+    rules: {
+      'no-restricted-modules': ['error', '../db', '../../db'],
+    },
+  },
+  {
     files: ['*.config.mjs'],
     languageOptions: {
       sourceType: 'module',

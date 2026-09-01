@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const pool = require('../db');
+const { findSessionUser } = require('../modules/identity/repository');
 
 const verifyToken = async (req, res, next) => {
   try {
@@ -14,20 +14,16 @@ const verifyToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const result = await pool.query(
-      'SELECT id, email, role, full_name, is_suspended, is_email_verified, force_verified, dashboard_mode FROM users WHERE id = $1',
-      [decoded.id]
-    );
-
-    if (!result.rows[0]) {
+    const user = await findSessionUser(decoded.id);
+    if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    if (result.rows[0].is_suspended) {
+    if (user.is_suspended) {
       return res.status(403).json({ error: 'Account suspended' });
     }
 
-    req.user = result.rows[0];
+    req.user = user;
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
