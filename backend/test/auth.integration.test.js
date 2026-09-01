@@ -94,6 +94,29 @@ describe('authentication integration', () => {
       .expect(401);
   });
 
+  test('enforces case-insensitive email identity and never persists a raw verification token', async () => {
+    const payload = {
+      full_name: 'Case Sensitive Customer',
+      email: 'Case.Identity@fixly-test.local',
+      password: 'Testpass123',
+      role: 'customer',
+    };
+    const registration = await request(app).post('/api/auth/register').send(payload).expect(201);
+
+    await request(app).post('/api/auth/register').send({ ...payload, email: 'case.identity@fixly-test.local' }).expect(409);
+    const stored = await testPool.query(
+      'SELECT email, email_verify_token, email_verify_token_hash FROM users WHERE id = $1',
+      [registration.body.user.id]
+    );
+    expect(stored.rows[0].email).toBe('case.identity@fixly-test.local');
+    expect(stored.rows[0].email_verify_token).toBeNull();
+    expect(stored.rows[0].email_verify_token_hash).toEqual(expect.any(String));
+    await expect(testPool.query(
+      "UPDATE users SET email_verify_token = 'raw-token' WHERE id = $1",
+      [registration.body.user.id]
+    )).rejects.toMatchObject({ code: '23514' });
+  });
+
   test('rejects protected access without a token', async () => {
     const response = await request(app).get('/api/auth/me').expect(401);
     expect(response.body.error).toBe('No token provided');

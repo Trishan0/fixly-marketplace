@@ -4,7 +4,7 @@
  * Uses UPSERT so callers don't need to worry about insert vs update.
  */
 
-const pool = require('../db');
+const repository = require('../modules/agents/repository');
 
 /**
  * Retrieve a memory value.
@@ -12,13 +12,8 @@ const pool = require('../db');
  */
 async function getMemory(userId, scope, key, defaultValue = null) {
   try {
-    const result = await pool.query(
-      `SELECT value_json FROM agent_memories
-       WHERE user_id = $1 AND scope = $2 AND key = $3`,
-      [userId, scope, key]
-    );
-    if (!result.rows[0]) return defaultValue;
-    return result.rows[0].value_json;
+    const result = await repository.memory(userId, scope, key);
+    return result ? result.value_json : defaultValue;
   } catch (err) {
     console.error('[agent/memory] getMemory error:', err.message);
     return defaultValue;
@@ -31,13 +26,7 @@ async function getMemory(userId, scope, key, defaultValue = null) {
  */
 async function setMemory(userId, scope, key, value) {
   try {
-    await pool.query(
-      `INSERT INTO agent_memories (user_id, scope, key, value_json, updated_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       ON CONFLICT (user_id, scope, key)
-       DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = NOW()`,
-      [userId, scope, key, JSON.stringify(value)]
-    );
+    await repository.upsertMemory(userId, scope, key, value);
   } catch (err) {
     console.error('[agent/memory] setMemory error:', err.message);
   }
@@ -49,12 +38,8 @@ async function setMemory(userId, scope, key, value) {
  */
 async function getAllMemories(userId, scope) {
   try {
-    const result = await pool.query(
-      `SELECT key, value_json FROM agent_memories
-       WHERE user_id = $1 AND scope = $2`,
-      [userId, scope]
-    );
-    return result.rows.reduce((acc, row) => {
+    const result = await repository.memories(userId, scope);
+    return result.reduce((acc, row) => {
       acc[row.key] = row.value_json;
       return acc;
     }, {});

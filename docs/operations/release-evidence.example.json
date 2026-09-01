@@ -1,0 +1,46 @@
+{
+  "releaseId": "replace-with-release-id",
+  "environment": "staging",
+  "recordedAt": "2026-09-01T00:00:00.000Z",
+  "owners": {
+    "applicationRollback": { "name": "Replace", "contact": "on-call" },
+    "databaseRemediation": { "name": "Replace", "contact": "on-call" },
+    "incidentCommunication": { "name": "Replace", "contact": "on-call" }
+  },
+  "backupRestore": {
+    "recoveryPointAt": "2026-09-01T00:00:00.000Z",
+    "restoreRehearsedAt": "2026-09-01T00:00:00.000Z",
+    "restoreDurationMinutes": 1,
+    "rpoMinutes": 0,
+    "rtoMinutes": 1,
+    "evidenceUrl": "https://change-management.example/releases/replace"
+  },
+  "databaseAccess": {
+    "runtimeRoleVerified": true,
+    "migrationRoleVerified": true,
+    "tlsVerified": true,
+    "evidenceUrl": "https://change-management.example/releases/replace"
+  },
+  "migration": {
+    "ledgerState": "tracked",
+    "checksumsVerified": true,
+    "schemaDriftVerified": true,
+    "evidenceUrl": "https://change-management.example/releases/replace"
+  },
+  "compatibility": {
+    "previousArtifactSmokePassed": true,
+    "correctiveMigrationRehearsed": true,
+    "evidenceUrl": "https://change-management.example/releases/replace"
+  },
+  "reconciliation": {
+    "marketplaceAuditPassed": true,
+    "ratingsCheckPassed": true,
+    "evidenceUrl": "https://change-management.example/releases/replace"
+  },
+  "canary": {
+    "completedAt": "2026-09-01T00:00:00.000Z",
+    "rollbackTested": true,
+    "metricsWithinBaseline": true,
+    "evidenceUrl": "https://change-management.example/releases/replace"
+  }
+}
