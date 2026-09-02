@@ -45,16 +45,26 @@ describe('database foundation', () => {
     })).toThrow('Invalid database configuration');
   });
 
-  test('requires separate TLS-verified runtime and migration credentials in production', () => {
+  test('permits a runtime-only production configuration while enforcing verified TLS', () => {
+    const runtime = 'postgresql://runtime:password@db.example/fixly';
+
+    expect(loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_SSL_MODE: 'verify-full' }))
+      .toMatchObject({ connectionString: runtime, migrationConnectionString: runtime });
+    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_SSL_MODE: 'require' }))
+      .toThrow('verify-full');
+  });
+
+  test('requires separate migration credentials only for production migration commands', () => {
     const runtime = 'postgresql://runtime:password@db.example/fixly';
     const migrator = 'postgresql://migrator:password@db.example/fixly';
+    const productionRuntime = { NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_SSL_MODE: 'verify-full' };
 
-    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_SSL_MODE: 'verify-full' }))
+    expect(() => loadDatabaseConfig(productionRuntime, { requireMigrationCredentials: true }))
       .toThrow('DATABASE_MIGRATION_URL is required');
-    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_MIGRATION_URL: runtime, DATABASE_SSL_MODE: 'verify-full' }))
+    expect(() => loadDatabaseConfig({ ...productionRuntime, DATABASE_MIGRATION_URL: runtime }, { requireMigrationCredentials: true }))
       .toThrow('separate credentials');
-    expect(() => loadDatabaseConfig({ NODE_ENV: 'production', DATABASE_URL: runtime, DATABASE_MIGRATION_URL: migrator, DATABASE_SSL_MODE: 'require' }))
-      .toThrow('verify-full');
+    expect(loadDatabaseConfig({ ...productionRuntime, DATABASE_MIGRATION_URL: migrator }, { requireMigrationCredentials: true }))
+      .toMatchObject({ migrationConnectionString: migrator });
   });
 
   test('builds only valid transaction statements', () => {
