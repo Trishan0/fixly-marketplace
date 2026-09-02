@@ -11,7 +11,7 @@ function databaseTarget(connectionString) {
 }
 
 async function releasePreflight(source = process.env) {
-  const config = loadDatabaseConfig(source);
+  const config = loadDatabaseConfig(source, { requireMigrationCredentials: true });
   if (source.NODE_ENV !== 'production') {
     throw new Error('Release preflight requires NODE_ENV=production');
   }
