@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+const path = require('path');
 const { Pool } = require('pg');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const { loadDatabaseConfig } = require('../src/config/env');
 const { inspectMigrations } = require('./lib/migrations');
 
