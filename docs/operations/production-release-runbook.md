@@ -3,7 +3,7 @@
 This runbook is a deployment gate, not an automated substitute for production operations.
 
 1. Confirm a current encrypted backup/PITR recovery point and record its timestamp, RPO/RTO, provider ticket/link, and the named database-remediation owner.
-2. Use the schema-owner `DATABASE_MIGRATION_URL` only for `npm run db:migrate`; runtime uses the least-privilege `DATABASE_URL` role. Run `npm run db:release:preflight` with the production environment before a migration; it validates the two credential paths without printing credentials, checks the guarded migration ledger through the migration role, and verifies the runtime role can read the application schema.
+2. Use the schema-owner `DATABASE_MIGRATION_URL` only in the controlled migration/preflight environment for `npm run db:migrate` and `npm run db:release:preflight`; do not inject it into the Vercel application runtime. The runtime uses only the least-privilege `DATABASE_URL` role. Preflight validates the two credential paths without printing credentials, checks the guarded migration ledger through the migration role, and verifies the runtime role can read the application schema.
 3. Require `DATABASE_SSL_MODE=verify-full` in production and verify the provider certificate chain.
 4. Run migration status, `db:schema:verify` against a disposable migrated database, invariant and aggregate audits, lint, typecheck, build, unit/integration suites, and `npm audit --omit=dev --audit-level=high`. Save each command's output with the release identifier.
 5. Run and retain staging-scale `EXPLAIN (ANALYZE, BUFFERS)` evidence for the listed hot queries in database observability documentation.

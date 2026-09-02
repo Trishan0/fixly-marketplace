@@ -15,7 +15,7 @@ const environmentSchema = z.object({
   DATABASE_SSL_MODE: z.enum(['disable', 'require', 'verify-full']).optional(),
 }).passthrough();
 
-function loadDatabaseConfig(source = process.env) {
+function loadDatabaseConfig(source = process.env, { requireMigrationCredentials = false } = {}) {
   const parsed = environmentSchema.safeParse(source);
   if (!parsed.success) {
     throw new Error(`Invalid database configuration: ${parsed.error.issues.map(issue => issue.message).join('; ')}`);
@@ -24,14 +24,15 @@ function loadDatabaseConfig(source = process.env) {
   const env = parsed.data;
   const migrationConnectionString = env.DATABASE_MIGRATION_URL || env.MIGRATION_DATABASE_URL;
   if (env.NODE_ENV === 'production') {
-    if (!migrationConnectionString) {
-      throw new Error('Invalid database configuration: DATABASE_MIGRATION_URL is required in production');
-    }
-    if (migrationConnectionString === env.DATABASE_URL) {
-      throw new Error('Invalid database configuration: runtime and migration database URLs must use separate credentials in production');
-    }
     if (env.DATABASE_SSL_MODE !== 'verify-full') {
       throw new Error('Invalid database configuration: DATABASE_SSL_MODE=verify-full is required in production');
+    }
+
+    if (requireMigrationCredentials && !migrationConnectionString) {
+      throw new Error('Invalid database configuration: DATABASE_MIGRATION_URL is required for production migration commands');
+    }
+    if (requireMigrationCredentials && migrationConnectionString === env.DATABASE_URL) {
+      throw new Error('Invalid database configuration: runtime and migration database URLs must use separate credentials for production migration commands');
     }
   }
   const ssl = env.DATABASE_SSL_MODE === 'disable'

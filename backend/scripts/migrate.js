@@ -53,7 +53,7 @@ async function main() {
   }
 
   const connectionString = options.envName === 'DATABASE_URL'
-    ? loadDatabaseConfig().migrationConnectionString
+    ? loadDatabaseConfig(process.env, { requireMigrationCredentials: process.env.NODE_ENV === 'production' }).migrationConnectionString
     : process.env[options.envName];
   if (!connectionString) {
     throw new Error(options.envName === 'DATABASE_URL'

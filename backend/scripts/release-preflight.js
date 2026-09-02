@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+const path = require('path');
 const { Pool } = require('pg');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const { loadDatabaseConfig } = require('../src/config/env');
 const { inspectMigrations } = require('./lib/migrations');
 
@@ -11,7 +13,7 @@ function databaseTarget(connectionString) {
 }
 
 async function releasePreflight(source = process.env) {
-  const config = loadDatabaseConfig(source);
+  const config = loadDatabaseConfig(source, { requireMigrationCredentials: true });
   if (source.NODE_ENV !== 'production') {
     throw new Error('Release preflight requires NODE_ENV=production');
   }
