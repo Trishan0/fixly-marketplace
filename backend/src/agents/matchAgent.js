@@ -8,6 +8,7 @@ const { getJobDetails } = require('./tools/getJobDetails');
 const { getCandidateWorkers } = require('./tools/getCandidateWorkers');
 const { scoreWorkerForJob } = require('./scoring');
 const { getMemory } = require('./memory');
+const { matchAgentOutputSchema } = require('./schemas');
 
 const TOP_N = 5;
 
@@ -182,6 +183,7 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
   ];
 
   await repository.awaitConfirmation(runId, plan);
+  await repository.completeRunTelemetry(runId, { engine: 'deterministic' });
 
   return {
     run_id: runId,
@@ -189,6 +191,8 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
     plan,
     steps: [{ stepIndex: 1, stepName: 'match_scoring', decision: 'Deterministic scoring complete' }],
     overall_reasoning: overallReasoning,
+    engine: 'deterministic',
+    model_used: null,
     job: { id: job.id, title: job.title, category: job.category_name },
     recommendations,
   };
@@ -217,7 +221,7 @@ async function runMatchAgent(jobId, customerId) {
         const jobCache = { current: job };
         let stepIndex = 1;
 
-        const { text: geminiText } = await runGeminiAgent({
+        const { text: geminiText, telemetry } = await runGeminiAgent({
           systemInstruction: SYSTEM_PROMPT,
           userPrompt: `Match workers for job ID ${jobId}. Customer ID: ${customerId}`,
           tools: MATCH_TOOLS,
@@ -227,8 +231,12 @@ async function runMatchAgent(jobId, customerId) {
           },
         });
 
-        const parsed = parseJsonFromText(geminiText);
-        const geminiRecs = parsed.recommendations || [];
+        const validation = matchAgentOutputSchema.safeParse(parseJsonFromText(geminiText));
+        if (!validation.success) {
+          throw new Error(`Gemini output failed schema validation: ${validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+        }
+        const parsed = validation.data;
+        const geminiRecs = parsed.recommendations;
 
         if (geminiRecs.length > 0) {
           const recommendations = [];
@@ -261,6 +269,15 @@ async function runMatchAgent(jobId, customerId) {
           ];
 
           await repository.awaitConfirmation(runId, plan);
+          await repository.completeRunTelemetry(runId, {
+            engine: 'gemini',
+            modelUsed: telemetry.modelUsed,
+            latencyMs: telemetry.latencyMs,
+            promptTokens: telemetry.promptTokens,
+            completionTokens: telemetry.completionTokens,
+            totalTokens: telemetry.totalTokens,
+            iterationCount: telemetry.iterationCount,
+          });
 
           return {
             run_id: runId,
@@ -268,6 +285,8 @@ async function runMatchAgent(jobId, customerId) {
             plan,
             steps: loggedSteps,
             overall_reasoning: parsed.overall_reasoning,
+            engine: 'gemini',
+            model_used: telemetry.modelUsed,
             job: { id: job.id, title: job.title, category: job.category_name },
             recommendations,
           };

@@ -298,6 +298,13 @@ export const agentRuns = pgTable("agent_runs", {
 	jobId: uuid("job_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	completedAt: timestamp("completed_at", { withTimezone: true, mode: 'date' }),
+	engine: varchar({ length: 20 }),
+	modelUsed: varchar("model_used", { length: 60 }),
+	latencyMs: integer("latency_ms"),
+	promptTokens: integer("prompt_tokens"),
+	completionTokens: integer("completion_tokens"),
+	totalTokens: integer("total_tokens"),
+	iterationCount: integer("iteration_count"),
 }, (table) => [
 	index("idx_agent_runs_created").using("btree", table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_agent_runs_job_id").using("btree", table.jobId.asc().nullsLast().op("uuid_ops")),
@@ -317,6 +324,7 @@ export const agentRuns = pgTable("agent_runs", {
 		}).onDelete("set null"),
 	check("agent_runs_agent_type_check", sql`(agent_type)::text = ANY ((ARRAY['match'::character varying, 'proposal'::character varying])::text[])`),
 	check("agent_runs_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'awaiting_confirmation'::character varying, 'confirmed'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'error'::character varying])::text[])`),
+	check("agent_runs_engine_check", sql`(engine)::text = ANY ((ARRAY['gemini'::character varying, 'deterministic'::character varying])::text[])`),
 ]);
 
 export const notifications = pgTable("notifications", {
