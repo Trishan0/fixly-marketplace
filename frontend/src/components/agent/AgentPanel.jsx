@@ -514,7 +514,17 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                     ? 'bg-sky-50/80 border-sky-200 text-sky-800 dark:bg-sky-950/30 dark:border-sky-800 dark:text-sky-300'
                     : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
                 )}>
-                  <span className="font-semibold">Gemini's reasoning: </span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+                      runData.engine === 'gemini'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                    )}>
+                      {runData.engine === 'gemini' ? (runData.model_used || 'Gemini') : 'Rule-based engine'}
+                    </span>
+                    <span className="font-semibold">reasoning:</span>
+                  </div>
                   {runData.overall_reasoning}
                 </div>
               )}
