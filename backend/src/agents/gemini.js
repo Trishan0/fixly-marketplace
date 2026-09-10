@@ -75,10 +75,10 @@ function sleep(ms) {
  * @param {Object} opts.toolHandlers       — { toolName: async (args) => result }
  * @param {Function} [opts.onStep]         — callback(stepInfo) after each tool call
  * @param {number} [opts.maxIterations=12] — safety cap on tool-call rounds
+ * @param {{ getGenerativeModel: Function }} [opts.genAI] — injectable SDK client, for tests; defaults to the real Gemini client
  * @returns {{ text: string, steps: Object[], telemetry: Object }}
  */
-async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandlers, onStep, maxIterations = 12 }) {
-  const genAI = getGenAI();
+async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandlers, onStep, maxIterations = 12, genAI = getGenAI() }) {
   const startedAt = Date.now();
 
   const models = MODEL_NAMES.map(name => {
