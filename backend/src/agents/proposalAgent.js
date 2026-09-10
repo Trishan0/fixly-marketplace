@@ -130,8 +130,11 @@ function buildToolHandlers({ workerId, workerCache, jobCache }) {
       return { job_id, score: total, factors };
     },
 
-    async draft_proposal_message(_args) {
-      return { status: 'ok' };
+    async draft_proposal_message({ job_id }) {
+      const job = jobCache[job_id];
+      const worker = workerCache.current;
+      if (!job || !worker) return { error: 'Job or worker not found' };
+      return { draft: draftProposalMessage(job, worker) };
     },
   };
 }
