@@ -15,10 +15,23 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const { runMatchAgent, confirmMatchAgent } = require('../agents/matchAgent');
 const { runProposalAgent, confirmProposalAgent } = require('../agents/proposalAgent');
 const { MarketplaceError } = require('../modules/marketplace/errors');
+const { createRateLimiter } = require('../middleware/rateLimit');
+
+// Each run can drive up to 12 Gemini tool-calling round trips, so these are
+// tighter than a plain read/write endpoint - both to bound API spend and to
+// stop a client from hammering the loop.
+const matchRunLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, max: 20, keyPrefix: 'agent-match-run',
+  message: 'Too many match agent runs, please try again later',
+});
+const proposalRunLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, max: 20, keyPrefix: 'agent-proposal-run',
+  message: 'Too many proposal agent runs, please try again later',
+});
 
 // ── POST /api/agent/match/run ─────────────────────────────────────────────────
 // Customer triggers the match agent for a specific job.
-router.post('/match/run', verifyToken, requireRole('customer'), async (req, res) => {
+router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter, async (req, res) => {
   const { job_id } = req.body;
 
   if (!job_id) {
@@ -48,7 +61,7 @@ router.post('/match/run', verifyToken, requireRole('customer'), async (req, res)
 
 // ── POST /api/agent/proposal/run ─────────────────────────────────────────────
 // Worker triggers the proposal agent.
-router.post('/proposal/run', verifyToken, requireRole('worker'), async (req, res) => {
+router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimiter, async (req, res) => {
   try {
     // Prevent duplicate active runs
     const existing = await repository.activeProposal(req.user.id);
