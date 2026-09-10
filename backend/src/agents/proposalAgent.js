@@ -7,6 +7,7 @@ const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./
 const { getOpenJobsForWorker } = require('./tools/getOpenJobs');
 const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
 const { getMemory } = require('./memory');
+const { proposalAgentOutputSchema } = require('./schemas');
 
 const TOP_N = 5;
 
@@ -195,6 +196,7 @@ async function runDeterministicProposal(worker, runId, logStep) {
   ];
 
   await repository.awaitConfirmation(runId, plan);
+  await repository.completeRunTelemetry(runId, { engine: 'deterministic' });
 
   return {
     run_id: runId,
@@ -202,6 +204,8 @@ async function runDeterministicProposal(worker, runId, logStep) {
     plan,
     steps: [{ stepIndex: 1, stepName: 'proposal_scoring', decision: 'Proposal scoring complete' }],
     overall_reasoning: overallReasoning,
+    engine: 'deterministic',
+    model_used: null,
     worker: { id: worker.id, full_name: worker.full_name, primary_skill: worker.primary_skill },
     recommendations,
   };
@@ -228,7 +232,7 @@ async function runProposalAgent(workerId) {
         const jobCache = {};
         let stepIndex = 1;
 
-        const { text: geminiText } = await runGeminiAgent({
+        const { text: geminiText, telemetry } = await runGeminiAgent({
           systemInstruction: SYSTEM_PROMPT,
           userPrompt: `Find top jobs for worker ID ${workerId}`,
           tools: PROPOSAL_TOOLS,
@@ -238,8 +242,12 @@ async function runProposalAgent(workerId) {
           },
         });
 
-        const parsed = parseJsonFromText(geminiText);
-        const geminiRecs = parsed.recommendations || [];
+        const validation = proposalAgentOutputSchema.safeParse(parseJsonFromText(geminiText));
+        if (!validation.success) {
+          throw new Error(`Gemini output failed schema validation: ${validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+        }
+        const parsed = validation.data;
+        const geminiRecs = parsed.recommendations;
 
         if (geminiRecs.length > 0) {
           const recommendations = [];
@@ -273,6 +281,15 @@ async function runProposalAgent(workerId) {
           ];
 
           await repository.awaitConfirmation(runId, plan);
+          await repository.completeRunTelemetry(runId, {
+            engine: 'gemini',
+            modelUsed: telemetry.modelUsed,
+            latencyMs: telemetry.latencyMs,
+            promptTokens: telemetry.promptTokens,
+            completionTokens: telemetry.completionTokens,
+            totalTokens: telemetry.totalTokens,
+            iterationCount: telemetry.iterationCount,
+          });
 
           return {
             run_id: runId,
@@ -280,6 +297,8 @@ async function runProposalAgent(workerId) {
             plan,
             steps: loggedSteps,
             overall_reasoning: parsed.overall_reasoning,
+            engine: 'gemini',
+            model_used: telemetry.modelUsed,
             worker: { id: worker.id, full_name: worker.full_name, primary_skill: worker.primary_skill },
             recommendations,
           };

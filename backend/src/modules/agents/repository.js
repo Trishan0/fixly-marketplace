@@ -26,7 +26,7 @@ function activeProposal(userId) {
 
 /** @param {string} runId @param {string} userId */
 function runDetail(runId, userId) {
-  return one(sql`SELECT id,user_id,agent_type,objective,plan_json,status,job_id,created_at,completed_at FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
+  return one(sql`SELECT id,user_id,agent_type,objective,plan_json,status,job_id,created_at,completed_at,engine,model_used,latency_ms,prompt_tokens,completion_tokens,total_tokens,iteration_count FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
 }
 
 /** @param {string} runId */
@@ -41,7 +41,7 @@ function runRecommendations(runId) {
 
 /** @param {string} userId @param {string | null} type @param {number} limit */
 function history(userId, type, limit) {
-  return rows(sql`SELECT ar.id,ar.agent_type,ar.objective,ar.status,ar.job_id,ar.created_at,ar.completed_at,(SELECT title FROM jobs WHERE id=ar.job_id) AS job_title,(SELECT COUNT(*)::int FROM agent_recommendations WHERE run_id=ar.id) AS recommendation_count FROM agent_runs ar WHERE ar.user_id=${userId} AND (${type}::text IS NULL OR ar.agent_type=${type}) ORDER BY ar.created_at DESC LIMIT ${limit}`);
+  return rows(sql`SELECT ar.id,ar.agent_type,ar.objective,ar.status,ar.job_id,ar.created_at,ar.completed_at,ar.engine,ar.model_used,(SELECT title FROM jobs WHERE id=ar.job_id) AS job_title,(SELECT COUNT(*)::int FROM agent_recommendations WHERE run_id=ar.id) AS recommendation_count FROM agent_runs ar WHERE ar.user_id=${userId} AND (${type}::text IS NULL OR ar.agent_type=${type}) ORDER BY ar.created_at DESC LIMIT ${limit}`);
 }
 
 /** @param {string} id @param {string} userId */
@@ -89,6 +89,22 @@ function failRun(runId) {
   return one(sql`UPDATE agent_runs SET status='error',completed_at=NOW() WHERE id=${runId} AND status IN ('pending','running') RETURNING id`);
 }
 
+/**
+ * Record which engine actually produced a run's recommendations, plus
+ * Gemini call telemetry when applicable (all null for the deterministic
+ * engine). Called once per run, right before it moves to
+ * awaiting_confirmation.
+ * @param {string} runId
+ * @param {{ engine: 'gemini' | 'deterministic', modelUsed?: string | null, latencyMs?: number | null, promptTokens?: number | null, completionTokens?: number | null, totalTokens?: number | null, iterationCount?: number | null }} telemetry
+ */
+function completeRunTelemetry(runId, telemetry) {
+  const {
+    engine, modelUsed = null, latencyMs = null,
+    promptTokens = null, completionTokens = null, totalTokens = null, iterationCount = null,
+  } = telemetry;
+  return one(sql`UPDATE agent_runs SET engine=${engine},model_used=${modelUsed},latency_ms=${latencyMs},prompt_tokens=${promptTokens},completion_tokens=${completionTokens},total_tokens=${totalTokens},iteration_count=${iterationCount} WHERE id=${runId} RETURNING id`);
+}
+
 /** @param {string} id */
 function agentWorker(id) {
   return one(sql`SELECT u.id,u.full_name,u.district,u.area,u.is_nic_verified,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=${id} AND u.role='worker'`);
@@ -106,6 +122,6 @@ function candidateWorkers(district, limit) {
 
 module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
-  awaitConfirmation, cancelRun, candidateWorkers, createRun, failRun, history, memory,
-  memories, runDetail, runRecommendations, runSteps, upsertMemory,
+  awaitConfirmation, cancelRun, candidateWorkers, completeRunTelemetry, createRun, failRun,
+  history, memory, memories, runDetail, runRecommendations, runSteps, upsertMemory,
 });
