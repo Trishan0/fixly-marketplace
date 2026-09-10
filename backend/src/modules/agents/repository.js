@@ -120,8 +120,18 @@ function candidateWorkers(district, limit) {
   return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
 }
 
+/**
+ * Recent review feedback for one worker, for the agent to read qualitatively.
+ * Deliberately omits the reviewing customer's identity (name/photo) - the
+ * model has no legitimate need for that PII, only the content of the review.
+ * @param {string} workerId @param {number} limit
+ */
+function workerReviews(workerId, limit) {
+  return rows(sql`SELECT r.rating,r.feedback,r.created_at,j.title AS job_title,c.name AS job_category FROM reviews r JOIN jobs j ON j.id=r.job_id LEFT JOIN categories c ON c.id=j.category_id WHERE r.worker_id=${workerId} ORDER BY r.created_at DESC LIMIT ${limit}`);
+}
+
 module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
   awaitConfirmation, cancelRun, candidateWorkers, completeRunTelemetry, createRun, failRun,
-  history, memory, memories, runDetail, runRecommendations, runSteps, upsertMemory,
+  history, memory, memories, runDetail, runRecommendations, runSteps, upsertMemory, workerReviews,
 });

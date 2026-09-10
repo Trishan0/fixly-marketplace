@@ -190,6 +190,23 @@ function buildMatchRationale(worker, job, factors, _total) {
   return lines.join(' · ');
 }
 
+/**
+ * Rank workers for a job by the deterministic formula and keep only the top
+ * `limit`. Used as a cheap pre-filter before the (expensive) qualitative
+ * review-reading step, not as a judgment call — every candidate is scored
+ * the same way regardless of who calls this.
+ * @param {Object[]} workers
+ * @param {Object} job
+ * @param {number} limit
+ * @returns {{ worker: Object, total: number, factors: Object, rationale: string }[]}
+ */
+function shortlistWorkersForJob(workers, job, limit) {
+  return workers
+    .map(worker => ({ worker, ...scoreWorkerForJob(worker, job) }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+}
+
 // ─── Proposal Agent: Score a job for a worker ────────────────────────────────
 
 const PROPOSAL_WEIGHTS = {
@@ -350,4 +367,4 @@ function draftProposalMessage(job, worker) {
   );
 }
 
-module.exports = { scoreWorkerForJob, scoreJobForWorker, draftProposalMessage, parsePrice };
+module.exports = { scoreWorkerForJob, scoreJobForWorker, shortlistWorkersForJob, draftProposalMessage, parsePrice };
