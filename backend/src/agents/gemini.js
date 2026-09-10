@@ -42,7 +42,7 @@ function getGenAI() {
 async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandlers, onStep, maxIterations = 12 }) {
   const genAI = getGenAI();
 
-  const MODEL_NAMES = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+  const MODEL_NAMES = ['gemini-2.5-flash'];
   let model = null;
   let lastErr = null;
 
