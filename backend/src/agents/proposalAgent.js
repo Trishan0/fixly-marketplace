@@ -8,7 +8,7 @@ const { getOpenJobsForWorker } = require('./tools/getOpenJobs');
 const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE } = require('./tools/getWorkerReviews');
 const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
 const { getMemory } = require('./memory');
-const { proposalAgentOutputSchema } = require('./schemas');
+const { proposalAgentOutputSchema, assertNoHallucinationRedFlags } = require('./schemas');
 
 const TOP_N = 5;
 
@@ -305,6 +305,13 @@ async function executeProposalRun(run) {
           throw new Error(`Gemini output failed schema validation: ${validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
         }
         const parsed = validation.data;
+        // Defense-in-depth, before anything is written: reject the whole
+        // output (falls back to deterministic, same as a schema failure)
+        // rather than persist a partially-untrustworthy run.
+        assertNoHallucinationRedFlags(parsed, rec => {
+          const job = jobCache[rec.job_id];
+          return job ? scoreJobForWorker(job, worker).total : null;
+        });
         const geminiRecs = parsed.recommendations;
 
         if (geminiRecs.length > 0) {

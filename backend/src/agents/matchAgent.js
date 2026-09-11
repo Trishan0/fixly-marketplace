@@ -9,7 +9,7 @@ const { getCandidateWorkers } = require('./tools/getCandidateWorkers');
 const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE } = require('./tools/getWorkerReviews');
 const { scoreWorkerForJob, shortlistWorkersForJob } = require('./scoring');
 const { getMemory } = require('./memory');
-const { matchAgentOutputSchema } = require('./schemas');
+const { matchAgentOutputSchema, assertNoHallucinationRedFlags } = require('./schemas');
 
 const TOP_N = 5;
 // How many formula-ranked candidates get handed to Gemini for the (expensive)
@@ -312,6 +312,13 @@ async function executeMatchRun(run) {
           throw new Error(`Gemini output failed schema validation: ${validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
         }
         const parsed = validation.data;
+        // Defense-in-depth, before anything is written: reject the whole
+        // output (falls back to deterministic, same as a schema failure)
+        // rather than persist a partially-untrustworthy run.
+        assertNoHallucinationRedFlags(parsed, rec => {
+          const worker = workerCache[rec.worker_id];
+          return worker ? scoreWorkerForJob(worker, job).total : null;
+        });
         const geminiRecs = parsed.recommendations;
 
         if (geminiRecs.length > 0) {
