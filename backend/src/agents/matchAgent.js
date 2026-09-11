@@ -9,6 +9,7 @@ const { getCandidateWorkers } = require('./tools/getCandidateWorkers');
 const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE } = require('./tools/getWorkerReviews');
 const { scoreWorkerForJob, shortlistWorkersForJob } = require('./scoring');
 const { getMemory } = require('./memory');
+const { redactText } = require('./redact');
 const { matchAgentOutputSchema, assertNoHallucinationRedFlags } = require('./schemas');
 
 const TOP_N = 5;
@@ -110,7 +111,7 @@ function buildToolHandlers({ jobId, customerId, workerCache, jobCache }) {
       return {
         id: job.id,
         title: job.title,
-        description: job.description,
+        description: redactText(job.description),
         category_name: job.category_name,
         category_id: job.category_id,
         district: job.district,
@@ -140,7 +141,7 @@ function buildToolHandlers({ jobId, customerId, workerCache, jobCache }) {
           full_name: worker.full_name,
           district: worker.district,
           primary_skill: worker.primary_skill,
-          bio: worker.bio,
+          bio: redactText(worker.bio),
           avg_rating: worker.avg_rating,
           total_jobs_done: worker.total_jobs_done,
           starting_price: worker.starting_price,
@@ -159,7 +160,7 @@ function buildToolHandlers({ jobId, customerId, workerCache, jobCache }) {
         note: UNTRUSTED_TEXT_NOTE,
         reviews: reviews.map(r => ({
           rating: r.rating,
-          feedback: r.feedback,
+          feedback: redactText(r.feedback),
           job_title: r.job_title,
           job_category: r.job_category,
           created_at: r.created_at,

@@ -7,6 +7,7 @@ const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./
 const { getOpenJobsForWorker } = require('./tools/getOpenJobs');
 const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE } = require('./tools/getWorkerReviews');
 const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
+const { redactText } = require('./redact');
 const { getMemory } = require('./memory');
 const { proposalAgentOutputSchema, assertNoHallucinationRedFlags } = require('./schemas');
 
@@ -133,8 +134,12 @@ function buildToolHandlers({ workerId, workerCache, jobCache }) {
 
     async get_open_jobs({ district: _district, limit = 60 }) {
       const jobs = await getOpenJobsForWorker(workerId, { limit });
-      for (const j of jobs) jobCache[j.id] = j;
-      return { count: jobs.length, note: UNTRUSTED_TEXT_NOTE, jobs };
+      for (const j of jobs) jobCache[j.id] = j; // cache the untouched row; scoring never reads description
+      return {
+        count: jobs.length,
+        note: UNTRUSTED_TEXT_NOTE,
+        jobs: jobs.map(j => ({ ...j, description: redactText(j.description) })),
+      };
     },
 
     async get_my_reviews({ limit = REVIEW_LIMIT }) {
@@ -144,7 +149,7 @@ function buildToolHandlers({ workerId, workerCache, jobCache }) {
         note: UNTRUSTED_TEXT_NOTE,
         reviews: reviews.map(r => ({
           rating: r.rating,
-          feedback: r.feedback,
+          feedback: redactText(r.feedback),
           job_title: r.job_title,
           job_category: r.job_category,
           created_at: r.created_at,
