@@ -26,7 +26,7 @@ function activeProposal(userId) {
 
 /** @param {string} runId @param {string} userId */
 function runDetail(runId, userId) {
-  return one(sql`SELECT id,user_id,agent_type,objective,plan_json,status,job_id,created_at,completed_at,engine,model_used,latency_ms,prompt_tokens,completion_tokens,total_tokens,iteration_count FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
+  return one(sql`SELECT id,user_id,agent_type,objective,plan_json,overall_reasoning,status,job_id,created_at,completed_at,engine,model_used,latency_ms,prompt_tokens,completion_tokens,total_tokens,iteration_count FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
 }
 
 /** @param {string} runId */
@@ -36,7 +36,7 @@ function runSteps(runId) {
 
 /** @param {string} runId */
 function runRecommendations(runId) {
-  return rows(sql`SELECT ar.*,CASE ar.entity_type WHEN 'worker' THEN (SELECT json_build_object('id',u.id,'full_name',u.full_name,'district',u.district,'profile_photo',u.profile_photo,'is_nic_verified',u.is_nic_verified,'avg_rating',wp.avg_rating,'total_jobs_done',wp.total_jobs_done,'primary_skill',wp.primary_skill,'starting_price',wp.starting_price) FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=ar.entity_id) WHEN 'job' THEN (SELECT json_build_object('id',j.id,'title',j.title,'district',j.district,'urgency',j.urgency,'pricing_mode',j.pricing_mode,'fixed_budget',j.fixed_budget,'category_name',c.name,'status',j.status) FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.id=ar.entity_id) END AS entity_data FROM agent_recommendations ar WHERE ar.run_id=${runId} ORDER BY ar.rank LIMIT 100`);
+  return rows(sql`SELECT ar.*,CASE ar.entity_type WHEN 'worker' THEN (SELECT json_build_object('id',u.id,'full_name',u.full_name,'district',u.district,'profile_photo',u.profile_photo,'is_nic_verified',u.is_nic_verified,'avg_rating',wp.avg_rating,'total_jobs_done',wp.total_jobs_done,'primary_skill',wp.primary_skill,'starting_price',wp.starting_price) FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=ar.entity_id) WHEN 'job' THEN (SELECT json_build_object('id',j.id,'title',j.title,'district',j.district,'urgency',j.urgency,'pricing_mode',j.pricing_mode,'fixed_budget',j.fixed_budget,'category_name',c.name,'status',j.status,'proposal_count',(SELECT COUNT(*) FROM proposals p WHERE p.job_id=j.id AND p.status='pending'),'created_at',j.created_at) FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.id=ar.entity_id) END AS entity_data FROM agent_recommendations ar WHERE ar.run_id=${runId} ORDER BY ar.rank LIMIT 100`);
 }
 
 /** @param {string} userId @param {string | null} type @param {number} limit */
@@ -64,9 +64,40 @@ function upsertMemory(userId, scope, key, value) {
   return one(sql`INSERT INTO agent_memories (user_id,scope,key,value_json,updated_at) VALUES (${userId},${scope},${key},${JSON.stringify(value)},NOW()) ON CONFLICT (user_id,scope,key) DO UPDATE SET value_json=EXCLUDED.value_json,updated_at=NOW() RETURNING key`);
 }
 
-/** @param {string} userId @param {'match' | 'proposal'} type @param {string} objective @param {string | null} [jobId] */
+/**
+ * Create a run in 'pending' status. Execution happens later, off the
+ * request path, when the in-process worker (agents/worker.js) claims it.
+ * @param {string} userId @param {'match' | 'proposal'} type @param {string} objective @param {string | null} [jobId]
+ */
 function createRun(userId, type, objective, jobId = null) {
-  return one(sql`INSERT INTO agent_runs (user_id,agent_type,objective,status,job_id) VALUES (${userId},${type},${objective},'running',${jobId}) RETURNING id`);
+  return one(sql`INSERT INTO agent_runs (user_id,agent_type,objective,status,job_id) VALUES (${userId},${type},${objective},'pending',${jobId}) RETURNING id,user_id,agent_type,objective,job_id`);
+}
+
+/**
+ * Atomically claim the oldest pending run, if any, and mark it 'running'.
+ * Safe under concurrent callers (multiple server instances) via
+ * FOR UPDATE SKIP LOCKED - only one caller can ever claim a given row.
+ */
+function claimPendingRun() {
+  return one(sql`
+    UPDATE agent_runs SET status='running',claimed_at=NOW()
+    WHERE id = (SELECT id FROM agent_runs WHERE status='pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED)
+    RETURNING id,user_id,agent_type,objective,job_id
+  `);
+}
+
+/**
+ * Return orphaned runs (claimed by a process that crashed before finishing)
+ * to 'pending' so the worker picks them up again instead of leaving them
+ * stuck forever.
+ * @param {number} [staleMinutes=5]
+ */
+function reclaimOrphanedRuns(staleMinutes = 5) {
+  return rows(sql`
+    UPDATE agent_runs SET status='pending',claimed_at=NULL
+    WHERE status='running' AND claimed_at < NOW() - make_interval(mins => ${staleMinutes})
+    RETURNING id
+  `);
 }
 
 /** @param {string} runId @param {number} index @param {string} name @param {unknown} input @param {unknown} output @param {string | null} decision */
@@ -74,14 +105,18 @@ function addStep(runId, index, name, input, output, decision) {
   return one(sql`INSERT INTO agent_run_steps (run_id,step_index,step_name,input_json,output_json,decision) VALUES (${runId},${index},${name},${JSON.stringify(input)},${JSON.stringify(output)},${decision}) RETURNING id`);
 }
 
-/** @param {string} runId @param {'worker' | 'job'} type @param {string} entityId @param {number} score @param {unknown} factors @param {string} rationale @param {number} rank */
-function addRecommendation(runId, type, entityId, score, factors, rationale, rank) {
-  return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank RETURNING id`);
+/**
+ * @param {string} runId @param {'worker' | 'job'} type @param {string} entityId @param {number} score
+ * @param {unknown} factors @param {string} rationale @param {number} rank
+ * @param {string[] | null} [keyStrengths] @param {string | null} [proposalDraft]
+ */
+function addRecommendation(runId, type, entityId, score, factors, rationale, rank, keyStrengths = null, proposalDraft = null) {
+  return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank,key_strengths,proposal_draft) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank},${JSON.stringify(keyStrengths)},${proposalDraft}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank,key_strengths=EXCLUDED.key_strengths,proposal_draft=EXCLUDED.proposal_draft RETURNING id`);
 }
 
-/** @param {string} runId @param {unknown} plan */
-function awaitConfirmation(runId, plan) {
-  return one(sql`UPDATE agent_runs SET status='awaiting_confirmation',plan_json=${JSON.stringify(plan)} WHERE id=${runId} AND status='running' RETURNING id`);
+/** @param {string} runId @param {unknown} plan @param {string} [overallReasoning] */
+function awaitConfirmation(runId, plan, overallReasoning = null) {
+  return one(sql`UPDATE agent_runs SET status='awaiting_confirmation',plan_json=${JSON.stringify(plan)},overall_reasoning=${overallReasoning} WHERE id=${runId} AND status='running' RETURNING id`);
 }
 
 /** @param {string} runId */
@@ -132,6 +167,7 @@ function workerReviews(workerId, limit) {
 
 module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
-  awaitConfirmation, cancelRun, candidateWorkers, completeRunTelemetry, createRun, failRun,
-  history, memory, memories, runDetail, runRecommendations, runSteps, upsertMemory, workerReviews,
+  awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
+  failRun, history, memory, memories, reclaimOrphanedRuns, runDetail, runRecommendations, runSteps,
+  upsertMemory, workerReviews,
 });

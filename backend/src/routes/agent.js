@@ -12,8 +12,8 @@ const express = require('express');
 const router = express.Router();
 const repository = require('../modules/agents/repository');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { runMatchAgent, confirmMatchAgent } = require('../agents/matchAgent');
-const { runProposalAgent, confirmProposalAgent } = require('../agents/proposalAgent');
+const { createMatchRun, confirmMatchAgent } = require('../agents/matchAgent');
+const { createProposalRun, confirmProposalAgent } = require('../agents/proposalAgent');
 const { MarketplaceError } = require('../modules/marketplace/errors');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
@@ -30,7 +30,9 @@ const proposalRunLimiter = createRateLimiter({
 });
 
 // ── POST /api/agent/match/run ─────────────────────────────────────────────────
-// Customer triggers the match agent for a specific job.
+// Customer triggers the match agent for a specific job. Creates the run and
+// returns immediately (202); the in-process worker (agents/worker.js) does
+// the actual matching. Poll GET /run/:id for the result.
 router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter, async (req, res) => {
   const { job_id } = req.body;
 
@@ -49,8 +51,8 @@ router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter,
       });
     }
 
-    const result = await runMatchAgent(job_id, req.user.id);
-    res.status(201).json(result);
+    const result = await createMatchRun(job_id, req.user.id);
+    res.status(202).json(result);
   } catch (err) {
     console.error('[agent/match/run]', err.message);
     if (err.message === 'Job not found') return res.status(404).json({ error: err.message });
@@ -60,7 +62,7 @@ router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter,
 });
 
 // ── POST /api/agent/proposal/run ─────────────────────────────────────────────
-// Worker triggers the proposal agent.
+// Worker triggers the proposal agent. Same async pattern as /match/run.
 router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimiter, async (req, res) => {
   try {
     // Prevent duplicate active runs
@@ -73,10 +75,11 @@ router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimi
       });
     }
 
-    const result = await runProposalAgent(req.user.id);
-    res.status(201).json(result);
+    const result = await createProposalRun(req.user.id);
+    res.status(202).json(result);
   } catch (err) {
     console.error('[agent/proposal/run]', err.message);
+    if (err.message === 'Worker profile not found') return res.status(404).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });
@@ -126,7 +129,11 @@ router.post('/run/:id/confirm', verifyToken, async (req, res) => {
 });
 
 // ── GET /api/agent/run/:id ────────────────────────────────────────────────────
-// Get full run details: run record + steps + recommendations
+// Get full run details. Since agent runs now execute off the request path
+// (see agents/worker.js), this is the client's only way to learn a run's
+// outcome - it's shaped to match what the old synchronous POST response
+// used to return directly, so AgentPanel can poll this until status leaves
+// 'pending'/'running'.
 router.get('/run/:id', verifyToken, async (req, res) => {
   const { id: runId } = req.params;
 
@@ -136,9 +143,25 @@ router.get('/run/:id', verifyToken, async (req, res) => {
     const [steps, recommendations] = await Promise.all([repository.runSteps(runId), repository.runRecommendations(runId)]);
 
     res.json({
-      run,
+      run_id: run.id,
+      agent_type: run.agent_type,
+      status: run.status,
+      plan: run.plan_json || [],
       steps,
-      recommendations,
+      overall_reasoning: run.overall_reasoning,
+      engine: run.engine,
+      model_used: run.model_used,
+      recommendations: recommendations.map(rec => ({
+        recommendation_id: rec.id,
+        rank: rec.rank,
+        score: Number(rec.score),
+        factors: rec.factors_json,
+        rationale: rec.rationale,
+        key_strengths: rec.key_strengths || [],
+        proposal_draft: rec.proposal_draft,
+        worker: rec.entity_type === 'worker' ? rec.entity_data : undefined,
+        job: rec.entity_type === 'job' ? rec.entity_data : undefined,
+      })),
     });
   } catch (err) {
     console.error('[agent/run/:id]', err.message);

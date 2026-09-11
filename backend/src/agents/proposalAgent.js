@@ -186,8 +186,9 @@ async function runDeterministicProposal(worker, runId, logStep) {
   for (let i = 0; i < top.length; i++) {
     const { job, total, factors, rationale } = top[i];
     const proposalDraft = draftProposalMessage(job, worker);
+    const keyStrengths = [job.category_name || 'Category match', job.district || 'Location match'];
 
-    const recResult = await repository.addRecommendation(runId, 'job', job.id, total, factors, rationale, i + 1);
+    const recResult = await repository.addRecommendation(runId, 'job', job.id, total, factors, rationale, i + 1, keyStrengths, proposalDraft);
 
     recommendations.push({
       recommendation_id: recResult.id,
@@ -195,7 +196,7 @@ async function runDeterministicProposal(worker, runId, logStep) {
       score: total,
       factors,
       rationale,
-      key_strengths: [job.category_name || 'Category match', job.district || 'Location match'],
+      key_strengths: keyStrengths,
       proposal_draft: proposalDraft,
       job: {
         id: job.id,
@@ -224,7 +225,7 @@ async function runDeterministicProposal(worker, runId, logStep) {
     'Submit proposals',
   ];
 
-  await repository.awaitConfirmation(runId, plan);
+  await repository.awaitConfirmation(runId, plan, overallReasoning);
   await repository.completeRunTelemetry(runId, { engine: 'deterministic' });
 
   return {
@@ -241,9 +242,34 @@ async function runDeterministicProposal(worker, runId, logStep) {
 }
 
 // ── Main Entry ─────────────────────────────────────────────────────────────
-async function runProposalAgent(workerId) {
+/**
+ * Fast, synchronous half: create the run row and validate the worker
+ * profile, leaving it 'pending'. The actual work happens later in
+ * executeProposalRun, off the request path, once the in-process worker
+ * claims it. Validation failure marks the row 'error' immediately (same
+ * terminal-state guarantee the old single-function version gave) rather
+ * than leaving it stuck, and still surfaces synchronously to the caller.
+ */
+async function createProposalRun(workerId) {
   const run = await repository.createRun(workerId, 'proposal', `Find best job opportunities for worker ${workerId}`);
+  try {
+    const worker = await getWorkerProfile(workerId);
+    if (!worker) throw new Error('Worker profile not found');
+  } catch (err) {
+    await repository.failRun(run.id);
+    throw err;
+  }
+  return { run_id: run.id, status: 'pending' };
+}
+
+/**
+ * Heavy half: runs the actual Gemini/deterministic proposal search for an
+ * already-created run row. Called only by the worker.
+ * @param {{ id: string, user_id: string }} run
+ */
+async function executeProposalRun(run) {
   const runId = run.id;
+  const workerId = run.user_id;
 
   const loggedSteps = [];
   async function logStep(stepIndex, stepName, input, output, decision = null) {
@@ -289,7 +315,9 @@ async function runProposalAgent(workerId) {
             if (!job) continue;
 
             const { factors } = scoreJobForWorker(job, worker);
-            const recResult = await repository.addRecommendation(runId, 'job', job.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1);
+            const keyStrengths = rec.key_strengths || [];
+            const proposalDraft = rec.proposal_draft || draftProposalMessage(job, worker);
+            const recResult = await repository.addRecommendation(runId, 'job', job.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1, keyStrengths, proposalDraft);
 
             recommendations.push({
               recommendation_id: recResult.id,
@@ -297,8 +325,8 @@ async function runProposalAgent(workerId) {
               score: rec.score,
               factors,
               rationale: rec.ai_rationale,
-              key_strengths: rec.key_strengths || [],
-              proposal_draft: rec.proposal_draft || draftProposalMessage(job, worker),
+              key_strengths: keyStrengths,
+              proposal_draft: proposalDraft,
               job,
             });
           }
@@ -312,7 +340,7 @@ async function runProposalAgent(workerId) {
             'Submit proposals',
           ];
 
-          await repository.awaitConfirmation(runId, plan);
+          await repository.awaitConfirmation(runId, plan, parsed.overall_reasoning);
           await repository.completeRunTelemetry(runId, {
             engine: 'gemini',
             modelUsed: telemetry.modelUsed,
@@ -354,4 +382,4 @@ async function confirmProposalAgent(runId, workerId, selections) {
   return confirm({ runId, worker: { id: workerId }, selections });
 }
 
-module.exports = { runProposalAgent, confirmProposalAgent };
+module.exports = { createProposalRun, executeProposalRun, confirmProposalAgent };

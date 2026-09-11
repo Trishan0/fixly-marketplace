@@ -203,7 +203,8 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
   const recommendations = [];
   for (let i = 0; i < top.length; i++) {
     const { worker, total, factors, rationale } = top[i];
-    const recResult = await repository.addRecommendation(runId, 'worker', worker.id, total, factors, rationale, i + 1);
+    const keyStrengths = [worker.primary_skill || 'Skilled worker', worker.district || 'Local area'];
+    const recResult = await repository.addRecommendation(runId, 'worker', worker.id, total, factors, rationale, i + 1, keyStrengths);
 
     recommendations.push({
       recommendation_id: recResult.id,
@@ -211,7 +212,7 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
       score: total,
       factors,
       rationale,
-      key_strengths: [worker.primary_skill || 'Skilled worker', worker.district || 'Local area'],
+      key_strengths: keyStrengths,
       worker,
     });
   }
@@ -228,7 +229,7 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
     'Send invites to selected workers',
   ];
 
-  await repository.awaitConfirmation(runId, plan);
+  await repository.awaitConfirmation(runId, plan, overallReasoning);
   await repository.completeRunTelemetry(runId, { engine: 'deterministic' });
 
   return {
@@ -245,9 +246,36 @@ async function runDeterministicMatch(job, customerId, runId, logStep) {
 }
 
 // ── Main Entry ─────────────────────────────────────────────────────────────
-async function runMatchAgent(jobId, customerId) {
+/**
+ * Fast, synchronous half: create the run row, validate the job, and leave
+ * it 'pending'. The actual matching work happens later in executeMatchRun,
+ * off the request path, once the in-process worker (agents/worker.js)
+ * claims it. Validation failure marks the row 'error' immediately (same
+ * terminal-state guarantee the old single-function version gave) rather
+ * than leaving it stuck, and still surfaces synchronously to the caller.
+ */
+async function createMatchRun(jobId, customerId) {
   const run = await repository.createRun(customerId, 'match', `Find best workers for job ${jobId}`, jobId);
+  try {
+    const job = await getJobDetails(jobId);
+    if (!job) throw new Error('Job not found');
+    if (job.customer_id !== customerId) throw new Error('Not your job');
+  } catch (err) {
+    await repository.failRun(run.id);
+    throw err;
+  }
+  return { run_id: run.id, status: 'pending' };
+}
+
+/**
+ * Heavy half: runs the actual Gemini/deterministic matching for an
+ * already-created run row. Called only by the worker.
+ * @param {{ id: string, job_id: string, user_id: string }} run
+ */
+async function executeMatchRun(run) {
   const runId = run.id;
+  const jobId = run.job_id;
+  const customerId = run.user_id;
 
   const loggedSteps = [];
   async function logStep(stepIndex, stepName, input, output, decision = null) {
@@ -258,7 +286,6 @@ async function runMatchAgent(jobId, customerId) {
   try {
     const job = await getJobDetails(jobId);
     if (!job) throw new Error('Job not found');
-    if (job.customer_id !== customerId) throw new Error('Not your job');
 
     // Try Gemini if configured
     if (isGeminiKeyConfigured()) {
@@ -295,7 +322,8 @@ async function runMatchAgent(jobId, customerId) {
             if (!worker) continue;
 
             const { factors } = scoreWorkerForJob(worker, job);
-            const recResult = await repository.addRecommendation(runId, 'worker', worker.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1);
+            const keyStrengths = rec.key_strengths || [];
+            const recResult = await repository.addRecommendation(runId, 'worker', worker.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1, keyStrengths);
 
             recommendations.push({
               recommendation_id: recResult.id,
@@ -303,7 +331,7 @@ async function runMatchAgent(jobId, customerId) {
               score: rec.score,
               factors,
               rationale: rec.ai_rationale,
-              key_strengths: rec.key_strengths || [],
+              key_strengths: keyStrengths,
               worker,
             });
           }
@@ -318,7 +346,7 @@ async function runMatchAgent(jobId, customerId) {
             'Send invites',
           ];
 
-          await repository.awaitConfirmation(runId, plan);
+          await repository.awaitConfirmation(runId, plan, parsed.overall_reasoning);
           await repository.completeRunTelemetry(runId, {
             engine: 'gemini',
             modelUsed: telemetry.modelUsed,
@@ -360,4 +388,4 @@ async function confirmMatchAgent(runId, customerId, selectedWorkerIds) {
   return confirm({ runId, customerId, selections: selectedWorkerIds });
 }
 
-module.exports = { runMatchAgent, confirmMatchAgent };
+module.exports = { createMatchRun, executeMatchRun, confirmMatchAgent };

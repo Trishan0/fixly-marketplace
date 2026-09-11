@@ -2,7 +2,7 @@
 
 const request = require('supertest');
 const app = require('../src/app');
-const { runProposalAgent } = require('../src/agents/proposalAgent');
+const { createProposalRun } = require('../src/agents/proposalAgent');
 const marketplaceRepository = require('../src/modules/marketplace/repository');
 const {
   acceptInvitation,
@@ -189,7 +189,7 @@ describe('Phase 5 invitations and agent confirmation invariants', () => {
   test('marks a failed agent run as terminal instead of leaving it active', async () => {
     const customer = await createUser(testPool, { email: 'agent-failure-customer@fixly-test.local', fullName: 'No Worker Profile', role: 'customer' });
 
-    await expect(runProposalAgent(customer.id)).rejects.toThrow('Worker profile not found');
+    await expect(createProposalRun(customer.id)).rejects.toThrow('Worker profile not found');
 
     const run = await testPool.query(
       "SELECT status FROM agent_runs WHERE user_id = $1 AND agent_type = 'proposal'",

@@ -258,6 +258,8 @@ export const agentRecommendations = pgTable("agent_recommendations", {
 	actionTaken: varchar("action_taken", { length: 30 }),
 	actionAt: timestamp("action_at", { withTimezone: true, mode: 'date' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
+	keyStrengths: jsonb("key_strengths"),
+	proposalDraft: text("proposal_draft"),
 }, (table) => [
 	index("idx_agent_recommendations_rank").using("btree", table.runId.asc().nullsLast().op("int4_ops"), table.rank.asc().nullsLast().op("int4_ops")),
 	index("idx_agent_recommendations_run_id").using("btree", table.runId.asc().nullsLast().op("uuid_ops")),
@@ -305,6 +307,8 @@ export const agentRuns = pgTable("agent_runs", {
 	completionTokens: integer("completion_tokens"),
 	totalTokens: integer("total_tokens"),
 	iterationCount: integer("iteration_count"),
+	claimedAt: timestamp("claimed_at", { withTimezone: true, mode: 'date' }),
+	overallReasoning: text("overall_reasoning"),
 }, (table) => [
 	index("idx_agent_runs_created").using("btree", table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_agent_runs_job_id").using("btree", table.jobId.asc().nullsLast().op("uuid_ops")),
