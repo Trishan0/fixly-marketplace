@@ -11,7 +11,13 @@ dns.setDefaultResultOrder('ipv4first');
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const MODEL_NAMES = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+// gemini-2.5-flash was retired by Google ("no longer available to new
+// users") and now 404s outright - caught live by the eval harness
+// (agents-eval.integration.test.js). gemini-flash-latest is an alias that
+// tracks whatever's current, so it leads the list to reduce how often this
+// needs a manual bump again; gemini-3.6-flash is what Google's own error
+// pointed at as of this fix.
+const MODEL_NAMES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.0-flash'];
 const RETRY_BACKOFF_MS = 250;
 
 function isGeminiKeyConfigured() {

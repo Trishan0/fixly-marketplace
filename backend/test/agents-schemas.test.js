@@ -107,8 +107,22 @@ describe('scoreDeviationExceedsCeiling', () => {
     expect(scoreDeviationExceedsCeiling(0.7, 0.55)).toBe(false);
   });
 
-  test('rejects a deviation past the enforced ceiling', () => {
+  test('rejects a score inflated well past the tighter upward ceiling', () => {
     expect(scoreDeviationExceedsCeiling(0.95, 0.3)).toBe(true);
+  });
+
+  // Asymmetric on purpose: caught live via the eval harness, a flat
+  // ceiling rejected a *correct* run where Gemini read planted "no-show"
+  // reviews and dropped a score from 0.76 to 0.30 - exactly the legitimate
+  // evidence-based penalty this system exists to allow. Nobody is
+  // incentivized to inject "rate me lower", so a large drop is far less
+  // suspicious than a large inflation.
+  test('allows a large downward markdown that would fail a symmetric ceiling', () => {
+    expect(scoreDeviationExceedsCeiling(0.3, 0.7648)).toBe(false);
+  });
+
+  test('still rejects a downward markdown extreme enough to look fabricated', () => {
+    expect(scoreDeviationExceedsCeiling(0.05, 0.9)).toBe(true);
   });
 });
 
@@ -139,10 +153,16 @@ describe('assertNoHallucinationRedFlags', () => {
     expect(() => assertNoHallucinationRedFlags(output, () => 0.7)).toThrow(/suspicious phrase/);
   });
 
-  test('throws when the score deviates from the objective score past the ceiling', () => {
+  test('throws when a score is inflated past the upward ceiling', () => {
     expect(() => assertNoHallucinationRedFlags(parsedOutput({
       recommendations: [{ worker_id: workerId, rank: 1, score: 0.95, ai_rationale: 'Fine.' }],
-    }), () => 0.2)).toThrow(/deviates from objective score/);
+    }), () => 0.2)).toThrow(/too far above objective score/);
+  });
+
+  test('does not throw for a large but legitimate downward markdown', () => {
+    expect(() => assertNoHallucinationRedFlags(parsedOutput({
+      recommendations: [{ worker_id: workerId, rank: 1, score: 0.3, ai_rationale: 'Multiple reviews mention no-shows.' }],
+    }), () => 0.7648)).not.toThrow();
   });
 
   test('skips the deviation check when the entity cannot be resolved', () => {

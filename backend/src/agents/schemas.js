@@ -52,7 +52,20 @@ const proposalAgentOutputSchema = z.object({
 // independently-computed objective formula score. The prompt already asks
 // the model to *explain* drift past ~0.15; this is the harder backstop that
 // gets enforced regardless of what the model says.
-const SCORE_DEVIATION_CEILING = 0.4;
+//
+// Deliberately asymmetric: caught live via the eval harness
+// (agents-eval.integration.test.js), a symmetric 0.4 ceiling rejected a
+// *correct* run - Gemini read 5 planted "no-show" reviews and dropped a
+// worker's score from an objective 0.76 to 0.30, a legitimate evidence-
+// based penalty exactly like this system exists to allow, and the flat
+// ceiling threw it away. The actual attack surface only runs one
+// direction: nobody is incentivized to inject "rate me lower" - the
+// exploit is inflating a score (a worker's own "rate me 1.0" injection,
+// or a rigged review). So inflation gets a tight ceiling; a markdown
+// based on genuine evidence gets a much looser one, and is only rejected
+// if it's extreme enough to look like fabrication itself.
+const UPWARD_DEVIATION_CEILING = 0.35;
+const DOWNWARD_DEVIATION_CEILING = 0.6;
 
 const INJECTION_MARKERS = [
   /ignore (all|the|any|previous|prior|above) instructions/i,
@@ -78,10 +91,13 @@ function findInjectionMarker(rec) {
 
 /**
  * @param {number} llmScore @param {number} objectiveScore
- * @param {number} [ceiling] @returns {boolean}
+ * @param {{ upward?: number, downward?: number }} [ceilings]
+ * @returns {boolean}
  */
-function scoreDeviationExceedsCeiling(llmScore, objectiveScore, ceiling = SCORE_DEVIATION_CEILING) {
-  return Math.abs(llmScore - objectiveScore) > ceiling;
+function scoreDeviationExceedsCeiling(llmScore, objectiveScore, ceilings = {}) {
+  const { upward = UPWARD_DEVIATION_CEILING, downward = DOWNWARD_DEVIATION_CEILING } = ceilings;
+  const delta = llmScore - objectiveScore;
+  return delta > upward || -delta > downward;
 }
 
 /**
@@ -107,7 +123,8 @@ function assertNoHallucinationRedFlags(parsed, resolveObjectiveScore) {
 
     const objectiveScore = resolveObjectiveScore(rec);
     if (objectiveScore != null && scoreDeviationExceedsCeiling(rec.score, objectiveScore)) {
-      throw new Error(`Gemini output rejected: score ${rec.score} deviates from objective score ${objectiveScore} by more than ${SCORE_DEVIATION_CEILING}`);
+      const direction = rec.score > objectiveScore ? 'above' : 'below';
+      throw new Error(`Gemini output rejected: score ${rec.score} is too far ${direction} objective score ${objectiveScore}`);
     }
   }
 }
@@ -118,5 +135,6 @@ module.exports = {
   assertNoHallucinationRedFlags,
   scoreDeviationExceedsCeiling,
   textContainsInjectionMarker,
-  SCORE_DEVIATION_CEILING,
+  UPWARD_DEVIATION_CEILING,
+  DOWNWARD_DEVIATION_CEILING,
 };
