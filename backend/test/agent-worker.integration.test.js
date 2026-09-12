@@ -82,4 +82,26 @@ describe('agent worker', () => {
     const untouched = await testPool.query('SELECT status FROM agent_runs WHERE id = $1', [fresh.rows[0].id]);
     expect(untouched.rows[0].status).toBe('running');
   });
+
+  test('concurrent claimPendingRun calls each claim a distinct row, none twice', async () => {
+    const customer = await createUser(testPool, { email: 'worker-test-concurrent-customer@fixly-test.local', fullName: 'Customer', role: 'customer' });
+    const jobs = await Promise.all(
+      Array.from({ length: 5 }, (_, i) => createJob(testPool, { customerId: customer.id, title: `Concurrent claim job ${i}` }))
+    );
+    const inserted = await testPool.query(
+      `INSERT INTO agent_runs (user_id, agent_type, status, job_id)
+       SELECT $1, 'match', 'pending', j FROM unnest($2::uuid[]) AS j RETURNING id`,
+      [customer.id, jobs.map(j => j.id)]
+    );
+    const rowIds = inserted.rows.map(r => r.id);
+
+    // More concurrent callers than rows, so some calls should come back empty
+    // (SKIP LOCKED) rather than double-claiming a row another caller has.
+    const claims = await Promise.all(Array.from({ length: 8 }, () => repository.claimPendingRun(100)));
+    const claimedIds = claims.filter(Boolean).map(c => c.id);
+
+    expect(claimedIds).toHaveLength(rowIds.length);
+    expect(new Set(claimedIds).size).toBe(rowIds.length);
+    expect(new Set(claimedIds)).toEqual(new Set(rowIds));
+  });
 });

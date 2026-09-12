@@ -229,8 +229,12 @@ async function buildDegradedProposalFallback(worker, runId, logStep) {
  * buildDegradedProposalFallback; a failure anywhere else still fails the
  * run hard.
  * @param {{ id: string, user_id: string }} run
+ * @param {{ genAI?: { getGenerativeModel: Function } }} [opts] — genAI is
+ * injectable so tests can supply a fake Gemini client instead of hitting
+ * the real API; defaults to runGeminiAgent's own real client.
  */
-async function executeProposalRun(run) {
+async function executeProposalRun(run, opts = {}) {
+  const { genAI } = opts;
   const runId = run.id;
   const workerId = run.user_id;
 
@@ -262,6 +266,7 @@ async function executeProposalRun(run) {
         onStep: async (step) => {
           await logStep(stepIndex++, step.stepName, step.input, step.output, null);
         },
+        ...(genAI ? { genAI } : {}),
       });
 
       const validation = proposalAgentOutputSchema.safeParse(parseJsonFromText(geminiText));

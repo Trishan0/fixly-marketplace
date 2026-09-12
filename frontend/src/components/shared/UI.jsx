@@ -44,6 +44,9 @@ export function Button({
   );
 }
 
+// `label` is aria-only (sets aria-label on the switch button) - it renders
+// no visible text. A caller that needs a visible label renders its own
+// next to the Toggle, as ProfileSettings.jsx does.
 export function Toggle({ checked, onChange, disabled, label, className }) {
   return (
     <button
