@@ -64,7 +64,7 @@ function cleanupRateLimitBuckets() {
 }
 
 function adminStats() {
-  return one(sql`SELECT (SELECT COUNT(*)::int FROM users WHERE role <> 'admin') AS total_users,(SELECT COUNT(*)::int FROM users WHERE role='worker') AS total_workers,(SELECT COUNT(*)::int FROM jobs) AS total_jobs,(SELECT COUNT(*)::int FROM reports WHERE status='open') AS open_reports,(SELECT COUNT(*)::int FROM jobs WHERE status IN ('posted','proposals_received')) AS open_jobs`);
+  return one(sql`SELECT (SELECT COUNT(*)::int FROM users WHERE role <> 'admin') AS total_users,(SELECT COUNT(*)::int FROM users WHERE role='worker') AS total_workers,(SELECT COUNT(*)::int FROM jobs) AS total_jobs,(SELECT COUNT(*)::int FROM reports WHERE status='open') AS open_reports,(SELECT COUNT(*)::int FROM jobs WHERE status IN ('posted','proposals_received')) AS open_jobs,(SELECT COUNT(*)::int FROM worker_profiles WHERE ai_matching_opt_in=false) AS ai_matching_opted_out`);
 }
 
 /** @param {AdminUserFilters} filters */

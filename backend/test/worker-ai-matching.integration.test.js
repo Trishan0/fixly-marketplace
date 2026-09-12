@@ -4,6 +4,7 @@ const request = require('supertest');
 const app = require('../src/app');
 const identityRepository = require('../src/modules/identity/repository');
 const agentsRepository = require('../src/modules/agents/repository');
+const operationsRepository = require('../src/modules/operations/repository');
 const {
   createTestPool,
   migrateTestDatabase,
@@ -98,5 +99,17 @@ describe('worker AI matching opt-in', () => {
 
     const pool = await agentsRepository.candidateWorkers(null, 100);
     expect(pool.map(w => w.id)).not.toContain(worker.id);
+  });
+
+  test('adminStats reports the count of workers opted out of AI matching', async () => {
+    const before = await operationsRepository.adminStats();
+
+    const worker = await createUser(testPool, {
+      email: 'ai-opt-admin-stats@fixly-test.local', fullName: 'Worker', role: 'worker', primarySkill: 'Plumbing',
+    });
+    await identityRepository.setAiMatchingOptIn(worker.id, false);
+
+    const after = await operationsRepository.adminStats();
+    expect(after.ai_matching_opted_out).toBe(before.ai_matching_opted_out + 1);
   });
 });
