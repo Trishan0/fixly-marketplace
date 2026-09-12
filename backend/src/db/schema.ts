@@ -328,7 +328,7 @@ export const agentRuns = pgTable("agent_runs", {
 		}).onDelete("set null"),
 	check("agent_runs_agent_type_check", sql`(agent_type)::text = ANY ((ARRAY['match'::character varying, 'proposal'::character varying])::text[])`),
 	check("agent_runs_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'awaiting_confirmation'::character varying, 'confirmed'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'error'::character varying])::text[])`),
-	check("agent_runs_engine_check", sql`(engine)::text = ANY ((ARRAY['gemini'::character varying, 'deterministic'::character varying])::text[])`),
+	check("agent_runs_engine_check", sql`(engine)::text = ANY ((ARRAY['gemini'::character varying, 'degraded'::character varying])::text[])`),
 ]);
 
 export const notifications = pgTable("notifications", {

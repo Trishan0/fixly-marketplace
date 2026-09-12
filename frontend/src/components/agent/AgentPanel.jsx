@@ -561,9 +561,15 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                     : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
                 )}>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                      {runData.model_used || 'Gemini'}
-                    </span>
+                    {runData.engine === 'degraded' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        Rating-based (AI unavailable)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        {runData.model_used || 'Gemini'}
+                      </span>
+                    )}
                     <span className="font-semibold">reasoning:</span>
                   </div>
                   {runData.overall_reasoning}

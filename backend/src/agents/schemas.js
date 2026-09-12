@@ -101,38 +101,55 @@ function scoreDeviationExceedsCeiling(llmScore, objectiveScore, ceilings = {}) {
 }
 
 /**
- * Throws if any recommendation trips a guardrail, so the caller's existing
- * catch block treats it exactly like a schema validation failure - the run
- * fails rather than persisting or showing untrustworthy output. Must be
- * called before anything from `parsed` is written to the database - it
- * makes an all-or-nothing decision about the whole output.
+ * Filters out any recommendation that trips a guardrail, keeping the rest -
+ * one bad recommendation (a plausible false positive included) no longer
+ * discards every genuinely good one alongside it. This matters more now
+ * that there's no deterministic fallback: an all-or-nothing rejection used
+ * to fall through to a rule-based ranking; now it would just fail the
+ * whole run over one flagged item. Still rejects the *entire* output if
+ * `overall_reasoning` itself trips a marker, since that's response-level
+ * content, not tied to one entity - dropping individual recommendations
+ * can't fix a compromised top-level narrative.
  * @param {{ overall_reasoning: string, recommendations: object[] }} parsed - already schema-validated
  * @param {(rec: object) => number | null | undefined} resolveObjectiveScore -
  *   independently-computed objective score for one recommendation's entity,
  *   or null/undefined if that entity can't be resolved (skips the deviation
  *   check for that recommendation; the caller's own unknown-entity handling
  *   still applies downstream)
+ * @returns {{ recommendations: object[], rejected: { rec: object, reason: string }[] }}
  */
-function assertNoHallucinationRedFlags(parsed, resolveObjectiveScore) {
+function filterHallucinationRedFlags(parsed, resolveObjectiveScore) {
   if (textContainsInjectionMarker(parsed.overall_reasoning)) {
     throw new Error('Gemini output rejected: suspicious phrase in overall_reasoning');
   }
+
+  const recommendations = [];
+  const rejected = [];
+
   for (const rec of parsed.recommendations) {
     const marker = findInjectionMarker(rec);
-    if (marker) throw new Error(`Gemini output rejected: ${marker}`);
+    if (marker) {
+      rejected.push({ rec, reason: marker });
+      continue;
+    }
 
     const objectiveScore = resolveObjectiveScore(rec);
     if (objectiveScore != null && scoreDeviationExceedsCeiling(rec.score, objectiveScore)) {
       const direction = rec.score > objectiveScore ? 'above' : 'below';
-      throw new Error(`Gemini output rejected: score ${rec.score} is too far ${direction} objective score ${objectiveScore}`);
+      rejected.push({ rec, reason: `score ${rec.score} is too far ${direction} objective score ${objectiveScore}` });
+      continue;
     }
+
+    recommendations.push(rec);
   }
+
+  return { recommendations, rejected };
 }
 
 module.exports = {
   matchAgentOutputSchema,
   proposalAgentOutputSchema,
-  assertNoHallucinationRedFlags,
+  filterHallucinationRedFlags,
   scoreDeviationExceedsCeiling,
   textContainsInjectionMarker,
   UPWARD_DEVIATION_CEILING,
