@@ -12,13 +12,28 @@ const express = require('express');
 const router = express.Router();
 const repository = require('../modules/agents/repository');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { runMatchAgent, confirmMatchAgent } = require('../agents/matchAgent');
-const { runProposalAgent, confirmProposalAgent } = require('../agents/proposalAgent');
+const { createMatchRun, confirmMatchAgent } = require('../agents/matchAgent');
+const { createProposalRun, confirmProposalAgent } = require('../agents/proposalAgent');
 const { MarketplaceError } = require('../modules/marketplace/errors');
+const { createRateLimiter } = require('../middleware/rateLimit');
+
+// Each run can drive up to 12 Gemini tool-calling round trips, so these are
+// tighter than a plain read/write endpoint - both to bound API spend and to
+// stop a client from hammering the loop.
+const matchRunLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, max: 20, keyPrefix: 'agent-match-run',
+  message: 'Too many match agent runs, please try again later',
+});
+const proposalRunLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, max: 20, keyPrefix: 'agent-proposal-run',
+  message: 'Too many proposal agent runs, please try again later',
+});
 
 // ── POST /api/agent/match/run ─────────────────────────────────────────────────
-// Customer triggers the match agent for a specific job.
-router.post('/match/run', verifyToken, requireRole('customer'), async (req, res) => {
+// Customer triggers the match agent for a specific job. Creates the run and
+// returns immediately (202); the in-process worker (agents/worker.js) does
+// the actual matching. Poll GET /run/:id for the result.
+router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter, async (req, res) => {
   const { job_id } = req.body;
 
   if (!job_id) {
@@ -36,19 +51,20 @@ router.post('/match/run', verifyToken, requireRole('customer'), async (req, res)
       });
     }
 
-    const result = await runMatchAgent(job_id, req.user.id);
-    res.status(201).json(result);
+    const result = await createMatchRun(job_id, req.user.id);
+    res.status(202).json(result);
   } catch (err) {
     console.error('[agent/match/run]', err.message);
     if (err.message === 'Job not found') return res.status(404).json({ error: err.message });
     if (err.message === 'Not your job') return res.status(403).json({ error: err.message });
+    if (err.message === 'AI matching is currently unavailable') return res.status(503).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });
 
 // ── POST /api/agent/proposal/run ─────────────────────────────────────────────
-// Worker triggers the proposal agent.
-router.post('/proposal/run', verifyToken, requireRole('worker'), async (req, res) => {
+// Worker triggers the proposal agent. Same async pattern as /match/run.
+router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimiter, async (req, res) => {
   try {
     // Prevent duplicate active runs
     const existing = await repository.activeProposal(req.user.id);
@@ -60,10 +76,12 @@ router.post('/proposal/run', verifyToken, requireRole('worker'), async (req, res
       });
     }
 
-    const result = await runProposalAgent(req.user.id);
-    res.status(201).json(result);
+    const result = await createProposalRun(req.user.id);
+    res.status(202).json(result);
   } catch (err) {
     console.error('[agent/proposal/run]', err.message);
+    if (err.message === 'Worker profile not found') return res.status(404).json({ error: err.message });
+    if (err.message === 'AI matching is currently unavailable') return res.status(503).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });
@@ -113,19 +131,46 @@ router.post('/run/:id/confirm', verifyToken, async (req, res) => {
 });
 
 // ── GET /api/agent/run/:id ────────────────────────────────────────────────────
-// Get full run details: run record + steps + recommendations
+// Get full run details. Since agent runs now execute off the request path
+// (see agents/worker.js), this is the client's only way to learn a run's
+// outcome - it's shaped to match what the old synchronous POST response
+// used to return directly, so AgentPanel can poll this until status leaves
+// 'pending'/'running'.
 router.get('/run/:id', verifyToken, async (req, res) => {
   const { id: runId } = req.params;
 
   try {
     const run = await repository.runDetail(runId, req.user.id);
     if (!run) return res.status(404).json({ error: 'Run not found' });
-    const [steps, recommendations] = await Promise.all([repository.runSteps(runId), repository.runRecommendations(runId)]);
+    const [steps, recommendations, queue] = await Promise.all([
+      repository.runSteps(runId),
+      repository.runRecommendations(runId),
+      run.status === 'pending' ? repository.queuePosition(runId) : null,
+    ]);
 
     res.json({
-      run,
+      run_id: run.id,
+      agent_type: run.agent_type,
+      status: run.status,
+      // Only meaningful while status is 'pending' - null once claimed, so
+      // the client can stop showing a queue count as soon as work starts.
+      queue_position: queue ? queue.position : null,
+      plan: run.plan_json || [],
       steps,
-      recommendations,
+      overall_reasoning: run.overall_reasoning,
+      engine: run.engine,
+      model_used: run.model_used,
+      recommendations: recommendations.map(rec => ({
+        recommendation_id: rec.id,
+        rank: rec.rank,
+        score: Number(rec.score),
+        factors: rec.factors_json,
+        rationale: rec.rationale,
+        key_strengths: rec.key_strengths || [],
+        proposal_draft: rec.proposal_draft,
+        worker: rec.entity_type === 'worker' ? rec.entity_data : undefined,
+        job: rec.entity_type === 'job' ? rec.entity_data : undefined,
+      })),
     });
   } catch (err) {
     console.error('[agent/run/:id]', err.message);

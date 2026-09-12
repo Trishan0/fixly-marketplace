@@ -78,10 +78,20 @@ async function createProposal(pool, { jobId, workerId, price = '5000.00' } = {})
   return result.rows[0];
 }
 
+async function createReview(pool, { jobId, customerId, workerId, rating, feedback }) {
+  const result = await pool.query(
+    `INSERT INTO reviews (job_id, customer_id, worker_id, rating, feedback)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [jobId, customerId, workerId, rating, feedback]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   authorizationFor,
   categoryId,
   createJob,
   createProposal,
+  createReview,
   createUser,
 };

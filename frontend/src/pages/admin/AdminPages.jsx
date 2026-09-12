@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Clock3,
+  Bot,
 } from "lucide-react";
 import { AppShell } from "../../components/layout/AppShell";
 import {
@@ -254,7 +255,7 @@ export function AdminDashboard() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
             <StatCard
               icon={Users}
               label="Total Users"
@@ -293,6 +294,14 @@ export function AdminDashboard() {
               value={stats?.open_reports}
               sub="Needs moderation action"
               color="rose"
+              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
+            />
+            <StatCard
+              icon={Bot}
+              label="AI Matching Opted Out"
+              value={stats?.ai_matching_opted_out}
+              sub="Workers excluded from AI suggestions"
+              color="violet"
               className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
             />
           </div>

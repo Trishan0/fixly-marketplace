@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bot, Zap, CheckCircle2, XCircle, ChevronDown, ChevronUp,
   Star, MapPin, Briefcase, Shield, TrendingUp, Clock, DollarSign,
@@ -332,7 +332,7 @@ function PlanSteps({ plan, steps }) {
  */
 export default function AgentPanel({ mode, jobId, onClose }) {
   const qc = useQueryClient()
-  const [runData, setRunData] = useState(null)
+  const [runId, setRunId] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [customMessages, setCustomMessages] = useState({}) // jobId → message
   const [showPlan, setShowPlan] = useState(false)
@@ -349,16 +349,32 @@ export default function AgentPanel({ mode, jobId, onClose }) {
   }, [onClose])
 
   // ── Run agent ──────────────────────────────────────────────────────────────
+  // Creating a run returns immediately (202 pending) - the agent worker
+  // executes it off the request path, so the actual result is polled below.
   const runMutation = useMutation({
     mutationFn: () =>
       isMatch
         ? api.post('/agent/match/run', { job_id: jobId }).then(r => r.data)
         : api.post('/agent/proposal/run').then(r => r.data),
     onSuccess: data => {
-      setRunData(data)
+      setRunId(data.run_id)
       setSelectedIds(new Set())
     },
   })
+
+  // ── Poll for the run's outcome ───────────────────────────────────────────
+  const runQuery = useQuery({
+    queryKey: ['agent-run', runId],
+    queryFn: () => api.get(`/agent/run/${runId}`).then(r => r.data),
+    enabled: Boolean(runId) && !confirmDone,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return !status || status === 'pending' || status === 'running' ? 1500 : false
+    },
+  })
+  const runData = runQuery.data
+  const isRunInProgress = Boolean(runId) && (!runData || runData.status === 'pending' || runData.status === 'running')
+  const runFailed = runData?.status === 'error'
 
   // ── Confirm action ─────────────────────────────────────────────────────────
   const confirmMutation = useMutation({
@@ -445,7 +461,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         )}
 
         {/* Idle state — run button */}
-        {!runData && !confirmDone && (
+        {!runId && !confirmDone && (
           <div className="text-center py-8">
             <div className={cn(
               'w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center',
@@ -480,8 +496,43 @@ export default function AgentPanel({ mode, jobId, onClose }) {
           </div>
         )}
 
+        {/* In progress — the worker is still running the agent */}
+        {isRunInProgress && !confirmDone && (
+          <div className="text-center py-8">
+            <div className={cn(
+              'w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse',
+              isMatch ? 'bg-sky-100 dark:bg-sky-900/30' : 'bg-violet-100 dark:bg-violet-900/30'
+            )}>
+              <Bot className={cn('w-8 h-8', isMatch ? 'text-sky-500' : 'text-violet-500')} />
+            </div>
+            <h3 className="font-bold text-slate-800 dark:text-white mb-1">
+              {isMatch ? 'Finding the best workers…' : 'Finding the best jobs…'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+              Reading profiles, reviews, and job details. This can take a little while.
+            </p>
+            {runData?.status === 'pending' && Number.isInteger(runData?.queue_position) && runData.queue_position > 0 && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                {runData.queue_position} {runData.queue_position === 1 ? 'run' : 'runs'} ahead of you
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Run failed */}
+        {runFailed && !confirmDone && (
+          <div className="text-center py-8">
+            <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-2" />
+            <h3 className="font-bold text-slate-800 dark:text-white mb-1">Something went wrong</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-xs mx-auto">
+              The agent run failed. You can try again.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setRunId(null)}>Try again</Button>
+          </div>
+        )}
+
         {/* Results state */}
-        {runData && !confirmDone && (
+        {runData && !isRunInProgress && !runFailed && !confirmDone && (
           <>
             {/* Plan trace toggle */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -514,7 +565,18 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                     ? 'bg-sky-50/80 border-sky-200 text-sky-800 dark:bg-sky-950/30 dark:border-sky-800 dark:text-sky-300'
                     : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
                 )}>
-                  <span className="font-semibold">Gemini's reasoning: </span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {runData.engine === 'degraded' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        Rating-based (AI unavailable)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        {runData.model_used || 'Gemini'}
+                      </span>
+                    )}
+                    <span className="font-semibold">reasoning:</span>
+                  </div>
                   {runData.overall_reasoning}
                 </div>
               )}
@@ -557,7 +619,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
       </div>
 
       {/* ── Footer — Confirm bar ── */}
-      {runData && !confirmDone && selectedIds.size > 0 && (
+      {runData && !isRunInProgress && !runFailed && !confirmDone && selectedIds.size > 0 && (
         <div className={cn(
           'grid flex-shrink-0 gap-3 border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:flex sm:items-center sm:justify-between sm:px-5 sm:py-4',
           isMatch ? 'bg-sky-50/80 dark:bg-sky-950/20' : 'bg-violet-50/80 dark:bg-violet-950/20'

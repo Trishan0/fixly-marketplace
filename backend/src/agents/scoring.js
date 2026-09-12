@@ -190,6 +190,21 @@ function buildMatchRationale(worker, job, factors, _total) {
   return lines.join(' · ');
 }
 
+/**
+ * Score every candidate for a job — no sort, no cut. The formula's
+ * objective_score is handed to the agent as one input signal, not used to
+ * exclude anyone before it reasons over the pool: a hard top-N cut by this
+ * same shallow formula would defeat the point of reading actual reviews
+ * (it can't see that a worker's flat average is hiding, say, 200 bad
+ * reviews diluted by 20 good ones — only the text can tell you that).
+ * @param {Object[]} workers
+ * @param {Object} job
+ * @returns {{ worker: Object, total: number, factors: Object, rationale: string }[]}
+ */
+function scoreAllWorkersForJob(workers, job) {
+  return workers.map(worker => ({ worker, ...scoreWorkerForJob(worker, job) }));
+}
+
 // ─── Proposal Agent: Score a job for a worker ────────────────────────────────
 
 const PROPOSAL_WEIGHTS = {
@@ -350,4 +365,4 @@ function draftProposalMessage(job, worker) {
   );
 }
 
-module.exports = { scoreWorkerForJob, scoreJobForWorker, draftProposalMessage, parsePrice };
+module.exports = { scoreWorkerForJob, scoreJobForWorker, scoreAllWorkersForJob, draftProposalMessage, parsePrice };

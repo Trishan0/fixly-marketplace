@@ -258,6 +258,8 @@ export const agentRecommendations = pgTable("agent_recommendations", {
 	actionTaken: varchar("action_taken", { length: 30 }),
 	actionAt: timestamp("action_at", { withTimezone: true, mode: 'date' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
+	keyStrengths: jsonb("key_strengths"),
+	proposalDraft: text("proposal_draft"),
 }, (table) => [
 	index("idx_agent_recommendations_rank").using("btree", table.runId.asc().nullsLast().op("int4_ops"), table.rank.asc().nullsLast().op("int4_ops")),
 	index("idx_agent_recommendations_run_id").using("btree", table.runId.asc().nullsLast().op("uuid_ops")),
@@ -298,6 +300,15 @@ export const agentRuns = pgTable("agent_runs", {
 	jobId: uuid("job_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	completedAt: timestamp("completed_at", { withTimezone: true, mode: 'date' }),
+	engine: varchar({ length: 20 }),
+	modelUsed: varchar("model_used", { length: 60 }),
+	latencyMs: integer("latency_ms"),
+	promptTokens: integer("prompt_tokens"),
+	completionTokens: integer("completion_tokens"),
+	totalTokens: integer("total_tokens"),
+	iterationCount: integer("iteration_count"),
+	claimedAt: timestamp("claimed_at", { withTimezone: true, mode: 'date' }),
+	overallReasoning: text("overall_reasoning"),
 }, (table) => [
 	index("idx_agent_runs_created").using("btree", table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_agent_runs_job_id").using("btree", table.jobId.asc().nullsLast().op("uuid_ops")),
@@ -317,6 +328,7 @@ export const agentRuns = pgTable("agent_runs", {
 		}).onDelete("set null"),
 	check("agent_runs_agent_type_check", sql`(agent_type)::text = ANY ((ARRAY['match'::character varying, 'proposal'::character varying])::text[])`),
 	check("agent_runs_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'awaiting_confirmation'::character varying, 'confirmed'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'error'::character varying])::text[])`),
+	check("agent_runs_engine_check", sql`(engine)::text = ANY ((ARRAY['gemini'::character varying, 'degraded'::character varying])::text[])`),
 ]);
 
 export const notifications = pgTable("notifications", {
@@ -419,6 +431,7 @@ export const workerProfiles = pgTable("worker_profiles", {
 	totalJobsDone: integer("total_jobs_done").default(0),
 	avgRating: numeric("avg_rating", { precision: 3, scale:  2 }).default('0'),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
+	aiMatchingOptIn: boolean("ai_matching_opt_in").default(true).notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],

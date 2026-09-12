@@ -26,7 +26,7 @@ function activeProposal(userId) {
 
 /** @param {string} runId @param {string} userId */
 function runDetail(runId, userId) {
-  return one(sql`SELECT id,user_id,agent_type,objective,plan_json,status,job_id,created_at,completed_at FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
+  return one(sql`SELECT id,user_id,agent_type,objective,plan_json,overall_reasoning,status,job_id,created_at,completed_at,engine,model_used,latency_ms,prompt_tokens,completion_tokens,total_tokens,iteration_count FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
 }
 
 /** @param {string} runId */
@@ -36,12 +36,12 @@ function runSteps(runId) {
 
 /** @param {string} runId */
 function runRecommendations(runId) {
-  return rows(sql`SELECT ar.*,CASE ar.entity_type WHEN 'worker' THEN (SELECT json_build_object('id',u.id,'full_name',u.full_name,'district',u.district,'profile_photo',u.profile_photo,'is_nic_verified',u.is_nic_verified,'avg_rating',wp.avg_rating,'total_jobs_done',wp.total_jobs_done,'primary_skill',wp.primary_skill,'starting_price',wp.starting_price) FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=ar.entity_id) WHEN 'job' THEN (SELECT json_build_object('id',j.id,'title',j.title,'district',j.district,'urgency',j.urgency,'pricing_mode',j.pricing_mode,'fixed_budget',j.fixed_budget,'category_name',c.name,'status',j.status) FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.id=ar.entity_id) END AS entity_data FROM agent_recommendations ar WHERE ar.run_id=${runId} ORDER BY ar.rank LIMIT 100`);
+  return rows(sql`SELECT ar.*,CASE ar.entity_type WHEN 'worker' THEN (SELECT json_build_object('id',u.id,'full_name',u.full_name,'district',u.district,'profile_photo',u.profile_photo,'is_nic_verified',u.is_nic_verified,'avg_rating',wp.avg_rating,'total_jobs_done',wp.total_jobs_done,'primary_skill',wp.primary_skill,'starting_price',wp.starting_price) FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=ar.entity_id) WHEN 'job' THEN (SELECT json_build_object('id',j.id,'title',j.title,'district',j.district,'urgency',j.urgency,'pricing_mode',j.pricing_mode,'fixed_budget',j.fixed_budget,'category_name',c.name,'status',j.status,'proposal_count',(SELECT COUNT(*) FROM proposals p WHERE p.job_id=j.id AND p.status='pending'),'created_at',j.created_at) FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.id=ar.entity_id) END AS entity_data FROM agent_recommendations ar WHERE ar.run_id=${runId} ORDER BY ar.rank LIMIT 100`);
 }
 
 /** @param {string} userId @param {string | null} type @param {number} limit */
 function history(userId, type, limit) {
-  return rows(sql`SELECT ar.id,ar.agent_type,ar.objective,ar.status,ar.job_id,ar.created_at,ar.completed_at,(SELECT title FROM jobs WHERE id=ar.job_id) AS job_title,(SELECT COUNT(*)::int FROM agent_recommendations WHERE run_id=ar.id) AS recommendation_count FROM agent_runs ar WHERE ar.user_id=${userId} AND (${type}::text IS NULL OR ar.agent_type=${type}) ORDER BY ar.created_at DESC LIMIT ${limit}`);
+  return rows(sql`SELECT ar.id,ar.agent_type,ar.objective,ar.status,ar.job_id,ar.created_at,ar.completed_at,ar.engine,ar.model_used,(SELECT title FROM jobs WHERE id=ar.job_id) AS job_title,(SELECT COUNT(*)::int FROM agent_recommendations WHERE run_id=ar.id) AS recommendation_count FROM agent_runs ar WHERE ar.user_id=${userId} AND (${type}::text IS NULL OR ar.agent_type=${type}) ORDER BY ar.created_at DESC LIMIT ${limit}`);
 }
 
 /** @param {string} id @param {string} userId */
@@ -64,9 +64,67 @@ function upsertMemory(userId, scope, key, value) {
   return one(sql`INSERT INTO agent_memories (user_id,scope,key,value_json,updated_at) VALUES (${userId},${scope},${key},${JSON.stringify(value)},NOW()) ON CONFLICT (user_id,scope,key) DO UPDATE SET value_json=EXCLUDED.value_json,updated_at=NOW() RETURNING key`);
 }
 
-/** @param {string} userId @param {'match' | 'proposal'} type @param {string} objective @param {string | null} [jobId] */
+/**
+ * Create a run in 'pending' status. Execution happens later, off the
+ * request path, when the in-process worker (agents/worker.js) claims it.
+ * @param {string} userId @param {'match' | 'proposal'} type @param {string} objective @param {string | null} [jobId]
+ */
 function createRun(userId, type, objective, jobId = null) {
-  return one(sql`INSERT INTO agent_runs (user_id,agent_type,objective,status,job_id) VALUES (${userId},${type},${objective},'running',${jobId}) RETURNING id`);
+  return one(sql`INSERT INTO agent_runs (user_id,agent_type,objective,status,job_id) VALUES (${userId},${type},${objective},'pending',${jobId}) RETURNING id,user_id,agent_type,objective,job_id`);
+}
+
+/**
+ * Atomically claim the oldest pending run, if any, and mark it 'running'.
+ * Safe under concurrent callers (multiple server instances) via
+ * FOR UPDATE SKIP LOCKED - only one caller can ever claim a given row.
+ *
+ * The `globalCap` check makes this a *system-wide* concurrency cap, not
+ * just worker.js's per-process one - the previous per-process-only cap
+ * silently multiplied with every extra server instance, exactly when a
+ * global ceiling matters most. It's a soft cap: the running-count read and
+ * the claiming UPDATE aren't perfectly atomic together, so a brief overshoot
+ * of a run or two under heavy concurrent claiming is possible. That's an
+ * accepted tradeoff for avoiding a dedicated counter/advisory lock; combined
+ * with worker.js's own per-process cap, it's a real ceiling in practice.
+ * @param {number} [globalCap=10]
+ */
+function claimPendingRun(globalCap = 10) {
+  return one(sql`
+    UPDATE agent_runs SET status='running',claimed_at=NOW()
+    WHERE id = (
+      SELECT id FROM agent_runs
+      WHERE status='pending'
+        AND (SELECT COUNT(*) FROM agent_runs WHERE status='running') < ${globalCap}
+      ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id,user_id,agent_type,objective,job_id
+  `);
+}
+
+/**
+ * How many pending runs are strictly older than this one - lets the client
+ * show "N ahead of you" instead of an indefinite spinner while queued.
+ * @param {string} runId
+ */
+function queuePosition(runId) {
+  return one(sql`
+    SELECT (SELECT COUNT(*)::int FROM agent_runs o WHERE o.status='pending' AND o.created_at < r.created_at) AS position
+    FROM agent_runs r WHERE r.id=${runId} AND r.status='pending'
+  `);
+}
+
+/**
+ * Return orphaned runs (claimed by a process that crashed before finishing)
+ * to 'pending' so the worker picks them up again instead of leaving them
+ * stuck forever.
+ * @param {number} [staleMinutes=5]
+ */
+function reclaimOrphanedRuns(staleMinutes = 5) {
+  return rows(sql`
+    UPDATE agent_runs SET status='pending',claimed_at=NULL
+    WHERE status='running' AND claimed_at < NOW() - make_interval(mins => ${staleMinutes})
+    RETURNING id
+  `);
 }
 
 /** @param {string} runId @param {number} index @param {string} name @param {unknown} input @param {unknown} output @param {string | null} decision */
@@ -74,19 +132,39 @@ function addStep(runId, index, name, input, output, decision) {
   return one(sql`INSERT INTO agent_run_steps (run_id,step_index,step_name,input_json,output_json,decision) VALUES (${runId},${index},${name},${JSON.stringify(input)},${JSON.stringify(output)},${decision}) RETURNING id`);
 }
 
-/** @param {string} runId @param {'worker' | 'job'} type @param {string} entityId @param {number} score @param {unknown} factors @param {string} rationale @param {number} rank */
-function addRecommendation(runId, type, entityId, score, factors, rationale, rank) {
-  return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank RETURNING id`);
+/**
+ * @param {string} runId @param {'worker' | 'job'} type @param {string} entityId @param {number} score
+ * @param {unknown} factors @param {string} rationale @param {number} rank
+ * @param {string[] | null} [keyStrengths] @param {string | null} [proposalDraft]
+ */
+function addRecommendation(runId, type, entityId, score, factors, rationale, rank, keyStrengths = null, proposalDraft = null) {
+  return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank,key_strengths,proposal_draft) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank},${JSON.stringify(keyStrengths)},${proposalDraft}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank,key_strengths=EXCLUDED.key_strengths,proposal_draft=EXCLUDED.proposal_draft RETURNING id`);
 }
 
-/** @param {string} runId @param {unknown} plan */
-function awaitConfirmation(runId, plan) {
-  return one(sql`UPDATE agent_runs SET status='awaiting_confirmation',plan_json=${JSON.stringify(plan)} WHERE id=${runId} AND status='running' RETURNING id`);
+/** @param {string} runId @param {unknown} plan @param {string} [overallReasoning] */
+function awaitConfirmation(runId, plan, overallReasoning = null) {
+  return one(sql`UPDATE agent_runs SET status='awaiting_confirmation',plan_json=${JSON.stringify(plan)},overall_reasoning=${overallReasoning} WHERE id=${runId} AND status='running' RETURNING id`);
 }
 
 /** @param {string} runId */
 function failRun(runId) {
   return one(sql`UPDATE agent_runs SET status='error',completed_at=NOW() WHERE id=${runId} AND status IN ('pending','running') RETURNING id`);
+}
+
+/**
+ * Record which engine actually produced a run's recommendations, plus
+ * Gemini call telemetry when applicable (all null for the deterministic
+ * engine). Called once per run, right before it moves to
+ * awaiting_confirmation.
+ * @param {string} runId
+ * @param {{ engine: 'gemini' | 'deterministic', modelUsed?: string | null, latencyMs?: number | null, promptTokens?: number | null, completionTokens?: number | null, totalTokens?: number | null, iterationCount?: number | null }} telemetry
+ */
+function completeRunTelemetry(runId, telemetry) {
+  const {
+    engine, modelUsed = null, latencyMs = null,
+    promptTokens = null, completionTokens = null, totalTokens = null, iterationCount = null,
+  } = telemetry;
+  return one(sql`UPDATE agent_runs SET engine=${engine},model_used=${modelUsed},latency_ms=${latencyMs},prompt_tokens=${promptTokens},completion_tokens=${completionTokens},total_tokens=${totalTokens},iteration_count=${iterationCount} WHERE id=${runId} RETURNING id`);
 }
 
 /** @param {string} id */
@@ -99,13 +177,41 @@ function agentWorkerSkills(id) {
   return rows(sql`SELECT ws.category_id,ws.is_primary,c.name AS category_name FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=(SELECT id FROM worker_profiles WHERE user_id=${id})`);
 }
 
-/** @param {string | null | undefined} district @param {number} limit */
+/**
+ * Candidate workers plus cheap review-distribution signal (no review text -
+ * just counts/averages, computed off the existing idx_reviews_worker_created
+ * index). This is what lets the agent see, for the *entire* eligible pool,
+ * a pattern a flat avg_rating alone would hide - e.g. many negative
+ * reviews diluted by more positive ones - without reading a single
+ * review's text for everyone. The agent decides who's worth reading in
+ * full from this, rather than a hard-coded formula cut.
+ *
+ * Excludes any worker who has opted out of AI matching
+ * (ai_matching_opt_in=false) - the COALESCE only guards the theoretical
+ * case of a missing worker_profiles row.
+ * @param {string | null | undefined} district @param {number} limit
+ */
 function candidateWorkers(district, limit) {
-  return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+  return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating>=4) AS positive_review_count,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating<=2) AS negative_review_count,
+    (SELECT ROUND(AVG(rating),2) FROM (SELECT rating FROM reviews WHERE worker_id=u.id ORDER BY created_at DESC LIMIT 10) recent) AS recent_avg_rating,
+    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND COALESCE(wp.ai_matching_opt_in,true)=true AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+}
+
+/**
+ * Recent review feedback for one worker, for the agent to read qualitatively.
+ * Deliberately omits the reviewing customer's identity (name/photo) - the
+ * model has no legitimate need for that PII, only the content of the review.
+ * @param {string} workerId @param {number} limit
+ */
+function workerReviews(workerId, limit) {
+  return rows(sql`SELECT r.rating,r.feedback,r.created_at,j.title AS job_title,c.name AS job_category FROM reviews r JOIN jobs j ON j.id=r.job_id LEFT JOIN categories c ON c.id=j.category_id WHERE r.worker_id=${workerId} ORDER BY r.created_at DESC LIMIT ${limit}`);
 }
 
 module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
-  awaitConfirmation, cancelRun, candidateWorkers, createRun, failRun, history, memory,
-  memories, runDetail, runRecommendations, runSteps, upsertMemory,
+  awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
+  failRun, history, memory, memories, queuePosition, reclaimOrphanedRuns, runDetail, runRecommendations,
+  runSteps, upsertMemory, workerReviews,
 });

@@ -5,6 +5,7 @@ const path = require('path');
 const { checkDatabaseReadiness, closeDatabase } = require('./db/health');
 const { isBlobStorage } = require('./services/storage');
 const { currentContext, requestContext } = require('./observability/request-context');
+const { startAgentWorker, stopAgentWorker } = require('./agents/worker');
 
 if (process.env.NODE_ENV === 'production') {
   const requiredVariables = ['CLIENT_URL', 'JWT_SECRET'];
@@ -155,6 +156,7 @@ if (require.main === module) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.info(`Received ${signal}; closing HTTP server and database pool`);
+    stopAgentWorker();
     if (activeServer) await new Promise(resolve => activeServer.close(resolve));
     await closeDatabase();
     process.exit(0);
@@ -164,6 +166,7 @@ if (require.main === module) {
   process.once('SIGINT', () => { shutdown('SIGINT').catch(error => { console.error(error); process.exit(1); }); });
 
   startServer(basePort);
+  startAgentWorker();
 }
 
 module.exports = app;
