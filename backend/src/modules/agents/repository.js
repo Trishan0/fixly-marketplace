@@ -150,9 +150,22 @@ function agentWorkerSkills(id) {
   return rows(sql`SELECT ws.category_id,ws.is_primary,c.name AS category_name FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=(SELECT id FROM worker_profiles WHERE user_id=${id})`);
 }
 
-/** @param {string | null | undefined} district @param {number} limit */
+/**
+ * Candidate workers plus cheap review-distribution signal (no review text -
+ * just counts/averages, computed off the existing idx_reviews_worker_created
+ * index). This is what lets the agent see, for the *entire* eligible pool,
+ * a pattern a flat avg_rating alone would hide - e.g. many negative
+ * reviews diluted by more positive ones - without reading a single
+ * review's text for everyone. The agent decides who's worth reading in
+ * full from this, rather than a hard-coded formula cut.
+ * @param {string | null | undefined} district @param {number} limit
+ */
 function candidateWorkers(district, limit) {
-  return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+  return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating>=4) AS positive_review_count,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating<=2) AS negative_review_count,
+    (SELECT ROUND(AVG(rating),2) FROM (SELECT rating FROM reviews WHERE worker_id=u.id ORDER BY created_at DESC LIMIT 10) recent) AS recent_avg_rating,
+    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
 }
 
 /**

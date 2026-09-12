@@ -1,5 +1,9 @@
 /**
- * proposalAgent.js — Worker-side Proposal Agent (Gemini-powered with deterministic fallback).
+ * proposalAgent.js — Worker-side Proposal Agent (Gemini-powered).
+ *
+ * No deterministic fallback, matching matchAgent.js: a Gemini failure ends
+ * the run in status='error' rather than silently substituting a
+ * non-reasoning ranking.
  */
 
 const repository = require('../modules/agents/repository');
@@ -10,8 +14,6 @@ const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
 const { redactText } = require('./redact');
 const { getMemory } = require('./memory');
 const { proposalAgentOutputSchema, assertNoHallucinationRedFlags } = require('./schemas');
-
-const TOP_N = 5;
 
 const PROPOSAL_TOOLS = [
   {
@@ -174,88 +176,19 @@ function buildToolHandlers({ workerId, workerCache, jobCache }) {
   };
 }
 
-// ── Deterministic Fallback Proposal Logic ──────────────────────────────────
-async function runDeterministicProposal(worker, runId, logStep) {
-  const jobs = await getOpenJobsForWorker(worker.id, { limit: 100 });
-  await logStep(1, 'load_open_jobs', {}, { count: jobs.length });
-
-  const scored = jobs.map(job => {
-    const { total, factors, rationale } = scoreJobForWorker(job, worker);
-    return { job, total, factors, rationale };
-  });
-
-  scored.sort((a, b) => b.total - a.total);
-  const top = scored.slice(0, TOP_N);
-
-  const recommendations = [];
-  for (let i = 0; i < top.length; i++) {
-    const { job, total, factors, rationale } = top[i];
-    const proposalDraft = draftProposalMessage(job, worker);
-    const keyStrengths = [job.category_name || 'Category match', job.district || 'Location match'];
-
-    const recResult = await repository.addRecommendation(runId, 'job', job.id, total, factors, rationale, i + 1, keyStrengths, proposalDraft);
-
-    recommendations.push({
-      recommendation_id: recResult.id,
-      rank: i + 1,
-      score: total,
-      factors,
-      rationale,
-      key_strengths: keyStrengths,
-      proposal_draft: proposalDraft,
-      job: {
-        id: job.id,
-        title: job.title,
-        district: job.district,
-        urgency: job.urgency,
-        pricing_mode: job.pricing_mode,
-        fixed_budget: job.fixed_budget,
-        category_name: job.category_name,
-        proposal_count: job.proposal_count,
-        created_at: job.created_at,
-      },
-    });
-  }
-
-  const overallReasoning = isGeminiKeyConfigured()
-    ? `Ranked top ${recommendations.length} job matches for ${worker.full_name}.`
-    : `Ranked top ${recommendations.length} job matches for ${worker.full_name} using Fixly Proposal Engine (Add a valid GEMINI_API_KEY to backend/.env for Gemini 1.5 Flash live reasoning).`;
-
-  const plan = [
-    'Load worker profile & skills',
-    'Fetch open jobs',
-    'Score job compatibility',
-    'Draft proposal messages',
-    'Await worker confirmation',
-    'Submit proposals',
-  ];
-
-  await repository.awaitConfirmation(runId, plan, overallReasoning);
-  await repository.completeRunTelemetry(runId, { engine: 'deterministic' });
-
-  return {
-    run_id: runId,
-    status: 'awaiting_confirmation',
-    plan,
-    steps: [{ stepIndex: 1, stepName: 'proposal_scoring', decision: 'Proposal scoring complete' }],
-    overall_reasoning: overallReasoning,
-    engine: 'deterministic',
-    model_used: null,
-    worker: { id: worker.id, full_name: worker.full_name, primary_skill: worker.primary_skill },
-    recommendations,
-  };
-}
-
 // ── Main Entry ─────────────────────────────────────────────────────────────
 /**
  * Fast, synchronous half: create the run row and validate the worker
  * profile, leaving it 'pending'. The actual work happens later in
  * executeProposalRun, off the request path, once the in-process worker
- * claims it. Validation failure marks the row 'error' immediately (same
- * terminal-state guarantee the old single-function version gave) rather
- * than leaving it stuck, and still surfaces synchronously to the caller.
+ * claims it. Fails fast (before creating a row) if Gemini isn't configured
+ * at all - there's no fallback engine left to fall through to.
  */
 async function createProposalRun(workerId) {
+  if (!isGeminiKeyConfigured()) {
+    throw new Error('AI matching is currently unavailable');
+  }
+
   const run = await repository.createRun(workerId, 'proposal', `Find best job opportunities for worker ${workerId}`);
   try {
     const worker = await getWorkerProfile(workerId);
@@ -268,8 +201,9 @@ async function createProposalRun(workerId) {
 }
 
 /**
- * Heavy half: runs the actual Gemini/deterministic proposal search for an
- * already-created run row. Called only by the worker.
+ * Heavy half: runs the actual Gemini proposal search for an already-created
+ * run row. Called only by the worker. Any failure marks the run 'error'
+ * and rethrows - there is no substitute ranking to fall back to.
  * @param {{ id: string, user_id: string }} run
  */
 async function executeProposalRun(run) {
@@ -286,103 +220,89 @@ async function executeProposalRun(run) {
     const worker = await getWorkerProfile(workerId);
     if (!worker) throw new Error('Worker profile not found');
 
-    if (isGeminiKeyConfigured()) {
-      try {
-        const workerCache = { current: worker };
-        const jobCache = {};
-        let stepIndex = 1;
+    const workerCache = { current: worker };
+    const jobCache = {};
+    let stepIndex = 1;
 
-        const { text: geminiText, telemetry } = await runGeminiAgent({
-          systemInstruction: SYSTEM_PROMPT,
-          userPrompt: `Find top jobs for worker ID ${workerId}`,
-          tools: PROPOSAL_TOOLS,
-          toolHandlers: buildToolHandlers({ workerId, workerCache, jobCache }),
-          // Slightly above the default for the extra get_my_reviews /
-          // description-reading round.
-          maxIterations: 14,
-          onStep: async (step) => {
-            await logStep(stepIndex++, step.stepName, step.input, step.output, null);
-          },
-        });
+    const { text: geminiText, telemetry } = await runGeminiAgent({
+      systemInstruction: SYSTEM_PROMPT,
+      userPrompt: `Find top jobs for worker ID ${workerId}`,
+      tools: PROPOSAL_TOOLS,
+      toolHandlers: buildToolHandlers({ workerId, workerCache, jobCache }),
+      // No safety net left if this runs out of room, so a bit more
+      // headroom than the bare minimum the process needs.
+      maxIterations: 18,
+      onStep: async (step) => {
+        await logStep(stepIndex++, step.stepName, step.input, step.output, null);
+      },
+    });
 
-        const validation = proposalAgentOutputSchema.safeParse(parseJsonFromText(geminiText));
-        if (!validation.success) {
-          throw new Error(`Gemini output failed schema validation: ${validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
-        }
-        const parsed = validation.data;
-        // Defense-in-depth, before anything is written: reject the whole
-        // output (falls back to deterministic, same as a schema failure)
-        // rather than persist a partially-untrustworthy run.
-        assertNoHallucinationRedFlags(parsed, rec => {
-          const job = jobCache[rec.job_id];
-          return job ? scoreJobForWorker(job, worker).total : null;
-        });
-        const geminiRecs = parsed.recommendations;
+    const validation = proposalAgentOutputSchema.safeParse(parseJsonFromText(geminiText));
+    if (!validation.success) {
+      throw new Error(`Gemini output failed schema validation: ${validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+    }
+    const parsed = validation.data;
+    // Defense-in-depth, before anything is written: reject the whole
+    // output rather than persist a partially-untrustworthy run.
+    assertNoHallucinationRedFlags(parsed, rec => {
+      const job = jobCache[rec.job_id];
+      return job ? scoreJobForWorker(job, worker).total : null;
+    });
 
-        if (geminiRecs.length > 0) {
-          const recommendations = [];
-          for (let i = 0; i < geminiRecs.length; i++) {
-            const rec = geminiRecs[i];
-            const job = jobCache[rec.job_id];
-            if (!job) continue;
+    const recommendations = [];
+    for (let i = 0; i < parsed.recommendations.length; i++) {
+      const rec = parsed.recommendations[i];
+      const job = jobCache[rec.job_id];
+      if (!job) continue;
 
-            const { factors } = scoreJobForWorker(job, worker);
-            const keyStrengths = rec.key_strengths || [];
-            const proposalDraft = rec.proposal_draft || draftProposalMessage(job, worker);
-            const recResult = await repository.addRecommendation(runId, 'job', job.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1, keyStrengths, proposalDraft);
+      const { factors } = scoreJobForWorker(job, worker);
+      const keyStrengths = rec.key_strengths || [];
+      const proposalDraft = rec.proposal_draft || draftProposalMessage(job, worker);
+      const recResult = await repository.addRecommendation(runId, 'job', job.id, rec.score, factors, rec.ai_rationale, rec.rank || i + 1, keyStrengths, proposalDraft);
 
-            recommendations.push({
-              recommendation_id: recResult.id,
-              rank: rec.rank || i + 1,
-              score: rec.score,
-              factors,
-              rationale: rec.ai_rationale,
-              key_strengths: keyStrengths,
-              proposal_draft: proposalDraft,
-              job,
-            });
-          }
-
-          const plan = [
-            'Load worker profile',
-            'Read the worker\'s own review history',
-            'Fetch open jobs & read descriptions',
-            'AI ranking and evidence-backed drafting',
-            'Await confirmation',
-            'Submit proposals',
-          ];
-
-          await repository.awaitConfirmation(runId, plan, parsed.overall_reasoning);
-          await repository.completeRunTelemetry(runId, {
-            engine: 'gemini',
-            modelUsed: telemetry.modelUsed,
-            latencyMs: telemetry.latencyMs,
-            promptTokens: telemetry.promptTokens,
-            completionTokens: telemetry.completionTokens,
-            totalTokens: telemetry.totalTokens,
-            iterationCount: telemetry.iterationCount,
-          });
-
-          return {
-            run_id: runId,
-            status: 'awaiting_confirmation',
-            plan,
-            steps: loggedSteps,
-            overall_reasoning: parsed.overall_reasoning,
-            engine: 'gemini',
-            model_used: telemetry.modelUsed,
-            worker: { id: worker.id, full_name: worker.full_name, primary_skill: worker.primary_skill },
-            recommendations,
-          };
-        }
-      } catch (geminiErr) {
-        console.warn('Gemini API call failed, falling back to deterministic scoring:', geminiErr.message);
-      }
+      recommendations.push({
+        recommendation_id: recResult.id,
+        rank: rec.rank || i + 1,
+        score: rec.score,
+        factors,
+        rationale: rec.ai_rationale,
+        key_strengths: keyStrengths,
+        proposal_draft: proposalDraft,
+        job,
+      });
     }
 
-    // Fallback to deterministic proposal engine
-    return await runDeterministicProposal(worker, runId, logStep);
+    const plan = [
+      'Load worker profile',
+      'Read the worker\'s own review history',
+      'Fetch open jobs & read descriptions',
+      'AI ranking and evidence-backed drafting',
+      'Await confirmation',
+      'Submit proposals',
+    ];
 
+    await repository.awaitConfirmation(runId, plan, parsed.overall_reasoning);
+    await repository.completeRunTelemetry(runId, {
+      engine: 'gemini',
+      modelUsed: telemetry.modelUsed,
+      latencyMs: telemetry.latencyMs,
+      promptTokens: telemetry.promptTokens,
+      completionTokens: telemetry.completionTokens,
+      totalTokens: telemetry.totalTokens,
+      iterationCount: telemetry.iterationCount,
+    });
+
+    return {
+      run_id: runId,
+      status: 'awaiting_confirmation',
+      plan,
+      steps: loggedSteps,
+      overall_reasoning: parsed.overall_reasoning,
+      engine: 'gemini',
+      model_used: telemetry.modelUsed,
+      worker: { id: worker.id, full_name: worker.full_name, primary_skill: worker.primary_skill },
+      recommendations,
+    };
   } catch (err) {
     await repository.failRun(runId);
     throw err;

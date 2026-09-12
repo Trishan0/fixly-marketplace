@@ -57,6 +57,7 @@ router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter,
     console.error('[agent/match/run]', err.message);
     if (err.message === 'Job not found') return res.status(404).json({ error: err.message });
     if (err.message === 'Not your job') return res.status(403).json({ error: err.message });
+    if (err.message === 'AI matching is currently unavailable') return res.status(503).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });
@@ -80,6 +81,7 @@ router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimi
   } catch (err) {
     console.error('[agent/proposal/run]', err.message);
     if (err.message === 'Worker profile not found') return res.status(404).json({ error: err.message });
+    if (err.message === 'AI matching is currently unavailable') return res.status(503).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });

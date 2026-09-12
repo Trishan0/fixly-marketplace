@@ -5,9 +5,9 @@
  * parseJsonFromText) but nothing previously checked its shape before it was
  * used to write agent_recommendations rows and rendered to the client. These
  * schemas turn a malformed/hallucinated response into an explicit, loggable
- * validation failure that the caller can treat the same as "Gemini returned
- * nothing" — i.e. fall back to deterministic scoring — instead of trusting
- * arbitrary parsed JSON.
+ * validation failure the caller treats as a run failure (there is no
+ * deterministic fallback to fall through to) instead of trusting arbitrary
+ * parsed JSON.
  */
 
 const { z } = require('zod');
@@ -102,8 +102,8 @@ function scoreDeviationExceedsCeiling(llmScore, objectiveScore, ceilings = {}) {
 
 /**
  * Throws if any recommendation trips a guardrail, so the caller's existing
- * catch block treats it exactly like a schema validation failure (fall back
- * to deterministic scoring) rather than persisting or showing it. Must be
+ * catch block treats it exactly like a schema validation failure - the run
+ * fails rather than persisting or showing untrustworthy output. Must be
  * called before anything from `parsed` is written to the database - it
  * makes an all-or-nothing decision about the whole output.
  * @param {{ overall_reasoning: string, recommendations: object[] }} parsed - already schema-validated

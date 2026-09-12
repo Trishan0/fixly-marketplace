@@ -4,9 +4,9 @@
  *
  * routes/agent.js only creates a 'pending' agent_runs row and returns
  * immediately; this loop claims pending rows and does the actual
- * (potentially 20-iteration) Gemini/deterministic work. No external queue
- * or cron service is used — the backend is a persistent Express process
- * (see app.js's app.listen), so a setInterval loop in the same process is
+ * (potentially 30-iteration) Gemini work. No external queue or cron
+ * service is used — the backend is a persistent Express process (see
+ * app.js's app.listen), so a setInterval loop in the same process is
  * enough, and is safe under multiple instances via FOR UPDATE SKIP LOCKED.
  */
 
