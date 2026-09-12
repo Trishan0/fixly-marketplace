@@ -142,12 +142,19 @@ router.get('/run/:id', verifyToken, async (req, res) => {
   try {
     const run = await repository.runDetail(runId, req.user.id);
     if (!run) return res.status(404).json({ error: 'Run not found' });
-    const [steps, recommendations] = await Promise.all([repository.runSteps(runId), repository.runRecommendations(runId)]);
+    const [steps, recommendations, queue] = await Promise.all([
+      repository.runSteps(runId),
+      repository.runRecommendations(runId),
+      run.status === 'pending' ? repository.queuePosition(runId) : null,
+    ]);
 
     res.json({
       run_id: run.id,
       agent_type: run.agent_type,
       status: run.status,
+      // Only meaningful while status is 'pending' - null once claimed, so
+      // the client can stop showing a queue count as soon as work starts.
+      queue_position: queue ? queue.position : null,
       plan: run.plan_json || [],
       steps,
       overall_reasoning: run.overall_reasoning,

@@ -18,10 +18,14 @@ const { executeProposalRun } = require('./proposalAgent');
 
 const POLL_INTERVAL_MS = 3000;
 const STALE_MINUTES = 5;
-// Caps how many runs this process executes concurrently, so a burst of
+// Caps how many runs *this process* executes concurrently, so a burst of
 // pending work can't itself exhaust the (intentionally small) DB pool or
 // spin up unbounded concurrent Gemini calls.
 const MAX_CONCURRENT_RUNS = 3;
+// Caps how many runs are 'running' *system-wide* - see claimPendingRun's
+// own doc comment. Without this, horizontally scaling the app silently
+// multiplies MAX_CONCURRENT_RUNS by however many instances are running.
+const GLOBAL_CONCURRENT_RUN_CAP = 10;
 
 let inFlight = 0;
 
@@ -55,7 +59,7 @@ async function tick() {
 
   let run;
   try {
-    run = await repository.claimPendingRun();
+    run = await repository.claimPendingRun(GLOBAL_CONCURRENT_RUN_CAP);
   } catch (err) {
     console.error('[agent/worker] failed to claim a pending run:', err.message);
     return;

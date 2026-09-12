@@ -19,6 +19,7 @@ const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE, PROMPT_SAFETY_NOTE 
 const { scoreWorkerForJob, scoreAllWorkersForJob } = require('./scoring');
 const { getMemory } = require('./memory');
 const { redactText, containsNonLatinScript } = require('./redact');
+const { getCached, setCached } = require('./cache');
 const { matchAgentOutputSchema, filterHallucinationRedFlags } = require('./schemas');
 
 const MATCH_TOOLS = [
@@ -122,9 +123,18 @@ function buildToolHandlers({ jobId, customerId, workerCache, jobCache }) {
     async get_candidate_workers({ district }) {
       const job = jobCache.current;
       const searchDistrict = district || job.district || null;
-      const inDistrict = await getCandidateWorkers({ district: searchDistrict, limit: 100 });
-      // Widen to the whole platform if the district pool is too thin.
-      const pool = inDistrict.length >= 5 ? inDistrict : await getCandidateWorkers({ limit: 100 });
+
+      // Cache the raw pool (before per-job scoring, which stays cheap and
+      // always fresh) so near-simultaneous jobs in the same district don't
+      // each pay for the same DB fetch.
+      const cacheKey = `candidate-pool:${searchDistrict || 'ALL'}`;
+      let pool = getCached(cacheKey);
+      if (!pool) {
+        const inDistrict = await getCandidateWorkers({ district: searchDistrict, limit: 100 });
+        // Widen to the whole platform if the district pool is too thin.
+        pool = inDistrict.length >= 5 ? inDistrict : await getCandidateWorkers({ limit: 100 });
+        setCached(cacheKey, pool);
+      }
 
       const annotated = scoreAllWorkersForJob(pool, job);
       for (const { worker } of annotated) workerCache[worker.id] = worker;

@@ -77,12 +77,39 @@ function createRun(userId, type, objective, jobId = null) {
  * Atomically claim the oldest pending run, if any, and mark it 'running'.
  * Safe under concurrent callers (multiple server instances) via
  * FOR UPDATE SKIP LOCKED - only one caller can ever claim a given row.
+ *
+ * The `globalCap` check makes this a *system-wide* concurrency cap, not
+ * just worker.js's per-process one - the previous per-process-only cap
+ * silently multiplied with every extra server instance, exactly when a
+ * global ceiling matters most. It's a soft cap: the running-count read and
+ * the claiming UPDATE aren't perfectly atomic together, so a brief overshoot
+ * of a run or two under heavy concurrent claiming is possible. That's an
+ * accepted tradeoff for avoiding a dedicated counter/advisory lock; combined
+ * with worker.js's own per-process cap, it's a real ceiling in practice.
+ * @param {number} [globalCap=10]
  */
-function claimPendingRun() {
+function claimPendingRun(globalCap = 10) {
   return one(sql`
     UPDATE agent_runs SET status='running',claimed_at=NOW()
-    WHERE id = (SELECT id FROM agent_runs WHERE status='pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED)
+    WHERE id = (
+      SELECT id FROM agent_runs
+      WHERE status='pending'
+        AND (SELECT COUNT(*) FROM agent_runs WHERE status='running') < ${globalCap}
+      ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED
+    )
     RETURNING id,user_id,agent_type,objective,job_id
+  `);
+}
+
+/**
+ * How many pending runs are strictly older than this one - lets the client
+ * show "N ahead of you" instead of an indefinite spinner while queued.
+ * @param {string} runId
+ */
+function queuePosition(runId) {
+  return one(sql`
+    SELECT (SELECT COUNT(*)::int FROM agent_runs o WHERE o.status='pending' AND o.created_at < r.created_at) AS position
+    FROM agent_runs r WHERE r.id=${runId} AND r.status='pending'
   `);
 }
 
@@ -185,6 +212,6 @@ function workerReviews(workerId, limit) {
 module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
   awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
-  failRun, history, memory, memories, reclaimOrphanedRuns, runDetail, runRecommendations, runSteps,
-  upsertMemory, workerReviews,
+  failRun, history, memory, memories, queuePosition, reclaimOrphanedRuns, runDetail, runRecommendations,
+  runSteps, upsertMemory, workerReviews,
 });

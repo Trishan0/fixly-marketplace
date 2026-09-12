@@ -511,6 +511,11 @@ export default function AgentPanel({ mode, jobId, onClose }) {
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
               Reading profiles, reviews, and job details. This can take a little while.
             </p>
+            {runData?.status === 'pending' && Number.isInteger(runData?.queue_position) && runData.queue_position > 0 && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                {runData.queue_position} {runData.queue_position === 1 ? 'run' : 'runs'} ahead of you
+              </p>
+            )}
           </div>
         )}
 
