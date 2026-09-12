@@ -431,6 +431,7 @@ export const workerProfiles = pgTable("worker_profiles", {
 	totalJobsDone: integer("total_jobs_done").default(0),
 	avgRating: numeric("avg_rating", { precision: 3, scale:  2 }).default('0'),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
+	aiMatchingOptIn: boolean("ai_matching_opt_in").default(true).notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],

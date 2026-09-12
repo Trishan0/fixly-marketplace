@@ -158,6 +158,10 @@ function agentWorkerSkills(id) {
  * reviews diluted by more positive ones - without reading a single
  * review's text for everyone. The agent decides who's worth reading in
  * full from this, rather than a hard-coded formula cut.
+ *
+ * Excludes any worker who has opted out of AI matching
+ * (ai_matching_opt_in=false) - the COALESCE only guards the theoretical
+ * case of a missing worker_profiles row.
  * @param {string | null | undefined} district @param {number} limit
  */
 function candidateWorkers(district, limit) {
@@ -165,7 +169,7 @@ function candidateWorkers(district, limit) {
     (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating>=4) AS positive_review_count,
     (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating<=2) AS negative_review_count,
     (SELECT ROUND(AVG(rating),2) FROM (SELECT rating FROM reviews WHERE worker_id=u.id ORDER BY created_at DESC LIMIT 10) recent) AS recent_avg_rating,
-    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND COALESCE(wp.ai_matching_opt_in,true)=true AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
 }
 
 /**

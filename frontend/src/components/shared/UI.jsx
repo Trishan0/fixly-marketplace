@@ -44,6 +44,31 @@ export function Button({
   );
 }
 
+export function Toggle({ checked, onChange, disabled, label, className }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange?.(!checked)}
+      className={cn(
+        "relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950",
+        checked ? "bg-sky-600" : "bg-slate-200 dark:bg-slate-700",
+        className
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform",
+          checked ? "translate-x-6" : "translate-x-1"
+        )}
+      />
+    </button>
+  );
+}
+
 export function Badge({ status, children, className }) {
   const label = children || STATUS_LABELS[status] || status;
   const color = STATUS_COLORS[status] || "bg-slate-100 text-slate-600";
