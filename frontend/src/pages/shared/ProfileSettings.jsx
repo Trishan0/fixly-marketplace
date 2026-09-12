@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Upload, Camera, Trash2, Save } from 'lucide-react'
+import { Upload, Camera, Trash2, Save, Bot } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Button, Card, Input, Textarea, Select, PageHeader, Avatar } from '../../components/shared/UI'
+import { Button, Card, Input, Textarea, Select, PageHeader, Avatar, Toggle } from '../../components/shared/UI'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
 import { DISTRICTS, cn } from '../../lib/utils'
@@ -162,6 +162,21 @@ export function SettingsPage() {
     onSuccess: () => { refreshUser(); toast({ title: 'Dashboard mode updated!', variant: 'success' }) },
   })
 
+  // Defaults to true (matches the backend default) until the profile has
+  // loaded, so the toggle never flashes "excluded" for a moment on load.
+  const aiMatchingOptIn = user?.ai_matching_opt_in !== false
+  const setAiMatching = useMutation({
+    mutationFn: (optIn) => api.put('/profile/ai-matching-opt-in', { opt_in: optIn }),
+    onSuccess: (_data, optIn) => {
+      refreshUser()
+      toast({
+        title: optIn ? "You're now included in AI job matching" : "You've been excluded from AI job matching",
+        variant: 'success',
+      })
+    },
+    onError: (e) => toast({ title: 'Failed to update', description: e.response?.data?.error, variant: 'error' }),
+  })
+
   return (
     <AppShell>
       <div className="fixly-page max-w-4xl space-y-5">
@@ -193,6 +208,50 @@ export function SettingsPage() {
           <p className="text-sm text-slate-500 mb-4">Choose how Fixly should look on this device</p>
           <ThemeModeSelector />
         </Card>
+
+        {user?.role === 'worker' && (
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-900/30">
+                  <Bot className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 dark:text-white">AI Job Matching</h3>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                    Lets Fixly's AI recommend you to customers automatically, based on your skills, bio, and past reviews.
+                  </p>
+                </div>
+              </div>
+              <Toggle
+                checked={aiMatchingOptIn}
+                onChange={(next) => setAiMatching.mutate(next)}
+                disabled={setAiMatching.isPending}
+                label="Include me in AI job matching"
+                className="mt-1"
+              />
+            </div>
+
+            {aiMatchingOptIn ? (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ Included in AI matching</p>
+                <p className="mt-1 text-xs leading-relaxed text-emerald-600 dark:text-emerald-400">
+                  When a customer posts a job that fits your skills, our AI agent reads your profile, bio, and past customer
+                  reviews to decide if you're a strong match — you may be recommended and invited without sending a
+                  proposal yourself.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">⛔ Excluded from AI matching</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-600 dark:text-amber-400">
+                  You won't be recommended by the AI matching system, so customers will only see you if you send a
+                  proposal yourself. Turn this on any time to start getting discovered automatically.
+                </p>
+              </div>
+            )}
+          </Card>
+        )}
 
         {user?.role === 'worker' && (
           <Card className="p-4 sm:p-6">

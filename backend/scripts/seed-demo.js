@@ -27,11 +27,17 @@ const JOBS = [
   ['Full House Deep Cleaning & Sofa Shampooing', 'Post-renovation cleanup for a three-bedroom house.', 'Cleaning', 'Kandy', 'Peradeniya', 'tomorrow', 'fixed', 15000, 'posted'],
   ['Main Entrance Gate Welding & Lock Repair', 'Repair and reinforce a broken bottom gate hinge.', 'Welding', 'Galle', 'Unawatuna', 'today', 'fixed', 7000, 'posted'],
   ['Bathroom Floor Tile Replacement', 'Lay non-slip ceramic floor tiles with waterproof grout.', 'Tiling', 'Colombo', 'Boralesgamuwa', 'flexible', 'fixed', 18000, 'posted'],
-  ['Install Two Ceiling Fans', 'Install and balance two ceiling fans in upstairs bedrooms.', 'Electrical', 'Colombo', 'Rajagiriya', 'tomorrow', 'fixed', 5500, 'assigned'],
-  ['Repair Built-in Wardrobe Doors', 'Replace runners and realign three sliding wardrobe doors.', 'Carpentry', 'Colombo', 'Battaramulla', 'this_week', 'fixed', 9500, 'in_progress'],
-  ['Clear Blocked Kitchen Drain', 'Kitchen drain was cleared and the waste pipe was resealed.', 'Plumbing', 'Colombo', 'Nawala', 'today', 'fixed', 4000, 'completed'],
-  ['Repaint Front Boundary Wall', 'Cleaned, primed and repainted the front boundary wall.', 'Painting', 'Colombo', 'Mount Lavinia', 'this_week', 'fixed', 14000, 'payment_recorded'],
-  ['Deep Clean Apartment Before Move-in', 'Full move-in clean for a two-bedroom apartment.', 'Cleaning', 'Colombo', 'Wellawatte', 'flexible', 'fixed', 11000, 'reviewed'],
+  // These five start as 'posted' even though they're conceptually
+  // assigned/in-progress/etc - the lifecycleJobs loop below sets their real
+  // status *together with* assigned_worker_id in one UPDATE right after
+  // insert. Creating them pre-assigned here would violate
+  // jobs_assigned_status_requires_worker (migration 006), which requires
+  // assigned_worker_id to be set whenever status is one of those values.
+  ['Install Two Ceiling Fans', 'Install and balance two ceiling fans in upstairs bedrooms.', 'Electrical', 'Colombo', 'Rajagiriya', 'tomorrow', 'fixed', 5500, 'posted'],
+  ['Repair Built-in Wardrobe Doors', 'Replace runners and realign three sliding wardrobe doors.', 'Carpentry', 'Colombo', 'Battaramulla', 'this_week', 'fixed', 9500, 'posted'],
+  ['Clear Blocked Kitchen Drain', 'Kitchen drain was cleared and the waste pipe was resealed.', 'Plumbing', 'Colombo', 'Nawala', 'today', 'fixed', 4000, 'posted'],
+  ['Repaint Front Boundary Wall', 'Cleaned, primed and repainted the front boundary wall.', 'Painting', 'Colombo', 'Mount Lavinia', 'this_week', 'fixed', 14000, 'posted'],
+  ['Deep Clean Apartment Before Move-in', 'Full move-in clean for a two-bedroom apartment.', 'Cleaning', 'Colombo', 'Wellawatte', 'flexible', 'fixed', 11000, 'posted'],
 ];
 
 function requireSeedPermission() {

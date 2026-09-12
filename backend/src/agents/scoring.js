@@ -191,20 +191,18 @@ function buildMatchRationale(worker, job, factors, _total) {
 }
 
 /**
- * Rank workers for a job by the deterministic formula and keep only the top
- * `limit`. Used as a cheap pre-filter before the (expensive) qualitative
- * review-reading step, not as a judgment call — every candidate is scored
- * the same way regardless of who calls this.
+ * Score every candidate for a job — no sort, no cut. The formula's
+ * objective_score is handed to the agent as one input signal, not used to
+ * exclude anyone before it reasons over the pool: a hard top-N cut by this
+ * same shallow formula would defeat the point of reading actual reviews
+ * (it can't see that a worker's flat average is hiding, say, 200 bad
+ * reviews diluted by 20 good ones — only the text can tell you that).
  * @param {Object[]} workers
  * @param {Object} job
- * @param {number} limit
  * @returns {{ worker: Object, total: number, factors: Object, rationale: string }[]}
  */
-function shortlistWorkersForJob(workers, job, limit) {
-  return workers
-    .map(worker => ({ worker, ...scoreWorkerForJob(worker, job) }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, limit);
+function scoreAllWorkersForJob(workers, job) {
+  return workers.map(worker => ({ worker, ...scoreWorkerForJob(worker, job) }));
 }
 
 // ─── Proposal Agent: Score a job for a worker ────────────────────────────────
@@ -367,4 +365,4 @@ function draftProposalMessage(job, worker) {
   );
 }
 
-module.exports = { scoreWorkerForJob, scoreJobForWorker, shortlistWorkersForJob, draftProposalMessage, parsePrice };
+module.exports = { scoreWorkerForJob, scoreJobForWorker, scoreAllWorkersForJob, draftProposalMessage, parsePrice };

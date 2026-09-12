@@ -1,6 +1,6 @@
 'use strict';
 
-const { redactText } = require('../src/agents/redact');
+const { redactText, containsNonLatinScript } = require('../src/agents/redact');
 
 describe('redactText', () => {
   test('redacts an email address', () => {
@@ -47,5 +47,37 @@ describe('redactText', () => {
 
   test('passes through an empty string unchanged', () => {
     expect(redactText('')).toBe('');
+  });
+
+  test('redacts an old-format NIC number (9 digits + letter)', () => {
+    expect(redactText('My NIC is 912345678V, verify me.')).toBe('My NIC is [redacted NIC], verify me.');
+  });
+
+  test('redacts an old-format NIC with a lowercase suffix', () => {
+    expect(redactText('912345678x')).toBe('[redacted NIC]');
+  });
+
+  test('redacts a new-format 12-digit NIC number', () => {
+    expect(redactText('NIC: 199912345678 on file.')).toBe('NIC: [redacted NIC] on file.');
+  });
+});
+
+describe('containsNonLatinScript', () => {
+  test('detects Sinhala script', () => {
+    expect(containsNonLatinScript('ඔබට ස්තුතියි')).toBe(true);
+  });
+
+  test('detects Tamil script', () => {
+    expect(containsNonLatinScript('நன்றி')).toBe(true);
+  });
+
+  test('returns false for plain English text', () => {
+    expect(containsNonLatinScript('Great work, very punctual.')).toBe(false);
+  });
+
+  test('returns false for null/undefined/empty', () => {
+    expect(containsNonLatinScript(null)).toBe(false);
+    expect(containsNonLatinScript(undefined)).toBe(false);
+    expect(containsNonLatinScript('')).toBe(false);
   });
 });

@@ -57,6 +57,7 @@ router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter,
     console.error('[agent/match/run]', err.message);
     if (err.message === 'Job not found') return res.status(404).json({ error: err.message });
     if (err.message === 'Not your job') return res.status(403).json({ error: err.message });
+    if (err.message === 'AI matching is currently unavailable') return res.status(503).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });
@@ -80,6 +81,7 @@ router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimi
   } catch (err) {
     console.error('[agent/proposal/run]', err.message);
     if (err.message === 'Worker profile not found') return res.status(404).json({ error: err.message });
+    if (err.message === 'AI matching is currently unavailable') return res.status(503).json({ error: err.message });
     res.status(500).json({ error: 'Agent run failed: ' + err.message });
   }
 });
@@ -140,12 +142,19 @@ router.get('/run/:id', verifyToken, async (req, res) => {
   try {
     const run = await repository.runDetail(runId, req.user.id);
     if (!run) return res.status(404).json({ error: 'Run not found' });
-    const [steps, recommendations] = await Promise.all([repository.runSteps(runId), repository.runRecommendations(runId)]);
+    const [steps, recommendations, queue] = await Promise.all([
+      repository.runSteps(runId),
+      repository.runRecommendations(runId),
+      run.status === 'pending' ? repository.queuePosition(runId) : null,
+    ]);
 
     res.json({
       run_id: run.id,
       agent_type: run.agent_type,
       status: run.status,
+      // Only meaningful while status is 'pending' - null once claimed, so
+      // the client can stop showing a queue count as soon as work starts.
+      queue_position: queue ? queue.position : null,
       plan: run.plan_json || [],
       steps,
       overall_reasoning: run.overall_reasoning,

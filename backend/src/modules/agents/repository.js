@@ -77,12 +77,39 @@ function createRun(userId, type, objective, jobId = null) {
  * Atomically claim the oldest pending run, if any, and mark it 'running'.
  * Safe under concurrent callers (multiple server instances) via
  * FOR UPDATE SKIP LOCKED - only one caller can ever claim a given row.
+ *
+ * The `globalCap` check makes this a *system-wide* concurrency cap, not
+ * just worker.js's per-process one - the previous per-process-only cap
+ * silently multiplied with every extra server instance, exactly when a
+ * global ceiling matters most. It's a soft cap: the running-count read and
+ * the claiming UPDATE aren't perfectly atomic together, so a brief overshoot
+ * of a run or two under heavy concurrent claiming is possible. That's an
+ * accepted tradeoff for avoiding a dedicated counter/advisory lock; combined
+ * with worker.js's own per-process cap, it's a real ceiling in practice.
+ * @param {number} [globalCap=10]
  */
-function claimPendingRun() {
+function claimPendingRun(globalCap = 10) {
   return one(sql`
     UPDATE agent_runs SET status='running',claimed_at=NOW()
-    WHERE id = (SELECT id FROM agent_runs WHERE status='pending' ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED)
+    WHERE id = (
+      SELECT id FROM agent_runs
+      WHERE status='pending'
+        AND (SELECT COUNT(*) FROM agent_runs WHERE status='running') < ${globalCap}
+      ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED
+    )
     RETURNING id,user_id,agent_type,objective,job_id
+  `);
+}
+
+/**
+ * How many pending runs are strictly older than this one - lets the client
+ * show "N ahead of you" instead of an indefinite spinner while queued.
+ * @param {string} runId
+ */
+function queuePosition(runId) {
+  return one(sql`
+    SELECT (SELECT COUNT(*)::int FROM agent_runs o WHERE o.status='pending' AND o.created_at < r.created_at) AS position
+    FROM agent_runs r WHERE r.id=${runId} AND r.status='pending'
   `);
 }
 
@@ -150,9 +177,26 @@ function agentWorkerSkills(id) {
   return rows(sql`SELECT ws.category_id,ws.is_primary,c.name AS category_name FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=(SELECT id FROM worker_profiles WHERE user_id=${id})`);
 }
 
-/** @param {string | null | undefined} district @param {number} limit */
+/**
+ * Candidate workers plus cheap review-distribution signal (no review text -
+ * just counts/averages, computed off the existing idx_reviews_worker_created
+ * index). This is what lets the agent see, for the *entire* eligible pool,
+ * a pattern a flat avg_rating alone would hide - e.g. many negative
+ * reviews diluted by more positive ones - without reading a single
+ * review's text for everyone. The agent decides who's worth reading in
+ * full from this, rather than a hard-coded formula cut.
+ *
+ * Excludes any worker who has opted out of AI matching
+ * (ai_matching_opt_in=false) - the COALESCE only guards the theoretical
+ * case of a missing worker_profiles row.
+ * @param {string | null | undefined} district @param {number} limit
+ */
 function candidateWorkers(district, limit) {
-  return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+  return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating>=4) AS positive_review_count,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating<=2) AS negative_review_count,
+    (SELECT ROUND(AVG(rating),2) FROM (SELECT rating FROM reviews WHERE worker_id=u.id ORDER BY created_at DESC LIMIT 10) recent) AS recent_avg_rating,
+    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND COALESCE(wp.ai_matching_opt_in,true)=true AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
 }
 
 /**
@@ -168,6 +212,6 @@ function workerReviews(workerId, limit) {
 module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
   awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
-  failRun, history, memory, memories, reclaimOrphanedRuns, runDetail, runRecommendations, runSteps,
-  upsertMemory, workerReviews,
+  failRun, history, memory, memories, queuePosition, reclaimOrphanedRuns, runDetail, runRecommendations,
+  runSteps, upsertMemory, workerReviews,
 });

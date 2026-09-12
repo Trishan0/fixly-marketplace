@@ -86,7 +86,8 @@ function selfProfile(userId) {
   return one(sql`
     SELECT u.id, u.email, u.full_name, u.role, u.phone, u.district, u.area, u.profile_photo,
       u.is_email_verified, u.force_verified, u.is_nic_verified, u.dashboard_mode, u.created_at,
-      wp.id AS worker_profile_id, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating
+      wp.id AS worker_profile_id, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating,
+      wp.ai_matching_opt_in
     FROM users u LEFT JOIN worker_profiles wp ON wp.user_id = u.id WHERE u.id = ${userId}
   `);
 }
@@ -115,6 +116,7 @@ function updateWorkerProfile(input, client) {
 function setProfilePhoto(userId, path) { return one(sql`UPDATE users SET profile_photo = ${path}, updated_at = NOW() WHERE id = ${userId} RETURNING profile_photo`); }
 function setNicImage(userId, path) { return one(sql`UPDATE users SET nic_image_path = ${path}, is_nic_verified = false, nic_verified_by = NULL, updated_at = NOW() WHERE id = ${userId} RETURNING nic_image_path`); }
 function setDashboardMode(userId, mode) { return one(sql`UPDATE users SET dashboard_mode = ${mode}, updated_at = NOW() WHERE id = ${userId} RETURNING dashboard_mode`); }
+function setAiMatchingOptIn(userId, optIn) { return one(sql`UPDATE worker_profiles SET ai_matching_opt_in = ${optIn} WHERE user_id = ${userId} RETURNING ai_matching_opt_in`); }
 function portfolioCount(workerId, client) { return one(sql`SELECT COUNT(*)::int AS count FROM worker_portfolio_photos WHERE worker_id = ${workerId}`, client); }
 function insertPortfolioPhoto(workerId, path, client) { return one(sql`INSERT INTO worker_portfolio_photos (worker_id, path) VALUES (${workerId}, ${path}) RETURNING *`, client); }
 function deletePortfolioPhoto(photoId, workerId, client) { return one(sql`DELETE FROM worker_portfolio_photos WHERE id = ${photoId} AND worker_id = ${workerId} RETURNING path`, client); }
@@ -145,7 +147,7 @@ function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j
 module.exports = instrumentRepository('identity', {
   createWorkerProfile, deletePortfolioPhoto, findAuthUserByEmail, findCategoryByName, findResetEligibleUser,
   findSessionUser, insertPortfolioPhoto, insertUser, insertWorkerSkill, portfolioCount, resetPassword,
-  selfProfile, setDashboardMode, setNicImage, setPasswordResetToken, setProfilePhoto, updateProfile,
-  updateWorkerProfile, verifyEmail, workerPortfolio, workerProfileId, workerSkills,
+  selfProfile, setAiMatchingOptIn, setDashboardMode, setNicImage, setPasswordResetToken, setProfilePhoto,
+  updateProfile, updateWorkerProfile, verifyEmail, workerPortfolio, workerProfileId, workerSkills,
   countWorkers, customerRecentJobs, customerSummary, listWorkers, publicWorker, workerReviews,
 });

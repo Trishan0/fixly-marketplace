@@ -511,6 +511,11 @@ export default function AgentPanel({ mode, jobId, onClose }) {
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
               Reading profiles, reviews, and job details. This can take a little while.
             </p>
+            {runData?.status === 'pending' && Number.isInteger(runData?.queue_position) && runData.queue_position > 0 && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                {runData.queue_position} {runData.queue_position === 1 ? 'run' : 'runs'} ahead of you
+              </p>
+            )}
           </div>
         )}
 
@@ -561,14 +566,15 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                     : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
                 )}>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <span className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                      runData.engine === 'gemini'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                    )}>
-                      {runData.engine === 'gemini' ? (runData.model_used || 'Gemini') : 'Rule-based engine'}
-                    </span>
+                    {runData.engine === 'degraded' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        Rating-based (AI unavailable)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        {runData.model_used || 'Gemini'}
+                      </span>
+                    )}
                     <span className="font-semibold">reasoning:</span>
                   </div>
                   {runData.overall_reasoning}

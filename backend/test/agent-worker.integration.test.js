@@ -2,7 +2,6 @@
 
 const { createMatchRun } = require('../src/agents/matchAgent');
 const repository = require('../src/modules/agents/repository');
-const { tick } = require('../src/agents/worker');
 const {
   createTestPool,
   migrateTestDatabase,
@@ -24,43 +23,31 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await resetTestDatabase(testPool);
-  // Force the deterministic fallback regardless of what's in the local
-  // environment, so this test is hermetic and doesn't make a real network
-  // call to Gemini.
   originalGeminiKey = process.env.GEMINI_API_KEY;
-  delete process.env.GEMINI_API_KEY;
 });
 
 afterEach(() => {
-  if (originalGeminiKey !== undefined) process.env.GEMINI_API_KEY = originalGeminiKey;
+  if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = originalGeminiKey;
 });
 
+// Actually executing a run end-to-end requires a real Gemini call - there's
+// no deterministic fallback left to exercise here hermetically. That path
+// is covered by the opt-in agents-eval.integration.test.js instead; this
+// file sticks to what's verifiable without a network call: the fast-fail
+// behavior when Gemini isn't configured, and the worker's claim/reclaim
+// mechanics (hand-inserted rows, no agent execution needed).
 describe('agent worker', () => {
-  test('a created run starts pending and tick() executes it to a terminal state', async () => {
+  test('createMatchRun fails fast, before creating a row, when Gemini is not configured', async () => {
+    delete process.env.GEMINI_API_KEY;
+
     const customer = await createUser(testPool, { email: 'worker-test-customer@fixly-test.local', fullName: 'Customer', role: 'customer' });
-    await createUser(testPool, { email: 'worker-test-worker@fixly-test.local', fullName: 'Worker', role: 'worker', primarySkill: 'Plumbing' });
     const job = await createJob(testPool, { customerId: customer.id });
 
-    const created = await createMatchRun(job.id, customer.id);
-    expect(created.status).toBe('pending');
+    await expect(createMatchRun(job.id, customer.id)).rejects.toThrow('AI matching is currently unavailable');
 
-    const pendingRow = await testPool.query('SELECT status, claimed_at FROM agent_runs WHERE id = $1', [created.run_id]);
-    expect(pendingRow.rows[0].status).toBe('pending');
-    expect(pendingRow.rows[0].claimed_at).toBeNull();
-
-    await tick();
-    // executeMatchRun runs fire-and-forget inside tick(); give it a moment
-    // to finish against the local test DB.
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const finalRow = await testPool.query('SELECT status, engine, overall_reasoning FROM agent_runs WHERE id = $1', [created.run_id]);
-    expect(finalRow.rows[0].status).toBe('awaiting_confirmation');
-    expect(finalRow.rows[0].engine).toBe('deterministic');
-    expect(finalRow.rows[0].overall_reasoning).toBeTruthy();
-
-    const recs = await testPool.query('SELECT key_strengths FROM agent_recommendations WHERE run_id = $1', [created.run_id]);
-    expect(recs.rows.length).toBeGreaterThan(0);
-    expect(Array.isArray(recs.rows[0].key_strengths)).toBe(true);
+    const rows = await testPool.query('SELECT id FROM agent_runs WHERE job_id = $1', [job.id]);
+    expect(rows.rows).toHaveLength(0);
   });
 
   test('a run stuck in running past the stale window is reclaimed to pending', async () => {
@@ -94,5 +81,27 @@ describe('agent worker', () => {
 
     const untouched = await testPool.query('SELECT status FROM agent_runs WHERE id = $1', [fresh.rows[0].id]);
     expect(untouched.rows[0].status).toBe('running');
+  });
+
+  test('concurrent claimPendingRun calls each claim a distinct row, none twice', async () => {
+    const customer = await createUser(testPool, { email: 'worker-test-concurrent-customer@fixly-test.local', fullName: 'Customer', role: 'customer' });
+    const jobs = await Promise.all(
+      Array.from({ length: 5 }, (_, i) => createJob(testPool, { customerId: customer.id, title: `Concurrent claim job ${i}` }))
+    );
+    const inserted = await testPool.query(
+      `INSERT INTO agent_runs (user_id, agent_type, status, job_id)
+       SELECT $1, 'match', 'pending', j FROM unnest($2::uuid[]) AS j RETURNING id`,
+      [customer.id, jobs.map(j => j.id)]
+    );
+    const rowIds = inserted.rows.map(r => r.id);
+
+    // More concurrent callers than rows, so some calls should come back empty
+    // (SKIP LOCKED) rather than double-claiming a row another caller has.
+    const claims = await Promise.all(Array.from({ length: 8 }, () => repository.claimPendingRun(100)));
+    const claimedIds = claims.filter(Boolean).map(c => c.id);
+
+    expect(claimedIds).toHaveLength(rowIds.length);
+    expect(new Set(claimedIds).size).toBe(rowIds.length);
+    expect(new Set(claimedIds)).toEqual(new Set(rowIds));
   });
 });
