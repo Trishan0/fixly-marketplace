@@ -28,7 +28,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   const [showFilters, setShowFilters] = useState(false)
   const debouncedSearch = useDebouncedValue(search.trim())
   const { categories } = useCategories()
-  usePageTitle(embedded ? null : 'Browse workers')
+  usePageTitle(embedded ? null : 'Browse workers', { description: 'Browse local plumbers, electricians, carpenters, cleaners and more across Sri Lanka. Compare ratings, past jobs and starting prices, then invite them to your job.' })
 
   const {
     data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,

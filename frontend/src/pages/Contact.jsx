@@ -17,7 +17,7 @@ const contactOptions = [
 
 export default function Contact() {
   const { toast } = useToast()
-  usePageTitle('Contact us')
+  usePageTitle('Contact us', { description: 'Questions about Fixly, feedback or a demo enquiry? Send the Fixly team a message and we’ll reply by email.' })
   const [form, setForm] = useState({ name: '', email: '', topic: 'Getting started', message: '', website: '' })
   const [isSending, setIsSending] = useState(false)
   const [sent, setSent] = useState(false)

@@ -134,7 +134,7 @@ function marketplaceStats(stats) {
 export default function Landing() {
   const { user } = useAuth()
   const hero = getHeroContent(user)
-  usePageTitle(null)
+  usePageTitle('')
   const { data: stats } = useQuery({
     queryKey: ['marketplace-stats'],
     queryFn: () => api.get('/workers/stats').then(r => r.data),
