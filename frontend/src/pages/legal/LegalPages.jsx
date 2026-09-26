@@ -8,7 +8,7 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 const LAST_UPDATED = '26 September 2026'
 
 function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
-  usePageTitle(title)
+  usePageTitle(title, { description: intro })
   return (
     <div className="fixly-page-shell min-h-[100dvh] overflow-x-hidden">
       <PublicNavbar />

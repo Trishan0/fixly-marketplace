@@ -31,7 +31,16 @@ export default function WorkerProfile() {
     queryKey: ['worker', id],
     queryFn: () => api.get(`/workers/${id}`).then(r => r.data),
   })
-  usePageTitle(worker?.full_name || 'Worker profile')
+  usePageTitle(worker ? `${worker.full_name}${worker.primary_skill ? `, ${worker.primary_skill}` : ''}` : 'Worker profile', {
+    description: worker
+      ? [
+          `Hire ${worker.full_name}${worker.primary_skill ? ` for ${worker.primary_skill}` : ''}${worker.district ? ` in ${worker.district}` : ''} on Fixly.`,
+          Number(worker.avg_rating) > 0 ? `Rated ${Number(worker.avg_rating).toFixed(1)} out of 5.` : '',
+          worker.total_jobs_done ? `${worker.total_jobs_done} jobs completed.` : '',
+          worker.is_nic_verified ? 'ID verified.' : '',
+        ].filter(Boolean).join(' ')
+      : undefined,
+  })
 
   const reviewsQuery = useInfiniteQuery({
     queryKey: ['worker-reviews', id],
