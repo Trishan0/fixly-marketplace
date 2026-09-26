@@ -132,8 +132,21 @@ export default function CustomerDashboard() {
             <Stat label="Total paid" value={summary ? formatCurrency(Number(summary.total_spent)) : undefined} hint="Payments you recorded" />
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <Card aria-labelledby="recent-jobs-heading">
+          {/* Phones read top to bottom: what needs attention, then recent jobs.
+              On desktop, jobs sit on the left with attention and activity on the right. */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_1fr]">
+            <Card aria-labelledby="attention-heading" className="self-start lg:col-start-2 lg:row-start-1">
+              <CardHeader id="attention-heading" title="Needs your attention" />
+              {attention.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-fg-muted sm:px-5">You’re all caught up.</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {attention.map(({ key, ...item }) => <AttentionItem key={key} {...item} />)}
+                </ul>
+              )}
+            </Card>
+
+            <Card aria-labelledby="recent-jobs-heading" className="self-start lg:col-start-1 lg:row-span-2 lg:row-start-1">
               <CardHeader
                 id="recent-jobs-heading"
                 title="Recent jobs"
@@ -200,43 +213,30 @@ export default function CustomerDashboard() {
               )}
             </Card>
 
-            <div className="space-y-6">
-              <Card aria-labelledby="attention-heading">
-                <CardHeader id="attention-heading" title="Needs your attention" />
-                {attention.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-fg-muted sm:px-5">You’re all caught up.</p>
-                ) : (
-                  <ul className="divide-y divide-line">
-                    {attention.map(({ key, ...item }) => <AttentionItem key={key} {...item} />)}
-                  </ul>
-                )}
-              </Card>
-
-              <Card aria-labelledby="activity-heading">
-                <CardHeader
-                  id="activity-heading"
-                  title="Recent activity"
-                  actions={<Link to="/notifications" className="text-[13px] font-medium text-brand-text hover:underline">View all</Link>}
-                />
-                {activity.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-fg-muted sm:px-5">Updates about your jobs will appear here.</p>
-                ) : (
-                  <ul className="divide-y divide-line">
-                    {activity.map(n => (
-                      <li key={n.id}>
-                        <Link to={notificationTarget(n) || '/notifications'} className="flex gap-3 px-4 py-3 hover:bg-subtle/60 sm:px-5">
-                          <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.is_read ? 'bg-transparent' : 'bg-brand')} aria-hidden="true" />
-                          <span className="min-w-0 flex-1">
-                            <span className={cn('block truncate text-sm', n.is_read ? 'text-fg-muted' : 'font-medium text-fg')}>{n.title}</span>
-                            <span className="block text-xs text-fg-subtle">{formatRelativeTime(n.created_at)}</span>
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-            </div>
+            <Card aria-labelledby="activity-heading" className="self-start lg:col-start-2 lg:row-start-2">
+              <CardHeader
+                id="activity-heading"
+                title="Recent activity"
+                actions={<Link to="/notifications" className="text-[13px] font-medium text-brand-text hover:underline">View all</Link>}
+              />
+              {activity.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-fg-muted sm:px-5">Updates about your jobs will appear here.</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {activity.map(n => (
+                    <li key={n.id}>
+                      <Link to={notificationTarget(n) || '/notifications'} className="flex gap-3 px-4 py-3 hover:bg-subtle/60 sm:px-5">
+                        <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', n.is_read ? 'bg-transparent' : 'bg-brand')} aria-hidden="true" />
+                        <span className="min-w-0 flex-1">
+                          <span className={cn('block truncate text-sm', n.is_read ? 'text-fg-muted' : 'font-medium text-fg')}>{n.title}</span>
+                          <span className="block text-xs text-fg-subtle">{formatRelativeTime(n.created_at)}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
           </div>
         </div>
       </Page>
