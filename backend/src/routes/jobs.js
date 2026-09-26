@@ -145,8 +145,11 @@ router.get("/:id", verifyToken, async (req, res) => {
       job.assigned_worker_phone = maskPhone(job.assigned_worker_phone);
     }
 
-    // Photos
-    job.photos = await repository.listJobPhotos(req.params.id);
+    // Photos and status history (for the timeline)
+    [job.photos, job.status_events] = await Promise.all([
+      repository.listJobPhotos(req.params.id),
+      repository.listJobStatusEvents(req.params.id),
+    ]);
 
     res.json(job);
   } catch (err) {

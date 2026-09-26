@@ -85,6 +85,7 @@ app.use('/api', reviewsRouter);
 
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/messages', require('./routes/messages'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/uploads', require('./routes/uploads'));
 app.use('/api/admin', require('./routes/admin'));

@@ -396,6 +396,10 @@ function listJobProposals(jobId, workerId = null, limit = 100) {
   `);
 }
 
+function listJobStatusEvents(jobId, limit = 50) {
+  return rows(sql`SELECT status, created_at FROM job_status_events WHERE job_id = ${jobId} ORDER BY created_at ASC LIMIT ${limit}`);
+}
+
 function listJobPhotos(jobId, limit = 20) {
   return rows(sql`SELECT * FROM job_photos WHERE job_id = ${jobId} ORDER BY order_idx LIMIT ${limit}`);
 }
@@ -512,6 +516,7 @@ module.exports = instrumentRepository('marketplace', {
   customerJobSummary,
   listCustomerJobs,
   listJobFeed,
+  listJobStatusEvents,
   listCategories,
   listJobPhotos,
   listJobProposals,
