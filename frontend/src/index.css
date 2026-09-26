@@ -41,6 +41,21 @@
     --accent-danger: 0 84% 60%;
     --surface-elevated: 0 0% 100%;
     --hero-spotlight: 199 89% 96%;
+
+    /* Design system tokens (new components use only these). */
+    --ds-canvas: 220 20% 97%;
+    --ds-surface: 0 0% 100%;
+    --ds-subtle: 220 16% 95.5%;
+    --ds-line: 220 13% 90%;
+    --ds-line-strong: 220 12% 82%;
+    --ds-fg: 222 26% 12%;
+    --ds-fg-muted: 220 10% 38%;
+    --ds-fg-subtle: 220 8% 52%;
+    --ds-brand: 201 90% 36%;
+    --ds-brand-hover: 201 92% 30%;
+    --ds-brand-subtle: 204 90% 96%;
+    --ds-brand-text: 201 92% 30%;
+    --ds-on-brand: 0 0% 100%;
   }
 
   .dark {
@@ -70,6 +85,20 @@
     --border-strong: 217 20% 26%;
     --surface-elevated: 222 38% 12%;
     --hero-spotlight: 199 58% 16%;
+
+    --ds-canvas: 222 24% 7%;
+    --ds-surface: 222 20% 10%;
+    --ds-subtle: 222 16% 14%;
+    --ds-line: 222 14% 18%;
+    --ds-line-strong: 222 11% 26%;
+    --ds-fg: 210 20% 94%;
+    --ds-fg-muted: 216 12% 70%;
+    --ds-fg-subtle: 216 10% 56%;
+    --ds-brand: 199 85% 56%;
+    --ds-brand-hover: 199 88% 64%;
+    --ds-brand-subtle: 201 55% 15%;
+    --ds-brand-text: 199 90% 72%;
+    --ds-on-brand: 222 30% 8%;
   }
 
   * {
@@ -515,4 +544,10 @@
 }
 .animate-toast-in {
   animation: toast-in 0.2s ease-out both;
+}
+
+/* ── Navigation drawer entrance ── */
+@keyframes drawer-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }

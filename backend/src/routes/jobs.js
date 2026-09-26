@@ -94,11 +94,12 @@ router.get("/my/summary", verifyToken, requireRole("customer"), async (req, res)
 router.get("/my", verifyToken, requireRole("customer"), async (req, res) => {
   const status = req.query.status || null;
   const group = ['active', 'completed', 'cancelled'].includes(req.query.group) ? req.query.group : null;
+  const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) || null : null;
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
 
   try {
-    res.json(await repository.listCustomerJobs(req.user.id, { status, group, page, limit }));
+    res.json(await repository.listCustomerJobs(req.user.id, { status, group, search, page, limit }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed" });

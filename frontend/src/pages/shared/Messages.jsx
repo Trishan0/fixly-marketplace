@@ -259,7 +259,7 @@ export default function Messages() {
     <AppShell>
       <div className="fixly-page max-w-6xl lg:py-6">
         {/* Fills the space between the top bar and the mobile bottom nav / page padding. */}
-        <div className="fixly-card flex h-[calc(100dvh-10.5rem)] min-h-[26rem] overflow-hidden lg:h-[calc(100dvh-72px-3rem)]">
+        <div className="fixly-card flex h-[calc(100dvh-10.5rem)] min-h-[26rem] overflow-hidden lg:h-[calc(100dvh-56px-4rem)]">
           <aside className={cn('w-full shrink-0 overflow-y-auto border-slate-100 dark:border-slate-800 lg:block lg:w-80 lg:border-r', hasThread && 'hidden')}>
             <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
               <h1 className="text-lg font-bold text-slate-900">Messages</h1>
