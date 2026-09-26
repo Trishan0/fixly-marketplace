@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MoreHorizontal, Settings, Pencil, LogOut } from 'lucide-react'
-import { Card, Avatar } from './UI'
+import { ChevronRight, Eye, LogOut, MoreHorizontal, Pencil, Settings } from 'lucide-react'
+import { Avatar } from './UI'
+import { Card, CardHeader } from '../ui/Card'
+import { buttonClasses } from '../ui/buttonClasses'
 import { cn } from '../../lib/utils'
 import { useAuth } from '../../context/AuthContext'
 import { PublicNavbar } from './PublicNavbar'
+
+const MENU_ITEM = 'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors [@media(pointer:coarse)]:min-h-11'
 
 export function ProfileActionsMenu({ className }) {
   const navigate = useNavigate()
@@ -17,8 +21,13 @@ export function ProfileActionsMenu({ className }) {
     const close = (event) => {
       if (ref.current && !ref.current.contains(event.target)) setOpen(false)
     }
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
   }, [open])
 
   const handleLogout = () => {
@@ -29,34 +38,27 @@ export function ProfileActionsMenu({ className }) {
   return (
     <div className={cn('relative', className)} ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
-        aria-label="Open profile actions"
+        className={buttonClasses({ variant: 'secondary', size: 'icon' })}
+        aria-label="Profile actions"
+        aria-expanded={open}
+        aria-haspopup="menu"
       >
-        <MoreHorizontal className="h-5 w-5" />
+        <MoreHorizontal className="h-4 w-4" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-14 z-20 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-slate-700 dark:bg-slate-900">
-          <Link
-            to="/profile/edit"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-            onClick={() => setOpen(false)}
-          >
-            <Pencil className="h-4 w-4" /> Edit Profile
+        <div role="menu" className="absolute right-0 top-full z-20 mt-2 w-48 rounded-control border border-line bg-surface p-1.5 shadow-overlay">
+          <Link role="menuitem" to="/profile/edit" className={cn(MENU_ITEM, 'text-fg hover:bg-subtle')} onClick={() => setOpen(false)}>
+            <Pencil className="h-4 w-4 text-fg-subtle" /> Edit profile
           </Link>
-          <Link
-            to="/settings"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-            onClick={() => setOpen(false)}
-          >
-            <Settings className="h-4 w-4" /> Settings
+          <Link role="menuitem" to="/settings" className={cn(MENU_ITEM, 'text-fg hover:bg-subtle')} onClick={() => setOpen(false)}>
+            <Settings className="h-4 w-4 text-fg-subtle" /> Settings
           </Link>
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/40"
-          >
-            <LogOut className="h-4 w-4" /> Log Out
+          <div className="my-1 h-px bg-line" />
+          <button role="menuitem" type="button" onClick={handleLogout} className={cn(MENU_ITEM, 'text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10')}>
+            <LogOut className="h-4 w-4" /> Sign out
           </button>
         </div>
       )}
@@ -64,15 +66,15 @@ export function ProfileActionsMenu({ className }) {
   )
 }
 
-export function ProfilePageIntro({ title = 'Public Profile', subtitle, ownView = false }) {
+/** Shown above your own public profile so you know what you're looking at. */
+export function OwnProfileBar({ audience }) {
   return (
-    <div className="mb-6 flex items-start justify-between gap-3 sm:gap-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Profile</p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+    <div className="mb-4 flex flex-col gap-3 rounded-card border border-sky-200/80 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between">
+      <p className="flex items-center gap-2"><Eye className="h-4 w-4 shrink-0" aria-hidden="true" /> This is how {audience} see your profile.</p>
+      <div className="flex items-center gap-2">
+        <Link to="/profile/edit" className={buttonClasses({ size: 'sm' })}><Pencil className="h-4 w-4" aria-hidden="true" /> Edit profile</Link>
+        <ProfileActionsMenu />
       </div>
-      {ownView && <ProfileActionsMenu />}
     </div>
   )
 }
@@ -81,85 +83,77 @@ export function PublicPageChrome({ crumbLabel, crumbTo, currentLabel }) {
   return (
     <>
       <PublicNavbar />
-      <div className="border-b border-white/70 bg-white/50 dark:border-slate-800 dark:bg-slate-950/30">
-        <div className="mx-auto flex min-h-12 max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6 md:px-12">
-        {crumbLabel && (
-          <>
-            {crumbTo ? (
-              <Link to={crumbTo} className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white">{crumbLabel}</Link>
-            ) : (
-              <span className="text-sm text-slate-500">{crumbLabel}</span>
-            )}
-          </>
-        )}
-        {currentLabel && (
-          <span className="hidden min-w-0 items-center gap-3 sm:flex">
-            <span className="text-slate-300">/</span>
-            <span className="truncate text-sm font-medium text-slate-800">{currentLabel}</span>
-          </span>
-        )}
-        </div>
-      </div>
+      <nav aria-label="Breadcrumb" className="border-b border-line bg-surface/70">
+        <ol className="mx-auto flex min-h-11 max-w-[1200px] items-center gap-1.5 px-4 text-[13px] text-fg-muted sm:px-6 lg:px-8">
+          {crumbLabel && (
+            <li>{crumbTo ? <Link to={crumbTo} className="hover:text-fg">{crumbLabel}</Link> : crumbLabel}</li>
+          )}
+          {currentLabel && (
+            <li className="flex min-w-0 items-center gap-1.5">
+              <ChevronRight className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />
+              <span className="truncate font-medium text-fg" aria-current="page">{currentLabel}</span>
+            </li>
+          )}
+        </ol>
+      </nav>
     </>
   )
 }
 
-export function ProfileStatPanel({ label, value, hint, accent = 'sky' }) {
-  const accents = {
-    sky: 'bg-[linear-gradient(180deg,#f8fdff_0%,#eef8ff_100%)] border-sky-100/80 dark:bg-[linear-gradient(180deg,rgba(8,47,73,0.72)_0%,rgba(12,74,110,0.32)_100%)] dark:border-sky-900/60',
-    amber: 'bg-[linear-gradient(180deg,#fffdf7_0%,#fff7e6_100%)] border-amber-100/80 dark:bg-[linear-gradient(180deg,rgba(120,53,15,0.56)_0%,rgba(146,64,14,0.18)_100%)] dark:border-amber-900/50',
-    emerald: 'bg-[linear-gradient(180deg,#f7fffb_0%,#ecfdf3_100%)] border-emerald-100/80 dark:bg-[linear-gradient(180deg,rgba(6,78,59,0.56)_0%,rgba(5,150,105,0.16)_100%)] dark:border-emerald-900/50',
-    violet: 'bg-[linear-gradient(180deg,#fcfbff_0%,#f3efff_100%)] border-violet-100/80 dark:bg-[linear-gradient(180deg,rgba(76,29,149,0.52)_0%,rgba(109,40,217,0.14)_100%)] dark:border-violet-900/50',
-  }
-
+/** Profile header: a brand cover band, the avatar overlapping it, name, badges and actions. */
+export function ProfileHero({ avatarName, avatarSrc, title, badges, meta, actions, stats, children }) {
   return (
-    <div className={cn('rounded-2xl border p-3 sm:rounded-[1.75rem] sm:p-5', accents[accent])}>
-      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:text-[11px] sm:tracking-[0.24em]">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-950 sm:mt-3 sm:text-3xl">{value}</p>
-      {hint && <p className="mt-2 hidden text-sm text-slate-500 sm:block">{hint}</p>}
-    </div>
-  )
-}
-
-export function ProfileHeroCard({ avatarName, avatarSrc, header, summary, stats, asideTitle, asideContent, children }) {
-  return (
-    <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-[0_24px_70px_rgba(2,6,23,0.34)]">
-      <div className="grid gap-5 p-4 sm:p-6 lg:p-8 xl:grid-cols-[1.4fr_0.8fr]">
-        <div className="space-y-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <Avatar
-              name={avatarName}
-              src={avatarSrc}
-              size="xl"
-              className="ring-4 ring-sky-50 shadow-[0_12px_30px_rgba(15,23,42,0.10)] dark:ring-slate-800"
-            />
-            <div className="min-w-0 flex-1 space-y-4">
-              {header}
-              {summary}
-            </div>
+    <Card className="overflow-hidden">
+      <div className="relative h-24 bg-gradient-to-r from-sky-500 via-sky-600 to-sky-700 sm:h-28" aria-hidden="true">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(255,255,255,0.22),transparent_45%)]" />
+      </div>
+      <div className="px-4 pb-5 sm:px-6 sm:pb-6">
+        <div className="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:justify-between">
+          <span className="relative w-fit rounded-full bg-surface ring-4 ring-surface">
+            <Avatar name={avatarName} src={avatarSrc} size="xl" className="h-20 w-20 sm:h-24 sm:w-24 sm:text-2xl" />
+          </span>
+          {actions && <div className="hidden flex-wrap items-center gap-2 sm:flex sm:pb-1">{actions}</div>}
+        </div>
+        <div className="mt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-fg sm:text-[28px]">{title}</h1>
+            {badges}
           </div>
-
-          {stats && <div className="grid grid-cols-3 gap-2 sm:gap-3">{stats}</div>}
-          {children}
+          {meta && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-fg-muted">{meta}</div>}
         </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none sm:rounded-[1.75rem] sm:p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{asideTitle}</p>
-          <div className="mt-4 space-y-4">{asideContent}</div>
-        </div>
+        {children}
+        {actions && <div className="mt-4 flex flex-wrap items-center gap-2 sm:hidden [&>*]:w-full [&_a]:w-full [&_button]:w-full">{actions}</div>}
       </div>
+      {stats && (
+        <dl className="grid grid-cols-2 gap-px border-t border-line bg-line sm:grid-cols-4">
+          {stats.map(stat => (
+            <div key={stat.label} className="bg-surface px-4 py-3.5 sm:px-6">
+              <dt className="text-xs font-medium text-fg-subtle">{stat.label}</dt>
+              <dd className="mt-0.5 flex items-center gap-1.5 text-lg font-bold tracking-tight text-fg tabular-nums">
+                {stat.icon}{stat.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </Card>
   )
 }
 
-export function ProfileSectionCard({ title, meta, children, className }) {
+export function ProfileSectionCard({ title, meta, children, className, bodyClassName }) {
   return (
-    <Card className={cn('border-white/90 bg-white/95 p-4 shadow-[0_16px_44px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-slate-900/95 dark:shadow-[0_16px_44px_rgba(2,6,23,0.28)] sm:p-6', className)}>
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-xl">{title}</h2>
-        {meta && <span className="text-sm text-slate-400">{meta}</span>}
-      </div>
-      <div className="mt-5">{children}</div>
+    <Card className={className}>
+      <CardHeader title={title} actions={meta && <span className="text-[13px] text-fg-subtle">{meta}</span>} />
+      <div className={cn('p-4 sm:p-5', bodyClassName)}>{children}</div>
     </Card>
+  )
+}
+
+export function ProfileEmpty({ icon: Icon, children }) {
+  return (
+    <div className="rounded-control border border-dashed border-line-strong bg-subtle/60 px-6 py-10 text-center text-sm text-fg-muted">
+      {Icon && <Icon className="mx-auto mb-2 h-5 w-5 text-fg-subtle" aria-hidden="true" />}
+      {children}
+    </div>
   )
 }

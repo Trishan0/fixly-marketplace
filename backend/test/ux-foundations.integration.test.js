@@ -62,6 +62,10 @@ describe('customer job listing and summary', () => {
     const completed = await request(app).get('/api/jobs/my?group=completed').set('Authorization', auth).expect(200);
     expect(completed.body.map(job => job.id)).toEqual([paidJob.id]);
 
+    const searched = await request(app).get('/api/jobs/my?search=needs%20rev').set('Authorization', auth).expect(200);
+    expect(searched.body.map(job => job.title)).toEqual(['Needs review']);
+    expect(searched.body[0].pending_proposal_count).toBe(1);
+
     const firstPage = await request(app).get('/api/jobs/my?group=active&limit=5&page=1').set('Authorization', auth).expect(200);
     const secondPage = await request(app).get('/api/jobs/my?group=active&limit=5&page=2').set('Authorization', auth).expect(200);
     expect(firstPage.body).toHaveLength(5);

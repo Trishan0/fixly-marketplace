@@ -322,17 +322,19 @@ function customerJobStatusCondition({ status, group }) {
   return sql`AND j.status IN (${sql.join(statuses.map(value => sql`${value}`), sql`, `)})`;
 }
 
-function listCustomerJobs(customerId, { status, group, page, limit }) {
+function listCustomerJobs(customerId, { status, group, search, page, limit }) {
   const statusCondition = customerJobStatusCondition({ status, group });
+  const searchCondition = search ? sql`AND (j.title ILIKE ${`%${search}%`} OR c.name ILIKE ${`%${search}%`} OR j.town ILIKE ${`%${search}%`})` : sql``;
   const offset = (page - 1) * limit;
   return rows(sql`
     SELECT j.*, c.name AS category_name, c.icon AS category_icon,
            u.full_name AS assigned_worker_name, u.profile_photo AS assigned_worker_photo,
-           (SELECT COUNT(*) FROM proposals p WHERE p.job_id = j.id) AS proposal_count
+           (SELECT COUNT(*) FROM proposals p WHERE p.job_id = j.id) AS proposal_count,
+           (SELECT COUNT(*)::int FROM proposals p WHERE p.job_id = j.id AND p.status = 'pending') AS pending_proposal_count
     FROM jobs j
     LEFT JOIN categories c ON c.id = j.category_id
     LEFT JOIN users u ON u.id = j.assigned_worker_id
-    WHERE j.customer_id = ${customerId} ${statusCondition}
+    WHERE j.customer_id = ${customerId} ${statusCondition} ${searchCondition}
     ORDER BY j.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `);

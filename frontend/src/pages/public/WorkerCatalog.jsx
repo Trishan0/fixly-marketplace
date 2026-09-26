@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
+import { BadgeCheck, Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
 import { WorkerCard } from '../../components/shared/Cards'
-import { Button, Spinner, EmptyState } from '../../components/shared/UI'
+import { Button, Card, EmptyState, Page, PageHeader, Skeleton } from '../../components/ui'
+import { useCategories } from '../../hooks/useCategories'
 import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
@@ -16,7 +17,6 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 
 const PAGE_SIZE = 24
 
-const CATEGORIES = ['All','Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
 export default function WorkerCatalog({ embedded, onInvite }) {
   const { user } = useAuth()
@@ -27,6 +27,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   const [verified, setVerified] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const debouncedSearch = useDebouncedValue(search.trim())
+  const { categories } = useCategories()
   usePageTitle(embedded ? null : 'Browse workers')
 
   const {
@@ -47,60 +48,53 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   const workers = data?.pages.flatMap(page => page.workers) || []
   const total = data?.pages[0]?.total
 
+  const activeFilters = Number(Boolean(category)) + Number(Boolean(district)) + Number(verified)
+
   const content = (
-    <div className="space-y-6">
-      {/* Search */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:gap-3">
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input aria-label="Search workers" className="fixly-input pl-9" placeholder="Name or skill" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Button variant="outline" onClick={() => setShowFilters(!showFilters)} aria-expanded={showFilters} aria-controls="worker-filters" className="px-3 sm:px-5">
-          <SlidersHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">Filters</span>
-          {(district || verified) && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] text-white">{Number(Boolean(district)) + Number(verified)}</span>}
-        </Button>
-      </div>
-
-      {/* Category pills */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" aria-label="Worker categories">
-        {CATEGORIES.map(c => (
-          <button key={c} type="button" onClick={() => setCategory(c === 'All' ? '' : c)} aria-pressed={(c === 'All' ? !category : category === c)}
-            className={cn('min-h-10 px-3 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all',
-              (c === 'All' ? !category : category === c) ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700')}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {/* Advanced filters */}
-      {showFilters && (
-        <div id="worker-filters" className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/60">
-          <div className="mb-3 flex items-center justify-between sm:hidden">
-            <p className="font-bold text-slate-900">Filter workers</p>
-            <button type="button" onClick={() => setShowFilters(false)} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500" aria-label="Close filters"><X className="h-5 w-5" /></button>
+    <div className="space-y-5">
+      <Card as="div" className="p-3 sm:p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex flex-1 gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
+              <input type="search" aria-label="Search workers" className="fixly-input pl-9" placeholder="Search by name or skill" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Button variant="secondary" className="lg:hidden" onClick={() => setShowFilters(!showFilters)} aria-expanded={showFilters} aria-controls="worker-filters">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              {activeFilters > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] text-brand-on">{activeFilters}</span>}
+              <span className="sr-only">Filters</span>
+            </Button>
           </div>
-          <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
-            <select aria-label="Filter by district" className="fixly-input w-full bg-white text-sm dark:bg-slate-900 sm:w-48" value={district} onChange={e => setDistrict(e.target.value)}>
-              <option value="">All Districts</option>
+          <div id="worker-filters" className={cn('grid gap-2 sm:grid-cols-3 lg:flex lg:w-auto lg:items-center', !showFilters && 'hidden lg:flex')}>
+            <select aria-label="Filter by category" className="fixly-input fixly-select lg:w-44" value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="">All categories</option>
+              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+            <select aria-label="Filter by district" className="fixly-input fixly-select lg:w-44" value={district} onChange={e => setDistrict(e.target.value)}>
+              <option value="">All districts</option>
               {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-300">
-              <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} className="h-5 w-5 rounded" />
-              Verified workers only
+            <label className="flex h-10 cursor-pointer items-center gap-2.5 whitespace-nowrap rounded-control border border-line bg-surface px-3 text-sm font-medium text-fg hover:bg-subtle [@media(pointer:coarse)]:h-11">
+              <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} className="h-4 w-4 rounded border-line-strong accent-sky-600" />
+              <BadgeCheck className="h-4 w-4 text-brand-text" aria-hidden="true" /> Verified only
             </label>
-            {(district || verified) && (
-              <button type="button" onClick={() => { setDistrict(''); setVerified(false) }} className="min-h-11 px-3 text-sm font-semibold text-sky-600 dark:text-sky-300">Clear filters</button>
+            {activeFilters > 0 && (
+              <Button variant="ghost" onClick={() => { setCategory(''); setDistrict(''); setVerified(false) }}><X className="h-4 w-4" aria-hidden="true" /> Clear</Button>
             )}
           </div>
         </div>
+      </Card>
+
+      {typeof total === 'number' && !isLoading && (
+        <p className="text-[13px] text-fg-muted" aria-live="polite">{total.toLocaleString('en-LK')} {total === 1 ? 'worker' : 'workers'}{category ? ` in ${category}` : ''}{district ? ` · ${district}` : ''}</p>
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-12"><Spinner /></div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-56 w-full rounded-card" />)}</div>
       ) : isError ? (
         <ErrorFallback title="We couldn’t load workers" description="Check your connection and try again." onRetry={() => refetch()} />
       ) : workers.length === 0 ? (
-        <EmptyState icon={Wrench} title="No workers found" description="Try a different skill, district or search term." />
+        <Card><EmptyState icon={Wrench} title="No workers found" description="Try a different skill, district or search term." /></Card>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -128,18 +122,15 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   if (embedded) return content
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-[100dvh] bg-canvas">
       <PublicNavbar />
-      <div className="fixly-page max-w-7xl">
-        <div className="mb-6">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Local professionals</p>
-          <h1 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">Find the right worker</h1>
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            {typeof total === 'number' ? `${total.toLocaleString('en-LK')} skilled ${total === 1 ? 'professional' : 'professionals'} across Sri Lanka` : 'Skilled professionals across Sri Lanka'}
-          </p>
-        </div>
+      <Page>
+        <PageHeader
+          title="Find the right worker"
+          description={typeof total === 'number' ? `${total.toLocaleString('en-LK')} skilled ${total === 1 ? 'professional' : 'professionals'} across Sri Lanka` : 'Skilled professionals across Sri Lanka'}
+        />
         {content}
-      </div>
+      </Page>
       <PublicFooter />
     </div>
   )

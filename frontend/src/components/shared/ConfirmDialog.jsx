@@ -63,15 +63,15 @@ function ConfirmBody({
 
   return (
       <form onSubmit={submit} className="space-y-4">
-        {description && <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>}
+        {description && <p className="text-sm leading-6 text-fg-muted">{description}</p>}
         {children}
         {reason && options.length > 0 && (
           <fieldset>
-            <legend className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">{reason.label}</legend>
+            <legend className="mb-2 text-sm font-medium text-fg">{reason.label}</legend>
             <div className="grid gap-2">
               {options.map(option => (
-                <label key={option.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3 text-sm text-slate-700 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 dark:border-slate-700 dark:text-slate-200 dark:has-[:checked]:bg-sky-950/40">
-                  <input type="radio" name={`${fieldId}-choice`} value={option.value} checked={choice === option.value} onChange={() => setChoice(option.value)} className="h-4 w-4" />
+                <label key={option.value} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-control border border-line px-3 text-sm text-fg transition-colors hover:border-line-strong has-[:checked]:border-brand has-[:checked]:bg-brand-subtle">
+                  <input type="radio" name={`${fieldId}-choice`} value={option.value} checked={choice === option.value} onChange={() => setChoice(option.value)} className="h-4 w-4 accent-sky-600" />
                   {option.label}
                 </label>
               ))}
@@ -80,12 +80,12 @@ function ConfirmBody({
         )}
         {reason && (needsText || options.length > 0) && (
           <div className="space-y-1.5">
-            <label htmlFor={fieldId} className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label htmlFor={fieldId} className="block text-sm font-medium text-fg">
               {options.length === 0 ? reason.label : needsText ? 'Tell us more' : 'Add a note (optional)'}
             </label>
             <textarea
               id={fieldId}
-              className="fixly-input resize-none"
+              className="fixly-input h-auto resize-y py-2.5"
               rows={3}
               maxLength={500}
               value={text}
@@ -96,7 +96,7 @@ function ConfirmBody({
             />
           </div>
         )}
-        {reasonError && <p id={`${fieldId}-error`} role="alert" className="text-xs text-red-600">{reasonError}</p>}
+        {reasonError && <p id={`${fieldId}-error`} role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">{reasonError}</p>}
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>{cancelLabel}</Button>
           <Button type="submit" variant={tone === 'danger' ? 'danger' : tone === 'success' ? 'success' : 'primary'} loading={loading}>

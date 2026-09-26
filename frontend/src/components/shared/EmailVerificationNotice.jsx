@@ -58,12 +58,12 @@ export function EmailVerificationNotice({ variant = 'banner', blockedAction = 'p
   if (variant === 'gate') {
     return (
       <div className="fixly-card mx-auto max-w-xl p-6 text-center sm:p-8">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-card bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
           <MailWarning className="h-7 w-7" aria-hidden="true" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900">Verify your email to {blockedAction}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-          We sent a verification link to <span className="font-semibold text-slate-800 dark:text-slate-100">{user.email}</span>. Open it, then come back here.
+        <h2 className="text-lg font-semibold text-fg">Verify your email to {blockedAction}</h2>
+        <p className="mt-2 text-sm leading-6 text-fg-muted">
+          We sent a verification link to <span className="font-semibold text-fg">{user.email}</span>. Open it, then come back here.
         </p>
         <div className="mt-6 flex justify-center">{actions}</div>
       </div>
@@ -71,7 +71,7 @@ export function EmailVerificationNotice({ variant = 'banner', blockedAction = 'p
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30 sm:flex-row sm:items-center sm:justify-between" role="status">
+    <div className="flex flex-col gap-3 rounded-card border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30 sm:flex-row sm:items-center sm:justify-between" role="status">
       <div className="flex items-start gap-3">
         <MailWarning className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
         <div>

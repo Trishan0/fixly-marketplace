@@ -19,9 +19,12 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import AgentPanel from "../../components/agent/AgentPanel";
+import { AgentSheet } from "../../components/agent/AgentSheet";
 import { AppShell } from "../../components/layout/AppShell";
-import { Button, Badge, Card, Avatar, Modal, Input, Select, Textarea, Spinner } from "../../components/shared/UI";
+import { Button, Badge, Card, Avatar, Modal, Input, Select, Textarea } from "../../components/shared/UI";
+import { IconChip, Page, Skeleton, StatusBadge, buttonClasses } from "../../components/ui";
+import { categoryStyle } from "../../lib/tones";
+import { urgencyTone } from "../../lib/jobs";
 import { ProposalCard } from "../../components/shared/Cards";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { ErrorFallback } from "../../components/shared/ErrorBoundary";
@@ -85,38 +88,38 @@ function JobTimeline({ job }) {
         return (
           <li key={step.key} className="relative flex gap-3 pb-4 last:pb-0">
             {index < TIMELINE.length - 1 && (
-              <span className={cn("absolute left-[11px] top-6 h-[calc(100%-1rem)] w-0.5", index < reachedIndex ? "bg-sky-500" : "bg-slate-200 dark:bg-slate-700")} aria-hidden="true" />
+              <span className={cn("absolute left-[11px] top-6 h-[calc(100%-1rem)] w-0.5", index < reachedIndex ? "bg-brand" : "bg-line")} aria-hidden="true" />
             )}
             <span
               className={cn(
                 "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold",
-                done && "border-sky-500 bg-sky-500 text-white",
-                current && "border-sky-500 bg-white text-sky-600 ring-4 ring-sky-100 dark:bg-slate-900 dark:ring-sky-950",
-                !done && !current && "border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-900",
+                done && "border-brand bg-brand text-brand-on",
+                current && "border-brand bg-surface text-brand-text ring-4 ring-brand-subtle",
+                !done && !current && "border-line-strong bg-surface text-fg-subtle",
               )}
               aria-hidden="true"
             >
               {done ? <Check className="h-3.5 w-3.5" /> : index + 1}
             </span>
             <div className="min-w-0 pt-0.5">
-              <p className={cn("text-sm", current ? "font-bold text-slate-900" : done ? "font-medium text-slate-800 dark:text-slate-200" : "text-slate-500")}>
+              <p className={cn("text-sm", current ? "font-semibold text-fg" : done ? "font-medium text-fg" : "text-fg-subtle")}>
                 {step.label}
                 <span className="sr-only">{done ? " (done)" : current ? " (current step)" : " (not yet)"}</span>
               </p>
-              {at && <p className="text-xs text-slate-500">{formatDate(at)}</p>}
-              {skipped && <p className="text-xs text-slate-500">Skipped</p>}
+              {at && <p className="text-xs text-fg-subtle">{formatDate(at)}</p>}
+              {skipped && <p className="text-xs text-fg-subtle">Skipped</p>}
             </div>
           </li>
         );
       })}
       {job.status === "cancelled" && (
         <li className="relative flex gap-3 pt-2">
-          <span className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white" aria-hidden="true">
+          <span className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-[#fff]" aria-hidden="true">
             <Trash2 className="h-3 w-3" />
           </span>
           <div className="pt-0.5">
-            <p className="text-sm font-bold text-red-700 dark:text-red-300">Cancelled</p>
-            {cancelledAt && <p className="text-xs text-slate-500">{formatDate(cancelledAt)}</p>}
+            <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">Cancelled</p>
+            {cancelledAt && <p className="text-xs text-fg-subtle">{formatDate(cancelledAt)}</p>}
           </div>
         </li>
       )}
@@ -129,7 +132,7 @@ function ActionButton({ action, className }) {
   const content = <>{Icon && <Icon className="h-4 w-4" aria-hidden="true" />}{action.label}</>;
   if (action.to) {
     return (
-      <Link to={action.to} className={cn(action.variant === "secondary" ? "fixly-btn-secondary" : "fixly-btn-primary", "w-full gap-2 text-sm", className)}>
+      <Link to={action.to} className={buttonClasses({ variant: action.variant === "secondary" ? "secondary" : "primary", className: cn("w-full", className) })}>
         {content}
       </Link>
     );
@@ -309,7 +312,13 @@ export default function JobDetail() {
   if (isLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center"><Spinner /></div>
+        <Page className="space-y-4" aria-busy="true">
+          <Skeleton className="h-5 w-16" />
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
+            <Skeleton className="h-64 w-full rounded-card" />
+            <Skeleton className="h-48 w-full rounded-card" />
+          </div>
+        </Page>
       </AppShell>
     );
   }
@@ -473,51 +482,50 @@ export default function JobDetail() {
     }
   }
 
+  const { icon: categoryIcon, tone: categoryTone } = categoryStyle(job.category_name);
+  const priceBlock = job.final_price
+    ? { label: "Agreed price", value: formatCurrency(job.final_price), className: "text-emerald-700 dark:text-emerald-300" }
+    : job.pricing_mode === "fixed" && job.fixed_budget
+      ? { label: "Budget", value: formatCurrency(job.fixed_budget), className: "text-fg" }
+      : { label: "Price", value: job.pricing_mode === "inspection" ? "After inspection" : "Open to quotes", className: "text-base text-fg" };
+
   const header = (
     <Card className="p-4 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex items-start gap-3.5 sm:gap-4">
+        <IconChip icon={categoryIcon} tone={categoryTone} className="h-11 w-11 rounded-xl [&>svg]:h-5 [&>svg]:w-5 sm:h-12 sm:w-12" />
         <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
             <Badge status={job.status} />
-            {job.urgency && <span className="text-sm text-slate-500">{URGENCY_LABELS[job.urgency]}</span>}
-            {job.category_name && <span className="fixly-pill-sky">{job.category_name}</span>}
+            {job.urgency && <StatusBadge tone={urgencyTone(job.urgency)}>{URGENCY_LABELS[job.urgency]}</StatusBadge>}
           </div>
-          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{job.title}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-300">
+          <h1 className="text-xl font-bold leading-tight tracking-tight text-fg sm:text-2xl">{job.title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-fg-muted">
+            {job.category_name && <span className="font-medium text-fg">{job.category_name}</span>}
             {job.district && (
-              <span className="flex items-center gap-1"><MapPin className="h-4 w-4" aria-hidden="true" />{[job.town, job.district].filter(Boolean).join(", ")}</span>
+              <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{[job.town, job.district].filter(Boolean).join(", ")}</span>
             )}
-            <span className="flex items-center gap-1"><Clock className="h-4 w-4" aria-hidden="true" />Posted {formatDate(job.created_at)}</span>
+            <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />Posted {formatDate(job.created_at)}</span>
           </div>
-        </div>
-        <div className="sm:text-right">
-          {job.final_price ? (
-            <>
-              <p className="text-xs text-slate-500">Agreed price</p>
-              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(job.final_price)}</p>
-            </>
-          ) : job.pricing_mode === "fixed" && job.fixed_budget ? (
-            <>
-              <p className="text-xs text-slate-500">Budget</p>
-              <p className="text-xl font-bold text-sky-700 dark:text-sky-300">{formatCurrency(job.fixed_budget)}</p>
-            </>
-          ) : (
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{job.pricing_mode === "inspection" ? "Price after inspection" : "Open to quotes"}</p>
-          )}
         </div>
       </div>
 
-      {job.description && (
-        <p className="mt-4 whitespace-pre-line rounded-2xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">{job.description}</p>
-      )}
+      <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+        {job.description ? (
+          <p className="whitespace-pre-line text-sm leading-6 text-fg-muted">{job.description}</p>
+        ) : <span className="hidden sm:block" />}
+        <div className="rounded-control border border-line bg-subtle px-4 py-3 sm:min-w-[11rem] sm:text-right">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">{priceBlock.label}</p>
+          <p className={cn("mt-0.5 text-xl font-bold tracking-tight tabular-nums", priceBlock.className)}>{priceBlock.value}</p>
+        </div>
+      </div>
       {job.address && (isOwner || isAssignedWorker) && (
-        <p className="mt-3 flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-300"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{job.address}</p>
+        <p className="mt-4 flex items-start gap-1.5 border-t border-line pt-4 text-sm text-fg-muted"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-fg-subtle" aria-hidden="true" /><span><span className="font-medium text-fg">Address:</span> {job.address}</span></p>
       )}
       {job.photos?.length > 0 && (
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {job.photos.map((p, index) => (
-            <a key={p.id} href={p.path} target="_blank" rel="noreferrer" className="shrink-0 rounded-xl focus-visible:ring-2 focus-visible:ring-sky-500">
-              <img src={p.path} alt={`Job photo ${index + 1} of ${job.photos.length}`} className="h-24 w-24 rounded-xl object-cover" />
+            <a key={p.id} href={p.path} target="_blank" rel="noreferrer" className="shrink-0 rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <img src={p.path} alt={`Job photo ${index + 1} of ${job.photos.length}`} className="h-24 w-24 rounded-control border border-line object-cover" />
             </a>
           ))}
         </div>
@@ -526,10 +534,11 @@ export default function JobDetail() {
   );
 
   const nextCard = next && (
-    <Card className="p-4 sm:p-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Next step</p>
-      <h2 className="mt-1 text-lg font-bold text-slate-900">{next.title}</h2>
-      {next.text && <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{next.text}</p>}
+    <Card className="relative overflow-hidden border-brand/25 p-4 sm:p-5">
+      <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 to-sky-600" aria-hidden="true" />
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-text">Next step</p>
+      <h2 className="mt-1 text-[17px] font-bold leading-snug text-fg">{next.title}</h2>
+      {next.text && <p className="mt-1 text-sm leading-6 text-fg-muted">{next.text}</p>}
       {(next.primary || next.secondary?.length > 0) && (
         <div className="mt-4 space-y-2">
           {next.primary && <ActionButton action={next.primary} />}
@@ -537,7 +546,7 @@ export default function JobDetail() {
         </div>
       )}
       {canCancel && (
-        <button type="button" onClick={() => setConfirming({ kind: "cancel" })} className="mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40">
+        <button type="button" onClick={() => setConfirming({ kind: "cancel" })} className="mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-control text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
           <Trash2 className="h-4 w-4" aria-hidden="true" /> Cancel job
         </button>
       )}
@@ -547,9 +556,9 @@ export default function JobDetail() {
   const alerts = (
     <>
       {job.is_active === false && isOwner && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="status">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700 dark:text-red-300" aria-hidden="true" />
-          <div className="text-sm text-red-800 dark:text-red-200">
+        <div className="flex items-start gap-3 rounded-card border border-rose-200 bg-rose-50 p-4 dark:border-rose-500/30 dark:bg-rose-500/10" role="status">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-700 dark:text-rose-300" aria-hidden="true" />
+          <div className="text-sm text-rose-800 dark:text-rose-200">
             <p className="font-semibold">Fixly took this job down</p>
             {job.flag_reason && <p className="mt-1">Reason: {job.flag_reason}</p>}
             <p className="mt-1">Workers can’t see it or send proposals. If you think this is a mistake, <Link to="/contact" className="font-semibold underline underline-offset-2">contact us</Link>.</p>
@@ -557,7 +566,7 @@ export default function JobDetail() {
         </div>
       )}
       {job.payment_disputed && (isOwner || isAssignedWorker) && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
+        <div className="flex items-start gap-3 rounded-card border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10" role="status">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
           <div className="text-sm">
             <p className="font-semibold text-amber-900 dark:text-amber-200">{isOwner ? "The worker disputed this payment" : "You disputed this payment"}</p>
@@ -575,13 +584,13 @@ export default function JobDetail() {
     <>
       {job.customer_id && !isOwner && (
         <Card className="p-4 sm:p-5">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">Posted by</h2>
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Posted by</h2>
           <div className="flex items-center gap-3">
             <Avatar name={job.customer_name} src={job.customer_photo} size="lg" />
             <div className="min-w-0">
-              <Link to={`/customers/${job.customer_id}`} className="font-semibold text-slate-900 hover:text-sky-700 dark:hover:text-sky-300">{job.customer_name}</Link>
+              <Link to={`/customers/${job.customer_id}`} className="font-semibold text-fg hover:text-brand-text">{job.customer_name}</Link>
               {isAssignedWorker && job.customer_phone && (
-                <a href={`tel:${job.customer_phone.replace(/\s+/g, "")}`} className="mt-0.5 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-sky-700 dark:text-sky-300">
+                <a href={`tel:${job.customer_phone.replace(/\s+/g, "")}`} className="mt-0.5 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-text">
                   <Phone className="h-4 w-4" aria-hidden="true" /> {job.customer_phone}
                 </a>
               )}
@@ -594,13 +603,13 @@ export default function JobDetail() {
       )}
       {job.assigned_worker_id && (
         <Card className="p-4 sm:p-5">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">{isAssignedWorker ? "You’re hired" : "Hired worker"}</h2>
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{isAssignedWorker ? "You’re hired" : "Hired worker"}</h2>
           <div className="flex items-center gap-3">
             <Avatar name={job.assigned_worker_name} src={job.assigned_worker_photo} size="lg" />
             <div className="min-w-0">
-              <Link to={`/workers/${job.assigned_worker_id}`} className="font-semibold text-slate-900 hover:text-sky-700 dark:hover:text-sky-300">{job.assigned_worker_name}</Link>
+              <Link to={`/workers/${job.assigned_worker_id}`} className="font-semibold text-fg hover:text-brand-text">{job.assigned_worker_name}</Link>
               {job.assigned_worker_phone && isOwner && (
-                <a href={`tel:${job.assigned_worker_phone.replace(/\s+/g, "")}`} className="mt-0.5 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-sky-700 dark:text-sky-300">
+                <a href={`tel:${job.assigned_worker_phone.replace(/\s+/g, "")}`} className="mt-0.5 flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-text">
                   <Phone className="h-4 w-4" aria-hidden="true" /> {job.assigned_worker_phone}
                 </a>
               )}
@@ -608,7 +617,7 @@ export default function JobDetail() {
           </div>
           {isOwner && (
             <div className="mt-3 flex flex-wrap gap-1">
-              <Link to={workerThread} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950/40">
+              <Link to={workerThread} className="inline-flex min-h-11 items-center gap-1.5 rounded-control px-3 text-sm font-semibold text-brand-text hover:bg-brand-subtle">
                 <MessagesSquare className="h-4 w-4" aria-hidden="true" /> Message
               </Link>
               <ReportButton jobId={job.id} reportedUserId={job.assigned_worker_id} subject={job.assigned_worker_name} />
@@ -621,12 +630,12 @@ export default function JobDetail() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-6xl space-y-5">
-        <button type="button" onClick={() => navigate(-1)} className="flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+      <Page className="space-y-4">
+        <button type="button" onClick={() => navigate(-1)} className="flex min-h-11 items-center gap-1 text-sm font-semibold -ml-1 text-fg-muted hover:text-fg">
           <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
         </button>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
           {/* On phones the next step comes first; on desktop it sits in the side column. */}
           <div className="space-y-5 lg:hidden">{nextCard}</div>
 
@@ -637,26 +646,26 @@ export default function JobDetail() {
             {myProposal && (
               <Card className="p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="font-semibold text-slate-900">Your proposal</h2>
+                  <h2 className="text-[15px] font-semibold text-fg">Your proposal</h2>
                   <Badge status={myProposal.status} />
                 </div>
-                <p className="mt-2 text-lg font-bold text-sky-700 dark:text-sky-300">
+                <p className="mt-2 text-xl font-bold tracking-tight text-fg">
                   {myProposal.proposed_price ? formatCurrency(myProposal.proposed_price) : myProposal.inspection_needed ? "Price after inspection" : "No price sent yet"}
                 </p>
-                {myProposal.availability && <p className="text-sm text-slate-600 dark:text-slate-300">Availability: {myProposal.availability}</p>}
+                {myProposal.availability && <p className="text-sm text-fg-muted">Availability: {myProposal.availability}</p>}
                 {myProposal.message && myProposal.message !== "Accepted via invite" && (
-                  <p className="mt-2 whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">{myProposal.message}</p>
+                  <p className="mt-2 whitespace-pre-line text-sm text-fg-muted">{myProposal.message}</p>
                 )}
               </Card>
             )}
 
             {isOwner && (
               <section id="proposals" className="scroll-mt-24">
-                <h2 className="mb-4 font-bold text-slate-900">
-                  Proposals {proposals.length > 0 && <span className="font-normal text-slate-500">({proposals.length})</span>}
+                <h2 className="mb-3 flex items-center gap-2 text-[17px] font-bold text-fg">
+                  Proposals {proposals.length > 0 && <span className="rounded-full bg-subtle px-2 py-0.5 text-xs font-semibold text-fg-muted">{proposals.length}</span>}
                 </h2>
                 {proposals.length === 0 ? (
-                  <Card className="p-6 text-center text-sm text-slate-600 dark:text-slate-300">
+                  <Card className="p-8 text-center text-sm text-fg-muted">
                     {open ? "No proposals yet. Most jobs get their first proposal within a day — or invite workers yourself." : "No proposals were sent for this job."}
                   </Card>
                 ) : (
@@ -680,13 +689,13 @@ export default function JobDetail() {
           <aside className="space-y-5">
             <div className="hidden lg:block">{nextCard}</div>
             <Card className="p-4 sm:p-5">
-              <h2 className="mb-4 text-sm font-semibold text-slate-500">Progress</h2>
+              <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Progress</h2>
               <JobTimeline job={job} />
             </Card>
             {people}
           </aside>
         </div>
-      </div>
+      </Page>
 
       {/* Payment */}
       <Modal open={payModal} onClose={() => setPayModal(false)} title="Record payment">
@@ -702,7 +711,7 @@ export default function JobDetail() {
             recordPayment.mutate();
           }}
         >
-          <p className="text-sm text-slate-600 dark:text-slate-300">Fixly doesn’t take payments. Record what you paid {job.assigned_worker_name} so you both have a record — they’ll be asked to confirm it.</p>
+          <p className="text-sm text-fg-muted">Fixly doesn’t take payments. Record what you paid {job.assigned_worker_name} so you both have a record — they’ll be asked to confirm it.</p>
           <Input
             label="Amount paid (LKR)"
             inputMode="decimal"
@@ -737,7 +746,7 @@ export default function JobDetail() {
             setFinalPrice.mutate();
           }}
         >
-          <p className="text-sm text-slate-600 dark:text-slate-300">Record the price you and {job.assigned_worker_name} agreed, so it’s clear when it’s time to pay.</p>
+          <p className="text-sm text-fg-muted">Record the price you and {job.assigned_worker_name} agreed, so it’s clear when it’s time to pay.</p>
           <Input label="Agreed price (LKR)" inputMode="decimal" value={agreedPrice} onChange={(e) => { setAgreedPrice(e.target.value); setPriceError(""); }} placeholder="5000" error={priceError} />
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={() => setPriceModal(false)}>Cancel</Button>
@@ -749,7 +758,7 @@ export default function JobDetail() {
       <Modal open={reviewModal} onClose={() => setReviewModal(false)} title={`Review ${job.assigned_worker_name || "the worker"}`}>
         <div className="space-y-4">
           <fieldset>
-            <legend className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Overall rating</legend>
+            <legend className="mb-2 block text-sm font-medium text-fg">Overall rating</legend>
             <div className="flex gap-1" role="radiogroup" aria-label="Rating">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -758,7 +767,7 @@ export default function JobDetail() {
                   role="radio"
                   aria-checked={review.rating === n}
                   onClick={() => setReview((r) => ({ ...r, rating: n }))}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl text-3xl transition-transform hover:scale-110 ${n <= review.rating ? "text-amber-400" : "text-slate-300 dark:text-slate-600"}`}
+                  className={`flex h-11 w-11 items-center justify-center rounded-control text-3xl transition-transform hover:scale-110 ${n <= review.rating ? "text-amber-400" : "text-line-strong"}`}
                   aria-label={`${n} star${n === 1 ? "" : "s"}`}
                 >
                   ★
@@ -767,7 +776,7 @@ export default function JobDetail() {
             </div>
           </fieldset>
           <Textarea label="Your review" value={review.feedback} onChange={(e) => setReview((r) => ({ ...r, feedback: e.target.value }))} placeholder="How was the quality, timekeeping and communication?" rows={4} />
-          <p className="text-xs text-slate-500">Reviews are public and help other customers choose.</p>
+          <p className="text-xs text-fg-subtle">Reviews are public and help other customers choose.</p>
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={() => setReviewModal(false)}>Cancel</Button>
             <Button onClick={() => submitReview.mutate()} loading={submitReview.isPending}>Publish review</Button>
@@ -857,14 +866,7 @@ export default function JobDetail() {
         );
       })()}
 
-      {agentOpen && (
-        <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Find matching workers">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAgentOpen(false)} />
-          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
-            <AgentPanel mode="match" jobId={id} onClose={() => { setAgentOpen(false); refetch(); }} />
-          </div>
-        </div>
-      )}
+      <AgentSheet open={agentOpen} mode="match" jobId={id} onClose={() => { setAgentOpen(false); refetch(); }} />
     </AppShell>
   );
 }

@@ -63,10 +63,10 @@ export const STATUS_COLORS = {
 };
 
 export const URGENCY_LABELS = {
-  today: "🔥 Today",
-  tomorrow: "📅 Tomorrow",
-  this_week: "📆 This Week",
-  flexible: "🕐 Flexible",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  this_week: "This week",
+  flexible: "Flexible",
 };
 
 export const DISTRICTS = [
@@ -119,4 +119,10 @@ export function formatStartingPrice(value) {
 export function pluralize(count, singular, plural = `${singular}s`) {
   const n = Number(count) || 0;
   return `${n.toLocaleString("en-LK")} ${n === 1 ? singular : plural}`;
+}
+
+/** "a", "a and b", "a, b and c" */
+export function joinWithAnd(parts) {
+  if (parts.length <= 1) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }

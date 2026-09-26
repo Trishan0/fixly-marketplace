@@ -27,20 +27,20 @@ function JobSummary({ job }) {
   const long = (job.description || '').length > 280
   return (
     <Card className="p-4 sm:p-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Applying for</p>
-      <h2 className="mt-1 text-lg font-bold text-slate-900">{job.title}</h2>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
+      <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">Applying for</p>
+      <h2 className="mt-1 text-lg font-bold text-fg">{job.title}</h2>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg-muted">
         {job.district && <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" aria-hidden="true" />{[job.town, job.district].filter(Boolean).join(', ')}</span>}
         {job.urgency && <span className="inline-flex items-center gap-1"><Clock className="h-4 w-4" aria-hidden="true" />{URGENCY_LABELS[job.urgency]}</span>}
-        {job.pricing_mode === 'fixed' && job.fixed_budget && <span className="font-semibold text-sky-700 dark:text-sky-300">Budget {formatCurrency(job.fixed_budget)}</span>}
+        {job.pricing_mode === 'fixed' && job.fixed_budget && <span className="font-semibold text-brand-text">Budget {formatCurrency(job.fixed_budget)}</span>}
         {job.pricing_mode === 'ask_quotes' && <span>Customer wants quotes</span>}
         {job.pricing_mode === 'inspection' && <span>Customer expects an inspection first</span>}
       </div>
       {job.description && (
-        <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+        <div className="mt-3 rounded-control bg-subtle p-3 text-sm leading-6 text-fg-muted">
           <p className={expanded || !long ? 'whitespace-pre-line' : 'line-clamp-4 whitespace-pre-line'}>{job.description}</p>
           {long && (
-            <button type="button" onClick={() => setExpanded(v => !v)} className="mt-1 min-h-11 text-sm font-semibold text-sky-700 dark:text-sky-300">
+            <button type="button" onClick={() => setExpanded(v => !v)} className="mt-1 min-h-11 text-sm font-semibold text-brand-text">
               {expanded ? 'Show less' : 'Read the full description'}
             </button>
           )}
@@ -124,14 +124,14 @@ function ProposalForm({ job, existing }) {
     <form onSubmit={submit} noValidate>
       <Card className="space-y-5 p-4 sm:p-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{heading}</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{intro}</p>
+          <h1 className="text-2xl font-bold text-fg">{heading}</h1>
+          <p className="mt-1 text-sm text-fg-muted">{intro}</p>
         </div>
 
-        <div className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+        <div className="flex items-start justify-between gap-4 rounded-card border border-line p-3">
           <div>
-            <p id="inspection-label" className="text-sm font-medium text-slate-800 dark:text-slate-100">Inspection needed before pricing</p>
-            <p className="text-xs text-slate-500">Turn on if you need to see the job before you can give a price.</p>
+            <p id="inspection-label" className="text-sm font-medium text-fg">Inspection needed before pricing</p>
+            <p className="text-xs text-fg-subtle">Turn on if you need to see the job before you can give a price.</p>
           </div>
           <Toggle
             checked={form.inspection_needed}
@@ -142,13 +142,13 @@ function ProposalForm({ job, existing }) {
 
         {!form.inspection_needed && (
           <div className="space-y-1.5">
-            <label htmlFor="proposal-price" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Your price (LKR)</label>
+            <label htmlFor="proposal-price" className="block text-sm font-medium text-fg-muted">Your price (LKR)</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500">LKR</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-fg-subtle">LKR</span>
               <input
                 id="proposal-price"
                 inputMode="decimal"
-                className={`fixly-input pl-12 ${errors.proposed_price ? 'border-red-400' : ''}`}
+                className={`fixly-input pl-12 ${errors.proposed_price ? 'fixly-input-error' : ''}`}
                 placeholder="4500"
                 value={form.proposed_price}
                 onChange={set('proposed_price')}
@@ -157,16 +157,16 @@ function ProposalForm({ job, existing }) {
               />
             </div>
             {errors.proposed_price
-              ? <p id="proposal-price-error" role="alert" className="text-xs text-red-600">{errors.proposed_price}</p>
-              : <p id="proposal-price-help" className="text-xs text-slate-500">Only the customer sees your price.{job.pricing_mode === 'fixed' && job.fixed_budget ? ` Their budget is ${formatCurrency(job.fixed_budget)}.` : ''}</p>}
+              ? <p id="proposal-price-error" role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">{errors.proposed_price}</p>
+              : <p id="proposal-price-help" className="text-xs text-fg-subtle">Only the customer sees your price.{job.pricing_mode === 'fixed' && job.fixed_budget ? ` Their budget is ${formatCurrency(job.fixed_budget)}.` : ''}</p>}
           </div>
         )}
 
         <div className="space-y-1.5">
-          <label htmlFor="proposal-availability" className="block text-sm font-medium text-slate-700 dark:text-slate-300">When can you do it?</label>
+          <label htmlFor="proposal-availability" className="block text-sm font-medium text-fg-muted">When can you do it?</label>
           <input
             id="proposal-availability"
-            className={`fixly-input ${errors.availability ? 'border-red-400' : ''}`}
+            className={`fixly-input ${errors.availability ? 'fixly-input-error' : ''}`}
             placeholder="e.g. Tomorrow morning, or any weekday after 4pm"
             maxLength={255}
             value={form.availability}
@@ -174,11 +174,11 @@ function ProposalForm({ job, existing }) {
             aria-invalid={Boolean(errors.availability)}
             aria-describedby={errors.availability ? 'proposal-availability-error' : undefined}
           />
-          {errors.availability && <p id="proposal-availability-error" role="alert" className="text-xs text-red-600">{errors.availability}</p>}
+          {errors.availability && <p id="proposal-availability-error" role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">{errors.availability}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="proposal-message" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Message to the customer <span className="font-normal text-slate-500">(recommended)</span></label>
+          <label htmlFor="proposal-message" className="block text-sm font-medium text-fg-muted">Message to the customer <span className="font-normal text-fg-subtle">(recommended)</span></label>
           <textarea
             id="proposal-message"
             className="fixly-input resize-y"
@@ -188,10 +188,10 @@ function ProposalForm({ job, existing }) {
             value={form.message}
             onChange={set('message')}
           />
-          <p className="text-right text-xs text-slate-500">{form.message.length}/2000</p>
+          <p className="text-right text-xs text-fg-subtle">{form.message.length}/2000</p>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 dark:border-slate-800 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-line pt-4 sm:flex-row sm:justify-end">
           <Link to={`/jobs/${job.id}`} className="fixly-btn-secondary text-sm">Cancel</Link>
           <Button type="submit" size="lg" loading={save.isPending}>
             {firstQuote ? 'Send quote' : editing ? 'Save changes' : 'Send proposal'}
@@ -240,8 +240,8 @@ export default function SendProposal() {
     body = (
       <Card className="p-8 text-center">
         <Badge status={existing.status} />
-        <h1 className="mt-3 text-xl font-bold text-slate-900">{copy[0]}</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600 dark:text-slate-300">{copy[1]}</p>
+        <h1 className="mt-3 text-xl font-bold text-fg">{copy[0]}</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm text-fg-muted">{copy[1]}</p>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Link to={`/jobs/${jobId}`} className="fixly-btn-primary text-sm">View job</Link>
           <Link to="/proposals" className="fixly-btn-secondary text-sm">My proposals</Link>
@@ -251,8 +251,8 @@ export default function SendProposal() {
   } else if (!accepting) {
     body = (
       <Card className="p-8 text-center">
-        <h1 className="text-xl font-bold text-slate-900">This job isn’t taking proposals any more</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600 dark:text-slate-300">The customer may have hired someone or cancelled the job.</p>
+        <h1 className="text-xl font-bold text-fg">This job isn’t taking proposals any more</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm text-fg-muted">The customer may have hired someone or cancelled the job.</p>
         <Link to="/jobs/feed" className="fixly-btn-primary mt-6 text-sm">Browse open jobs</Link>
       </Card>
     )
@@ -267,8 +267,8 @@ export default function SendProposal() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-2xl space-y-4">
-        <button type="button" onClick={() => navigate(-1)} className="flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+      <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-6 sm:px-6 lg:py-8">
+        <button type="button" onClick={() => navigate(-1)} className="flex min-h-11 items-center gap-1 text-sm font-semibold -ml-1 text-fg-muted hover:text-fg">
           <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
         </button>
         {body}

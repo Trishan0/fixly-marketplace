@@ -41,6 +41,21 @@
     --accent-danger: 0 84% 60%;
     --surface-elevated: 0 0% 100%;
     --hero-spotlight: 199 89% 96%;
+
+    /* Design system tokens, built from the logo: sky #0EA5E9 -> #0369A1 on ink #0F172A. */
+    --ds-canvas: 214 45% 97%;
+    --ds-surface: 0 0% 100%;
+    --ds-subtle: 214 36% 95.5%;
+    --ds-line: 214 30% 90%;
+    --ds-line-strong: 214 24% 82%;
+    --ds-fg: 222 47% 11%;
+    --ds-fg-muted: 215 19% 35%;
+    --ds-fg-subtle: 215 16% 47%;
+    --ds-brand: 200 98% 39%;
+    --ds-brand-hover: 201 96% 32%;
+    --ds-brand-subtle: 204 100% 97%;
+    --ds-brand-text: 201 96% 32%;
+    --ds-on-brand: 0 0% 100%;
   }
 
   .dark {
@@ -70,6 +85,20 @@
     --border-strong: 217 20% 26%;
     --surface-elevated: 222 38% 12%;
     --hero-spotlight: 199 58% 16%;
+
+    --ds-canvas: 224 45% 6%;
+    --ds-surface: 222 40% 9.5%;
+    --ds-subtle: 221 32% 13.5%;
+    --ds-line: 219 26% 18%;
+    --ds-line-strong: 217 20% 27%;
+    --ds-fg: 210 40% 96%;
+    --ds-fg-muted: 214 22% 74%;
+    --ds-fg-subtle: 215 16% 60%;
+    --ds-brand: 199 89% 48%;
+    --ds-brand-hover: 198 93% 60%;
+    --ds-brand-subtle: 201 70% 14%;
+    --ds-brand-text: 199 95% 70%;
+    --ds-on-brand: 222 47% 8%;
   }
 
   * {
@@ -114,204 +143,111 @@
 }
 
 @layer components {
-  .fixly-card {
-    background-color: hsl(var(--surface));
-    border: 1px solid hsl(var(--border-soft));
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-    @apply rounded-2xl sm:rounded-3xl;
-  }
-
-  .dark .fixly-card {
-    background:
-      linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.94) 100%);
-    box-shadow:
-      0 18px 44px rgba(2, 6, 23, 0.34),
-      inset 0 1px 0 rgba(148, 163, 184, 0.05);
-  }
-
-  .fixly-page {
-    @apply w-full mx-auto px-4 py-5 sm:px-5 md:px-6 md:py-6 xl:px-8;
-  }
-
-  .fixly-app-page {
-    background:
-      radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 22%),
-      radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 18%),
-      linear-gradient(180deg, hsl(var(--page-bg)) 0%, hsl(var(--surface-muted)) 100%);
-    min-height: 100%;
+  /* Legacy class names, restyled on the design system tokens. */
+  .fixly-card,
+  .fixly-panel,
+  .fixly-elevated,
+  .fixly-glow-panel {
+    @apply rounded-card border border-line/80 bg-surface shadow-card;
   }
 
   .fixly-surface-muted {
-    background-color: hsl(var(--surface-muted));
-    border: 1px solid hsl(var(--border-soft));
-    @apply rounded-3xl;
+    @apply rounded-card border border-line bg-subtle;
   }
 
-  .dark .fixly-surface-muted {
-    background:
-      linear-gradient(180deg, rgba(30, 41, 59, 0.68) 0%, rgba(15, 23, 42, 0.82) 100%);
-    box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.04);
+  .fixly-page {
+    @apply mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8;
   }
 
-  .fixly-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.96) 100%);
-    border: 1px solid hsl(var(--border-soft));
-    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
-    @apply rounded-3xl;
-  }
-
-  .dark .fixly-panel {
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.94) 100%);
-    box-shadow: 0 16px 40px rgba(2, 6, 23, 0.35);
+  .fixly-app-page {
+    min-height: 100%;
   }
 
   .fixly-page-shell {
-    background:
-      radial-gradient(circle at top left, hsla(var(--hero-spotlight), 0.55), transparent 26%),
-      radial-gradient(circle at bottom right, hsla(var(--accent-primary), 0.08), transparent 28%),
-      linear-gradient(180deg, hsl(var(--app-bg)) 0%, hsl(var(--surface-muted)) 100%);
+    @apply bg-canvas;
   }
 
   .fixly-topbar {
-    background-color: hsla(var(--surface), 0.88);
-    border-color: hsl(var(--border-soft));
-    backdrop-filter: blur(16px);
-  }
-
-  .fixly-elevated {
-    background-color: hsl(var(--surface-elevated));
-    border: 1px solid hsl(var(--border-soft));
-    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
-    @apply rounded-3xl;
-  }
-
-  .fixly-glow-panel {
-    border: 1px solid hsl(var(--border-soft));
-    background:
-      radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 28%),
-      linear-gradient(180deg, hsl(var(--surface)) 0%, hsl(var(--surface-muted)) 100%);
-    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
-    @apply rounded-[1.75rem];
-  }
-
-  .dark .fixly-glow-panel {
-    background:
-      radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 28%),
-      linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 100%);
-    box-shadow:
-      0 22px 50px rgba(2, 6, 23, 0.36),
-      inset 0 1px 0 rgba(148, 163, 184, 0.04);
+    @apply border-line bg-surface/85 backdrop-blur-md;
   }
 
   .fixly-tab-strip {
-    @apply flex max-w-full gap-1 overflow-x-auto rounded-2xl p-1 w-fit;
-    background-color: hsl(var(--surface-muted));
-    border: 1px solid hsl(var(--border-soft));
+    @apply inline-flex max-w-full gap-1 overflow-x-auto rounded-control bg-subtle p-1 ring-1 ring-inset ring-line/60;
   }
 
   .fixly-tab {
-    @apply min-h-11 shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition-all;
-    color: hsl(var(--text-muted));
-  }
-
-  .fixly-tab:hover {
-    color: hsl(var(--text-strong));
+    @apply flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-medium text-fg-muted transition-all hover:text-fg [@media(pointer:coarse)]:h-10;
   }
 
   .fixly-tab.active {
-    background-color: hsl(var(--surface));
-    color: hsl(var(--text-strong));
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-  }
-
-  .dark .fixly-tab.active {
-    box-shadow: 0 12px 24px rgba(2, 6, 23, 0.26);
+    @apply bg-surface text-fg shadow-card;
   }
 
   .fixly-pill {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset;
   }
 
   .fixly-pill-sky {
-    @apply fixly-pill text-sky-700 dark:text-sky-300;
-    background-color: color-mix(in srgb, hsl(var(--accent-primary)) 14%, hsl(var(--surface)) 86%);
+    @apply fixly-pill bg-sky-50 text-sky-700 ring-sky-600/15 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/20;
   }
 
   .fixly-pill-emerald {
-    @apply fixly-pill text-emerald-700 dark:text-emerald-300;
-    background-color: color-mix(in srgb, hsl(var(--accent-success)) 14%, hsl(var(--surface)) 86%);
+    @apply fixly-pill bg-emerald-50 text-emerald-700 ring-emerald-600/15 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20;
   }
 
   .fixly-pill-rose {
-    @apply fixly-pill text-rose-700 dark:text-rose-300;
-    background-color: color-mix(in srgb, hsl(0 84% 60%) 14%, hsl(var(--surface)) 86%);
+    @apply fixly-pill bg-rose-50 text-rose-700 ring-rose-600/15 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-400/20;
   }
 
   .fixly-pill-violet {
-    @apply fixly-pill text-violet-700 dark:text-violet-300;
-    background-color: color-mix(in srgb, rgb(139 92 246) 14%, hsl(var(--surface)) 86%);
+    @apply fixly-pill bg-violet-50 text-violet-700 ring-violet-600/15 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-400/20;
   }
 
   .fixly-tint-sky {
-    background-color: color-mix(in srgb, hsl(var(--accent-primary)) 10%, hsl(var(--surface)) 90%);
-    border: 1px solid color-mix(in srgb, hsl(var(--accent-primary)) 18%, transparent);
+    @apply bg-sky-50 ring-1 ring-inset ring-sky-100 dark:bg-sky-500/10 dark:ring-sky-500/20;
   }
 
   .fixly-tint-emerald {
-    background-color: color-mix(in srgb, hsl(var(--accent-success)) 10%, hsl(var(--surface)) 90%);
-    border: 1px solid color-mix(in srgb, hsl(var(--accent-success)) 18%, transparent);
+    @apply bg-emerald-50 ring-1 ring-inset ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/20;
   }
 
   .fixly-tint-amber {
-    background-color: color-mix(in srgb, hsl(var(--accent-warning)) 10%, hsl(var(--surface)) 90%);
-    border: 1px solid color-mix(in srgb, hsl(var(--accent-warning)) 18%, transparent);
+    @apply bg-amber-50 ring-1 ring-inset ring-amber-100 dark:bg-amber-500/10 dark:ring-amber-500/20;
   }
 
-  .fixly-text-strong {
-    color: hsl(var(--text-strong));
-  }
-
-  .fixly-text-default {
-    color: hsl(var(--text-default));
-  }
-
-  .fixly-text-muted {
-    color: hsl(var(--text-muted));
-  }
+  .fixly-text-strong { @apply text-fg; }
+  .fixly-text-default { @apply text-fg-muted; }
+  .fixly-text-muted { @apply text-fg-subtle; }
 
   .fixly-btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-control bg-brand px-4 text-sm font-semibold text-brand-on shadow-brand transition-all hover:bg-brand-hover active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface [@media(pointer:coarse)]:h-11;
   }
 
   .fixly-btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 font-semibold px-5 py-2.5 rounded-xl transition-all duration-150 active:scale-95;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-control border border-line bg-surface px-4 text-sm font-semibold text-fg shadow-xs transition-all hover:border-line-strong hover:bg-subtle active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface [@media(pointer:coarse)]:h-11;
   }
 
   .fixly-input {
-    background-color: hsl(var(--surface));
-    border-color: hsl(var(--border-strong));
-    color: hsl(var(--text-strong));
-    @apply min-h-11 w-full border rounded-xl px-4 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all;
+    @apply h-10 w-full rounded-control border border-line bg-surface px-3 text-base text-fg shadow-xs transition-colors placeholder:text-fg-subtle hover:border-line-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-sky-500/15 disabled:cursor-not-allowed disabled:bg-subtle disabled:text-fg-subtle sm:text-sm [@media(pointer:coarse)]:h-11;
+  }
+
+  textarea.fixly-input {
+    @apply h-auto;
+  }
+
+  .fixly-input-error {
+    @apply border-rose-400 focus:border-rose-500 focus:ring-rose-500/15;
+  }
+
+  .fixly-select {
+    @apply appearance-none bg-no-repeat pr-9;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.6rem center;
+    background-size: 1.1rem;
   }
 
   .status-badge {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold;
-  }
-
-  .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150 font-medium text-sm;
-  }
-
-  .sidebar-link.active {
-    @apply bg-sky-600 text-white;
-  }
-
-  .mobile-bottom-nav {
-    background-color: hsla(var(--surface), 0.96);
-    border-top: 1px solid hsl(var(--border-soft));
-    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.08);
-    padding-bottom: env(safe-area-inset-bottom);
-    @apply fixed inset-x-0 bottom-0 z-30 backdrop-blur-xl;
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 
   .line-clamp-2-mobile {
@@ -342,134 +278,6 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-.dark .bg-white {
-  background-color: rgb(15 23 42 / 0.92) !important;
-}
-
-.dark .bg-white\/90 {
-  background-color: rgb(15 23 42 / 0.9) !important;
-}
-
-.dark .bg-white\/95 {
-  background-color: rgb(15 23 42 / 0.94) !important;
-}
-
-.dark .bg-slate-50 {
-  background-color: rgb(15 23 42 / 0.82) !important;
-}
-
-.dark .bg-slate-50\/70 {
-  background-color: rgb(30 41 59 / 0.58) !important;
-}
-
-.dark .bg-slate-50\/80 {
-  background-color: rgb(30 41 59 / 0.7) !important;
-}
-
-.dark .bg-slate-50\/90 {
-  background-color: rgb(30 41 59 / 0.82) !important;
-}
-
-.dark .bg-slate-100 {
-  background-color: rgb(30 41 59 / 0.95) !important;
-}
-
-.dark .border-slate-50 {
-  border-color: rgb(51 65 85 / 0.35) !important;
-}
-
-.dark .border-slate-100 {
-  border-color: rgb(51 65 85 / 0.6) !important;
-}
-
-.dark .border-slate-200 {
-  border-color: rgb(71 85 105 / 0.75) !important;
-}
-
-.dark .text-slate-950 {
-  color: rgb(248 250 252) !important;
-}
-
-.dark .text-slate-900 {
-  color: rgb(241 245 249) !important;
-}
-
-.dark .text-slate-800 {
-  color: rgb(226 232 240) !important;
-}
-
-.dark .text-slate-700 {
-  color: rgb(203 213 225) !important;
-}
-
-.dark .text-slate-600 {
-  color: rgb(180 191 208) !important;
-}
-
-.dark .text-slate-500 {
-  color: rgb(148 163 184) !important;
-}
-
-.dark .text-slate-400 {
-  color: rgb(125 139 161) !important;
-}
-
-.dark .text-slate-300 {
-  color: rgb(148 163 184) !important;
-}
-
-.dark .text-slate-200 {
-  color: rgb(203 213 225) !important;
-}
-
-.dark .text-slate-100 {
-  color: rgb(241 245 249) !important;
-}
-
-.dark .hover\:bg-slate-50:hover {
-  background-color: rgb(30 41 59 / 0.65) !important;
-}
-
-.dark .hover\:bg-slate-100:hover {
-  background-color: rgb(51 65 85 / 0.75) !important;
-}
-
-.dark .hover\:text-slate-900:hover {
-  color: rgb(241 245 249) !important;
-}
-
-.dark .bg-sky-50 {
-  background-color: rgb(12 74 110 / 0.35) !important;
-}
-
-.dark .bg-emerald-50 {
-  background-color: rgb(6 78 59 / 0.34) !important;
-}
-
-.dark .bg-amber-50 {
-  background-color: rgb(120 53 15 / 0.34) !important;
-}
-
-.dark .bg-violet-50 {
-  background-color: rgb(76 29 149 / 0.28) !important;
-}
-
-.dark .border-sky-100 {
-  border-color: rgb(14 116 144 / 0.45) !important;
-}
-
-.dark .border-emerald-100 {
-  border-color: rgb(5 150 105 / 0.34) !important;
-}
-
-.dark .border-amber-100 {
-  border-color: rgb(217 119 6 / 0.34) !important;
-}
-
-.dark .border-violet-100 {
-  border-color: rgb(124 58 237 / 0.34) !important;
 }
 
 /* Scrollbar */
@@ -515,4 +323,10 @@
 }
 .animate-toast-in {
   animation: toast-in 0.2s ease-out both;
+}
+
+/* ── Navigation drawer entrance ── */
+@keyframes drawer-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }

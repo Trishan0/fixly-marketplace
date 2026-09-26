@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AppShell } from '../../components/layout/AppShell'
-import { Modal, Select, Button, PageHeader } from '../../components/shared/UI'
+import { Modal, Select, Textarea } from '../../components/shared/UI'
+import { Button, Page, PageHeader } from '../../components/ui'
 import WorkerCatalog from '../public/WorkerCatalog'
 import { useToast } from '../../hooks/useToast'
 import { useAuth } from '../../context/AuthContext'
@@ -40,16 +40,16 @@ export default function WorkersPage() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-7xl">
+      <Page>
         <PageHeader
-          title="Find Workers"
-          description="Browse verified local professionals and invite them to your jobs"
+          title="Find workers"
+          description="Browse local professionals and invite them to your jobs."
         />
         <WorkerCatalog
           embedded
           onInvite={user?.role === 'customer' ? (worker) => setInviteWorker(worker) : undefined}
         />
-      </div>
+      </Page>
 
       <Modal
         open={!!inviteWorker}
@@ -58,34 +58,31 @@ export default function WorkersPage() {
       >
         <div className="space-y-4">
           {myJobs.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-slate-500 text-sm mb-4">You have no active jobs to invite this worker to.</p>
-              <Link to={`/jobs/new?invite=${inviteWorker?.id}`} className="fixly-btn-primary text-sm">Post a job and invite {inviteWorker?.full_name?.split(' ')[0]}</Link>
+            <div className="py-4 text-center">
+              <p className="mb-4 text-sm text-fg-muted">You have no open jobs to invite this worker to.</p>
+              <Button to={`/jobs/new?invite=${inviteWorker?.id}`}>Post a job and invite {inviteWorker?.full_name?.split(' ')[0]}</Button>
             </div>
           ) : (
             <>
               <Select
-                label="Select Job *"
+                label="Job"
                 value={jobId}
                 onChange={e => setJobId(e.target.value)}
               >
-                <option value="">Choose a job...</option>
+                <option value="">Choose a job…</option>
                 {myJobs.map(j => (
                   <option key={j.id} value={j.id}>{j.title}</option>
                 ))}
               </Select>
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Message (optional)</label>
-                <textarea
-                  className="fixly-input resize-none"
-                  rows={3}
-                  value={message}
-                  onChange={e => setMessage(e.target.value)}
-                  placeholder="Hi! I saw your profile and think you'd be great for this job..."
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button variant="secondary" onClick={() => setInviteWorker(null)} className="flex-1">
+              <Textarea
+                label="Message (optional)"
+                rows={3}
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder="Hi! I saw your profile and think you’d be great for this job."
+              />
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                <Button variant="secondary" onClick={() => setInviteWorker(null)}>
                   Cancel
                 </Button>
                 <Button
@@ -93,9 +90,8 @@ export default function WorkersPage() {
                   onClick={() => sendInvite.mutate()}
                   loading={sendInvite.isPending}
                   disabled={!jobId}
-                  className="flex-1"
                 >
-                  Send Invite
+                  Send invite
                 </Button>
               </div>
             </>

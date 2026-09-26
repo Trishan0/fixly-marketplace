@@ -54,7 +54,7 @@ function ReportForm({ jobId, reportedUserId, subject, onDone, onCancel }) {
 
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
-      <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+      <p className="text-sm leading-6 text-fg-muted">
         Reports go to the Fixly team, not to {subject}. If anyone is in danger, call the police on <a href="tel:119" className="font-semibold underline">119</a> first.
       </p>
       <Select label="What’s wrong?" value={type} onChange={e => { setType(e.target.value); setErrors(v => ({ ...v, type: '' })) }} error={errors.type}>
@@ -86,7 +86,7 @@ export function ReportButton({ jobId, reportedUserId, subject, label = 'Report',
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-red-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-red-400 ${className}`}
+        className={`inline-flex h-9 items-center gap-1.5 rounded-control px-3 text-sm font-medium text-fg-subtle transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10 dark:hover:text-rose-300 [@media(pointer:coarse)]:h-11 ${className}`}
       >
         <Flag className="h-4 w-4" aria-hidden="true" /> {label}
       </button>

@@ -35,11 +35,11 @@ export function ErrorFallback({ onRetry, title = 'Something went wrong on this p
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
       <div className="max-w-md text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-card bg-amber-50 text-amber-600 ring-1 ring-inset ring-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20">
           <AlertTriangle className="h-7 w-7" aria-hidden="true" />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+        <h1 className="text-lg font-semibold text-fg">{title}</h1>
+        <p className="mt-1.5 text-sm leading-6 text-fg-muted">{description}</p>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           {onRetry && (
             <button type="button" onClick={onRetry} className="fixly-btn-primary gap-2 text-sm">

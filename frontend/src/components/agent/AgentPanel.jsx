@@ -20,7 +20,7 @@ function ScoreBar({ score }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-subtle rounded-full overflow-hidden">
         <div
           className={cn('h-full rounded-full transition-all duration-700', color)}
           style={{ width: `${pct}%` }}
@@ -29,7 +29,7 @@ function ScoreBar({ score }) {
       <span className={cn(
         'text-xs font-bold tabular-nums min-w-[36px] text-right',
         pct >= 75 ? 'text-emerald-600 dark:text-emerald-400' :
-        pct >= 50 ? 'text-sky-600 dark:text-sky-400' :
+        pct >= 50 ? 'text-brand-text' :
         pct >= 30 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'
       )}>
         {pct}%
@@ -78,21 +78,21 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
   return (
     <div className={cn(
-      'rounded-2xl border-2 transition-all duration-200 overflow-hidden',
+      'rounded-card border-2 transition-all duration-200 overflow-hidden',
       selected
         ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/20 shadow-md shadow-sky-100 dark:shadow-sky-900/20'
-        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-sky-200 dark:hover:border-sky-700'
+        : 'border-line bg-surface hover:border-sky-200 dark:hover:border-sky-700'
     )}>
       {/* Header */}
       <div className="p-4">
         <div className="flex items-start gap-3">
           {/* Rank badge */}
           <div className={cn(
-            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5',
+            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5',
             rec.rank === 1 ? 'bg-amber-400 text-amber-900' :
-            rec.rank === 2 ? 'bg-slate-300 text-slate-700' :
+            rec.rank === 2 ? 'bg-slate-300 text-fg-muted' :
             rec.rank === 3 ? 'bg-orange-300 text-orange-800' :
-                             'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                             'bg-subtle text-fg-subtle'
           )}>
             #{rec.rank}
           </div>
@@ -101,14 +101,14 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-slate-900 dark:text-white text-sm">{w.full_name}</span>
+              <span className="font-bold text-fg text-sm">{w.full_name}</span>
               {w.is_nic_verified && (
                 <span className="inline-flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded-md font-medium">
                   <Shield className="w-3 h-3" /> Verified
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex flex-wrap gap-2 mt-1 text-xs text-fg-subtle">
               {w.primary_skill && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{w.primary_skill}</span>}
               {w.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{w.district}</span>}
               {Number(w.avg_rating) > 0 && <span className="flex items-center gap-1 text-amber-500"><Star className="w-3 h-3 fill-current" />{Number(w.avg_rating).toFixed(1)}</span>}
@@ -119,8 +119,8 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
           {/* Score */}
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-black text-slate-800 dark:text-white">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-slate-400">%</span></div>
-            <div className="text-xs text-slate-400">match</div>
+            <div className="text-lg font-bold text-fg">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-fg-subtle">%</span></div>
+            <div className="text-xs text-fg-subtle">match</div>
           </div>
         </div>
 
@@ -130,7 +130,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
         </div>
 
         {/* Rationale */}
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">{rec.rationale}</p>
+        <p className="text-xs text-fg-subtle mt-2 leading-relaxed">{rec.rationale}</p>
 
         {/* Gemini key strengths */}
         {rec.key_strengths?.length > 0 && (
@@ -146,18 +146,18 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
       {/* Expanded factors */}
       {expanded && (
-        <div className="px-4 pb-3 pt-1 border-t border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Score Breakdown</p>
+        <div className="px-4 pb-3 pt-1 border-t border-line">
+          <p className="text-xs font-semibold text-fg-subtle mb-2">Score Breakdown</p>
           <FactorPills factors={rec.factors} />
         </div>
       )}
 
       {/* Footer actions */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-subtle border-t border-line">
         <button
           type="button"
           onClick={() => setExpanded(e => !e)}
-          className="flex min-h-11 items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 dark:hover:text-slate-300"
+          className="flex min-h-11 items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg-muted"
         >
           {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           {expanded ? 'Less detail' : 'Score breakdown'}
@@ -169,7 +169,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
             'flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150',
             selected
               ? 'bg-sky-500 text-white hover:bg-sky-600'
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-sky-400 hover:text-sky-600'
+              : 'bg-surface border border-line text-fg-muted hover:border-sky-400 hover:text-sky-600'
           )}
         >
           {selected ? <><CheckCircle2 className="w-3.5 h-3.5" />Selected</> : <>Select to Invite</>}
@@ -190,38 +190,38 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
 
   return (
     <div className={cn(
-      'rounded-2xl border-2 transition-all duration-200 overflow-hidden',
+      'rounded-card border-2 transition-all duration-200 overflow-hidden',
       selected
         ? 'border-violet-500 bg-violet-50/60 dark:bg-violet-950/20 shadow-md shadow-violet-100 dark:shadow-violet-900/20'
-        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-violet-200 dark:hover:border-violet-700'
+        : 'border-line bg-surface hover:border-violet-200 dark:hover:border-violet-700'
     )}>
       {/* Header */}
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className={cn(
-            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5',
+            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5',
             rec.rank === 1 ? 'bg-amber-400 text-amber-900' :
-            rec.rank === 2 ? 'bg-slate-300 text-slate-700' :
+            rec.rank === 2 ? 'bg-slate-300 text-fg-muted' :
             rec.rank === 3 ? 'bg-orange-300 text-orange-800' :
-                             'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                             'bg-subtle text-fg-subtle'
           )}>
             #{rec.rank}
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight">{j.title}</p>
-            <div className="flex flex-wrap gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="font-bold text-fg text-sm leading-tight">{j.title}</p>
+            <div className="flex flex-wrap gap-2 mt-1 text-xs text-fg-subtle">
               {j.category_name && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" />{j.category_name}</span>}
               {j.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{j.district}</span>}
               {j.urgency && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{URGENCY_LABELS[j.urgency]}</span>}
               {j.fixed_budget && <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium"><DollarSign className="w-3 h-3" />LKR {Number(j.fixed_budget).toLocaleString()}</span>}
-              {j.proposal_count > 0 && <span className="text-slate-400">{pluralize(j.proposal_count, 'proposal')}</span>}
+              {j.proposal_count > 0 && <span className="text-fg-subtle">{pluralize(j.proposal_count, 'proposal')}</span>}
             </div>
           </div>
 
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-black text-slate-800 dark:text-white">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-slate-400">%</span></div>
-            <div className="text-xs text-slate-400">fit</div>
+            <div className="text-lg font-bold text-fg">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-fg-subtle">%</span></div>
+            <div className="text-xs text-fg-subtle">fit</div>
           </div>
         </div>
 
@@ -229,7 +229,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
           <ScoreBar score={rec.score} />
         </div>
 
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">{rec.rationale}</p>
+        <p className="text-xs text-fg-subtle mt-2 leading-relaxed">{rec.rationale}</p>
 
         {/* Draft message preview */}
         {selected && (
@@ -242,12 +242,12 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
             </div>
             {editingMessage ? (
               <textarea
-                className="w-full text-xs text-slate-700 dark:text-slate-200 bg-transparent border-0 outline-none resize-none min-h-[80px]"
+                className="w-full text-xs text-fg-muted bg-transparent border-0 outline-none resize-none min-h-[80px]"
                 value={msg}
                 onChange={e => { setMsg(e.target.value); onMessageChange(j.id, e.target.value) }}
               />
             ) : (
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{msg}</p>
+              <p className="text-xs text-fg-muted leading-relaxed">{msg}</p>
             )}
           </div>
         )}
@@ -255,24 +255,24 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
 
       {/* Expanded */}
       {expanded && !selected && (
-        <div className="px-4 pb-3 pt-1 border-t border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Score Breakdown</p>
+        <div className="px-4 pb-3 pt-1 border-t border-line">
+          <p className="text-xs font-semibold text-fg-subtle mb-2">Score Breakdown</p>
           <FactorPills factors={rec.factors} />
           {rec.proposal_draft && (
             <div className="mt-3">
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Draft Message</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">{rec.proposal_draft}</p>
+              <p className="text-xs font-semibold text-fg-subtle mb-1">Draft Message</p>
+              <p className="text-xs text-fg-muted leading-relaxed italic">{rec.proposal_draft}</p>
             </div>
           )}
         </div>
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/60 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-subtle border-t border-line">
         <button
           type="button"
           onClick={() => setExpanded(e => !e)}
-          className="flex min-h-11 items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-700 dark:hover:text-slate-300"
+          className="flex min-h-11 items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg-muted"
         >
           {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           {expanded ? 'Less detail' : 'See breakdown'}
@@ -284,7 +284,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
             'flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150',
             selected
               ? 'bg-violet-500 text-white hover:bg-violet-600'
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-violet-400 hover:text-violet-600'
+              : 'bg-surface border border-line text-fg-muted hover:border-violet-400 hover:text-violet-600'
           )}
         >
           {selected ? <><CheckCircle2 className="w-3.5 h-3.5" />Selected</> : <>Apply to Job</>}
@@ -309,13 +309,13 @@ function PlanSteps({ plan, steps }) {
               'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs',
               isCompleted
                 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
-                : 'bg-slate-100 text-slate-400 dark:bg-slate-800'
+                : 'bg-subtle text-fg-subtle'
             )}>
               {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span>{i + 1}</span>}
             </div>
             <span className={cn(
               'text-xs',
-              isCompleted ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400 dark:text-slate-500'
+              isCompleted ? 'text-fg-muted font-medium' : 'text-fg-subtle'
             )}>{step}</span>
           </div>
         )
@@ -419,7 +419,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
     <div className="flex h-full max-h-full flex-col">
       {/* ── Header ── */}
       <div className={cn(
-        'flex flex-shrink-0 items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-5 sm:py-4',
+        'flex flex-shrink-0 items-center gap-3 border-b border-line px-4 py-3 sm:px-5 sm:py-4',
         isMatch ? 'bg-sky-50/80 dark:bg-sky-950/20' : 'bg-violet-50/80 dark:bg-violet-950/20'
       )}>
         <div className={cn(
@@ -429,17 +429,17 @@ export default function AgentPanel({ mode, jobId, onClose }) {
           <Bot className={cn('w-5 h-5', isMatch ? 'text-sky-600' : 'text-violet-600')} />
         </div>
         <div className="flex-1">
-          <h2 className="font-bold text-slate-900 dark:text-white text-sm">
+          <h2 className="font-bold text-fg text-sm">
             {isMatch ? 'Job Match Agent' : 'Proposal Agent'}
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-fg-subtle">
             {isMatch ? 'AI-ranked workers for this job' : 'Best jobs matched to your profile'}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-fg-subtle transition-colors hover:bg-subtle"
           aria-label="Close agent panel"
         >
           <XCircle className="w-5 h-5" />
@@ -451,7 +451,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
 
         {/* Success state */}
         {confirmDone && (
-          <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-5 text-center">
+          <div className="rounded-card bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-5 text-center">
             <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
             <h3 className="font-bold text-emerald-800 dark:text-emerald-300 mb-1">Done!</h3>
             <p className="text-sm text-emerald-700 dark:text-emerald-400">
@@ -468,15 +468,15 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         {!runId && !confirmDone && (
           <div className="text-center py-8">
             <div className={cn(
-              'w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center',
+              'w-16 h-16 rounded-card mx-auto mb-4 flex items-center justify-center',
               isMatch ? 'bg-sky-100 dark:bg-sky-900/30' : 'bg-violet-100 dark:bg-violet-900/30'
             )}>
               {isMatch ? <UserCheck className="w-8 h-8 text-sky-500" /> : <TrendingUp className="w-8 h-8 text-violet-500" />}
             </div>
-            <h3 className="font-bold text-slate-800 dark:text-white mb-1">
+            <h3 className="font-bold text-fg mb-1">
               {isMatch ? 'Find the Best Workers' : 'Find the Best Jobs'}
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-xs mx-auto">
+            <p className="text-sm text-fg-subtle mb-6 max-w-xs mx-auto">
               {isMatch
                 ? 'The agent will rank all available workers by skill, location, rating, and price fit.'
                 : 'The agent will rank open jobs by how well they match your skills and location.'}
@@ -504,19 +504,19 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         {isRunInProgress && !confirmDone && (
           <div className="text-center py-8">
             <div className={cn(
-              'w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse',
+              'w-16 h-16 rounded-card mx-auto mb-4 flex items-center justify-center animate-pulse',
               isMatch ? 'bg-sky-100 dark:bg-sky-900/30' : 'bg-violet-100 dark:bg-violet-900/30'
             )}>
               <Bot className={cn('w-8 h-8', isMatch ? 'text-sky-500' : 'text-violet-500')} />
             </div>
-            <h3 className="font-bold text-slate-800 dark:text-white mb-1">
+            <h3 className="font-bold text-fg mb-1">
               {isMatch ? 'Finding the best workers…' : 'Finding the best jobs…'}
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+            <p className="text-sm text-fg-subtle max-w-xs mx-auto">
               Reading profiles, reviews, and job details. This can take a little while.
             </p>
             {runData?.status === 'pending' && Number.isInteger(runData?.queue_position) && runData.queue_position > 0 && (
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+              <p className="text-xs text-fg-subtle mt-2">
                 {runData.queue_position} {runData.queue_position === 1 ? 'run' : 'runs'} ahead of you
               </p>
             )}
@@ -527,8 +527,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         {runFailed && !confirmDone && (
           <div className="text-center py-8">
             <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-2" />
-            <h3 className="font-bold text-slate-800 dark:text-white mb-1">Something went wrong</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-xs mx-auto">
+            <h3 className="font-bold text-fg mb-1">Something went wrong</h3>
+            <p className="text-sm text-fg-subtle mb-4 max-w-xs mx-auto">
               The agent run failed. You can try again.
             </p>
             <Button variant="outline" size="sm" onClick={() => setRunId(null)}>Try again</Button>
@@ -539,17 +539,17 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         {runData && !isRunInProgress && !runFailed && !confirmDone && (
           <>
             {/* Plan trace toggle */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="rounded-xl border border-line overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowPlan(p => !p)}
-                className="flex min-h-11 w-full items-center justify-between bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                className="flex min-h-11 w-full items-center justify-between bg-subtle px-4 py-3 text-sm font-semibold text-fg-muted transition-colors hover:bg-subtle"
               >
-                <span className="flex items-center gap-2"><Bot className="w-4 h-4 text-slate-400" />Agent Execution Plan</span>
+                <span className="flex items-center gap-2"><Bot className="w-4 h-4 text-fg-subtle" />Agent Execution Plan</span>
                 {showPlan ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showPlan && (
-                <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700">
+                <div className="px-4 py-3 border-t border-line">
                   <PlanSteps plan={runData.plan} steps={runData.steps} />
                 </div>
               )}
@@ -557,7 +557,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
 
             {/* Results count + Gemini reasoning */}
             <div>
-              <h3 className="font-bold text-slate-800 dark:text-white text-sm mb-1">
+              <h3 className="font-bold text-fg text-sm mb-1">
                 {isMatch
                   ? `${runData.recommendations?.length || 0} Top Workers Found`
                   : `${runData.recommendations?.length || 0} Best Jobs Found`}
@@ -584,7 +584,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                   {runData.overall_reasoning}
                 </div>
               )}
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              <p className="text-xs text-fg-subtle mt-2">
                 {isMatch
                   ? 'Select workers to invite. You must confirm before any invites are sent.'
                   : 'Select jobs to apply to. You can edit the proposal message before confirming.'}
@@ -612,7 +612,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                 )
               )}
               {(!runData.recommendations || runData.recommendations.length === 0) && (
-                <div className="text-center py-8 text-slate-400 dark:text-slate-500">
+                <div className="text-center py-8 text-fg-subtle">
                   <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No results found. Try again later.</p>
                 </div>
@@ -625,14 +625,14 @@ export default function AgentPanel({ mode, jobId, onClose }) {
       {/* ── Footer — Confirm bar ── */}
       {runData && !isRunInProgress && !runFailed && !confirmDone && selectedIds.size > 0 && (
         <div className={cn(
-          'grid flex-shrink-0 gap-3 border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:flex sm:items-center sm:justify-between sm:px-5 sm:py-4',
+          'grid flex-shrink-0 gap-3 border-t border-line px-4 py-3 sm:flex sm:items-center sm:justify-between sm:px-5 sm:py-4',
           isMatch ? 'bg-sky-50/80 dark:bg-sky-950/20' : 'bg-violet-50/80 dark:bg-violet-950/20'
         )}>
           <div>
-            <p className="font-semibold text-sm text-slate-800 dark:text-white">
+            <p className="font-semibold text-sm text-fg">
               {selectedIds.size} {isMatch ? `worker${selectedIds.size > 1 ? 's' : ''} selected` : `job${selectedIds.size > 1 ? 's' : ''} selected`}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-fg-subtle">
               {isMatch ? 'Confirm to send invites' : 'Confirm to submit proposals'}
             </p>
           </div>

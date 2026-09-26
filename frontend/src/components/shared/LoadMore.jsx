@@ -6,7 +6,7 @@ export function LoadMore({ shown, total, hasNextPage, isFetchingNextPage, onLoad
   if (!shown) return null
   return (
     <div className="flex flex-col items-center gap-3 pt-2 text-center">
-      <p className="text-sm text-slate-500" aria-live="polite">
+      <p className="text-[13px] text-fg-muted" aria-live="polite">
         {typeof total === 'number' ? `Showing ${shown.toLocaleString('en-LK')} of ${total.toLocaleString('en-LK')} ${noun}` : `Showing ${shown.toLocaleString('en-LK')} ${noun}`}
       </p>
       {hasNextPage && (

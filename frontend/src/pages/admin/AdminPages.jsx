@@ -6,30 +6,27 @@ import {
   Briefcase,
   FileText,
   Tag,
-  BarChart3,
   Shield,
   Search,
   CheckCircle,
   XCircle,
-  AlertTriangle,
   ArrowRight,
   Clock3,
   Bot,
   Scale,
+  Plus,
+  Star,
 } from "lucide-react";
 import { AppShell } from "../../components/layout/AppShell";
 import {
-  StatCard,
-  Card,
   Button,
-  PageHeader,
-  Spinner,
   Input,
   Modal,
-  Avatar,
 } from "../../components/shared/UI";
+import { AttentionItem, Card as UiCard, CardHeader, EmptyState, IconChip, Page, PageHeader as UiPageHeader, PersonAvatar, Skeleton, StatTile, StatusBadge, Table, Td, Th } from "../../components/ui";
+import { categoryStyle } from "../../lib/tones";
 import { useToast } from "../../hooks/useToast";
-import { formatDate, cn } from "../../lib/utils";
+import { formatDate, cn, pluralize } from "../../lib/utils";
 import api from "../../lib/api";
 import { errorMessage } from "../../lib/errors";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -77,9 +74,9 @@ function PrivateNicImage({ src, alt = "NIC" }) {
     : src;
 
   if (!imageUrl) {
-    return <div className="mb-3 flex h-32 w-full items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400 dark:bg-slate-800">Loading private document…</div>;
+    return <div className="mb-3 flex h-36 w-full items-center justify-center rounded-control border border-line bg-subtle text-sm text-fg-subtle">Loading private document…</div>;
   }
-  return <img src={imageUrl} alt={alt} className="mb-3 h-32 w-full rounded-xl object-cover" />;
+  return <a href={imageUrl} target="_blank" rel="noreferrer" className="mb-3 block"><img src={imageUrl} alt={alt} className="h-36 w-full rounded-control border border-line object-cover" /></a>;
 }
 
 // Admin Dashboard
@@ -107,352 +104,90 @@ export function AdminDashboard() {
     (w) => w.nic_image_path && !w.is_nic_verified,
   );
   const openReports = reports.filter((r) => r.status === "open");
-  const reviewedReports = reports.filter((r) => r.status !== "open");
-  const actionCards = [
-    {
-      to: "/admin/users",
-      icon: Users,
-      title: "Manage Users",
-      desc: "Search accounts, suspend abuse, and adjust verification flags.",
-      accent: "sky",
+  const openDisputes = stats?.open_disputes ?? 0;
+  const attention = [
+    pendingWorkers.length > 0 && {
+      key: "nic", icon: Shield, tone: "emerald",
+      title: `${pendingWorkers.length} NIC ${pendingWorkers.length === 1 ? "review" : "reviews"} waiting`,
+      detail: "Check the photo and verify or reject", to: "/admin/workers", action: "Review",
     },
-    {
-      to: "/admin/workers",
-      icon: Shield,
-      title: "Verify Workers",
-      desc: `${pendingWorkers.length} worker${pendingWorkers.length === 1 ? "" : "s"} currently waiting for NIC review.`,
-      accent: "emerald",
+    openReports.length > 0 && {
+      key: "reports", icon: FileText, tone: "rose",
+      title: `${openReports.length} open ${openReports.length === 1 ? "report" : "reports"}`,
+      detail: "Users and jobs flagged by the community", to: "/admin/reports", action: "Review",
     },
-    {
-      to: "/admin/disputes",
-      icon: Scale,
-      title: "Payment Disputes",
-      desc: `${stats?.open_disputes ?? 0} disputed payment${stats?.open_disputes === 1 ? "" : "s"} waiting to be closed.`,
-      accent: "amber",
+    openDisputes > 0 && {
+      key: "disputes", icon: Scale, tone: "amber",
+      title: `${openDisputes} payment ${openDisputes === 1 ? "dispute" : "disputes"}`,
+      detail: "Workers who say a payment is wrong", to: "/admin/disputes", action: "Resolve",
     },
-    {
-      to: "/admin/jobs",
-      icon: Briefcase,
-      title: "Moderate Jobs",
-      desc: "Search every job and take down scams or rule-breaking posts.",
-      accent: "sky",
-    },
-    {
-      to: "/admin/reports",
-      icon: FileText,
-      title: "Review Reports",
-      desc: `${openReports.length} report${openReports.length === 1 ? "" : "s"} still need moderation action.`,
-      accent: "rose",
-    },
-    {
-      to: "/admin/categories",
-      icon: Tag,
-      title: "Manage Categories",
-      desc: "Keep marketplace services clean, active, and easy to browse.",
-      accent: "amber",
-    },
-  ];
+  ].filter(Boolean);
 
-  const accentClasses = {
-    sky: "bg-sky-50 text-sky-600 border-sky-100",
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
-    rose: "bg-rose-50 text-rose-600 border-rose-100",
-    amber: "bg-amber-50 text-amber-600 border-amber-100",
-  };
+  const tools = [
+    { to: "/admin/users", icon: Users, tone: "sky", title: "Users", desc: "Search accounts, suspend abuse, adjust verification" },
+    { to: "/admin/workers", icon: Shield, tone: "emerald", title: "Worker verification", desc: "Review NIC photos and verified badges" },
+    { to: "/admin/jobs", icon: Briefcase, tone: "indigo", title: "Jobs", desc: "Search every job and take down rule-breaking posts" },
+    { to: "/admin/reports", icon: FileText, tone: "rose", title: "Reports", desc: "Act on reports from customers and workers" },
+    { to: "/admin/disputes", icon: Scale, tone: "amber", title: "Payment disputes", desc: "Close out disagreements about payments" },
+    { to: "/admin/categories", icon: Tag, tone: "violet", title: "Categories", desc: "Keep services clean, active and easy to browse" },
+  ];
 
   return (
     <AppShell>
-      <div className="fixly-app-page">
-        <div className="fixly-page max-w-7xl space-y-6">
-          <PageHeader
-            title="Admin Dashboard"
-            description="Marketplace operations at a glance"
-          />
-
-          <Card className="overflow-hidden border-white/90 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.06)] dark:border-slate-800">
-            <div className="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-500">
-                  Operations Overview
-                </p>
-                <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
-                  Keep the marketplace healthy and moving.
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                  Review queue pressure, worker verification demand, and
-                  platform activity from one place so the admin workspace feels
-                  like an operations console instead of a blank report page.
-                </p>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/70 p-4 dark:border-sky-900/50 dark:bg-sky-950/25">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                      Users
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-slate-950">
-                      {stats?.total_users ?? 0}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {stats?.total_workers ?? 0} workers active
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-4 dark:border-amber-900/50 dark:bg-amber-950/25">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                      Open Jobs
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-slate-950">
-                      {stats?.open_jobs ?? 0}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {stats?.total_jobs ?? 0} total jobs created
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-4 dark:border-rose-900/50 dark:bg-rose-950/25">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                      Risk Queue
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-slate-950">
-                      {openReports.length}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {pendingWorkers.length} workers pending verification
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50/80 p-5 dark:border-slate-800 dark:bg-slate-950/70">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                      Attention Needed
-                    </p>
-                    <h3 className="mt-2 text-xl font-bold text-slate-950">
-                      Live moderation snapshot
-                    </h3>
-                  </div>
-                  <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  </div>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Pending NIC review
-                        </p>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Workers waiting for manual verification.
-                        </p>
-                      </div>
-                      <span className="text-2xl font-bold text-slate-950">
-                        {pendingWorkers.length}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Open reports
-                        </p>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Reported issues that still need resolution.
-                        </p>
-                      </div>
-                      <span className="text-2xl font-bold text-slate-950">
-                        {openReports.length}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="rounded-[1.25rem] border border-white bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Resolved reports
-                        </p>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Moderation actions already completed.
-                        </p>
-                      </div>
-                      <span className="text-2xl font-bold text-slate-950">
-                        {reviewedReports.length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
-            <StatCard
-              icon={Users}
-              label="Total Users"
-              value={stats?.total_users}
-              sub="Platform accounts"
-              color="sky"
-              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-            />
-            <StatCard
-              icon={Shield}
-              label="Workers"
-              value={stats?.total_workers}
-              sub="Service providers"
-              color="violet"
-              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-            />
-            <StatCard
-              icon={Briefcase}
-              label="Total Jobs"
-              value={stats?.total_jobs}
-              sub="Jobs ever posted"
-              color="emerald"
-              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-            />
-            <StatCard
-              icon={Briefcase}
-              label="Open Jobs"
-              value={stats?.open_jobs}
-              sub="Currently awaiting workers"
-              color="amber"
-              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-            />
-            <StatCard
-              icon={FileText}
-              label="Open Reports"
-              value={stats?.open_reports}
-              sub="Needs moderation action"
-              color="rose"
-              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-            />
-            <StatCard
-              icon={Bot}
-              label="AI Matching Opted Out"
-              value={stats?.ai_matching_opted_out}
-              sub="Workers excluded from AI suggestions"
-              color="violet"
-              className="shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-            />
+      <Page>
+        <UiPageHeader title="Admin overview" description="Marketplace activity and the queues that need you." />
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+            <StatTile icon={Users} tone="sky" label="Users" value={stats?.total_users} note="All accounts" to="/admin/users" />
+            <StatTile icon={Shield} tone="violet" label="Workers" value={stats?.total_workers} note="Service providers" to="/admin/workers" />
+            <StatTile icon={Briefcase} tone="indigo" label="Jobs" value={stats?.total_jobs} note="Ever posted" to="/admin/jobs" />
+            <StatTile icon={Clock3} tone="teal" label="Open jobs" value={stats?.open_jobs} note="Waiting for a worker" />
+            <StatTile icon={FileText} tone="rose" label="Open reports" value={stats?.open_reports} note="Need moderation" to="/admin/reports" />
+            <StatTile icon={Bot} tone="amber" label="AI opted out" value={stats?.ai_matching_opted_out} note="Workers not matched by AI" />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <Card className="p-6 shadow-[0_16px_44px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Quick Actions
-                  </p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-950">
-                    Common admin tasks
-                  </h3>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
+            <UiCard aria-labelledby="admin-attention" className="self-start">
+              <CardHeader
+                id="admin-attention"
+                title="Needs attention"
+                actions={attention.length > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{attention.length}</span>}
+              />
+              {attention.length === 0 ? (
+                <div className="flex flex-col items-center px-5 py-8 text-center">
+                  <IconChip icon={CheckCircle} tone="emerald" />
+                  <p className="mt-3 text-sm font-semibold text-fg">All queues are clear</p>
+                  <p className="mt-0.5 text-[13px] text-fg-muted">New reviews, reports and disputes show up here.</p>
                 </div>
-                <BarChart3 className="h-5 w-5 text-slate-300" />
-              </div>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {attention.map(({ key, ...item }) => <AttentionItem key={key} {...item} />)}
+                </ul>
+              )}
+            </UiCard>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {actionCards.map(({ to, icon: Icon, title, desc, accent }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    className="group rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-900"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          "flex h-11 w-11 items-center justify-center rounded-2xl border",
-                          accentClasses[accent],
-                        )}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-semibold text-slate-900">
-                            {title}
-                          </p>
-                          <ArrowRight className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" />
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          {desc}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
+            <UiCard aria-labelledby="admin-tools">
+              <CardHeader id="admin-tools" title="Admin tools" />
+              <ul className="grid divide-y divide-line sm:grid-cols-2 sm:divide-y-0">
+                {tools.map(({ to, icon, tone, title, desc }) => (
+                  <li key={to} className="sm:border-b sm:border-line sm:odd:border-r sm:[&:nth-last-child(-n+2)]:border-b-0">
+                    <Link to={to} className="group flex items-start gap-3 px-4 py-4 transition-colors hover:bg-subtle sm:px-5">
+                      <IconChip icon={icon} tone={tone} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2 text-sm font-semibold text-fg">
+                          {title}
+                          <ArrowRight className="h-4 w-4 text-fg-subtle transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                        </span>
+                        <span className="mt-0.5 block text-[13px] leading-5 text-fg-muted">{desc}</span>
+                      </span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
-            </Card>
-
-            <Card className="p-6 shadow-[0_16px_44px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Queue Summary
-                  </p>
-                  <h3 className="mt-2 text-xl font-bold text-slate-950">
-                    What needs attention now
-                  </h3>
-                </div>
-                <Clock3 className="h-5 w-5 text-slate-300" />
-              </div>
-
-              <div className="mt-5 space-y-4">
-                <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        Worker verification queue
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Pending NIC reviews waiting for an admin decision.
-                      </p>
-                    </div>
-                    <span className="text-2xl font-bold text-slate-950">
-                      {pendingWorkers.length}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        Open moderation reports
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        User and job issues still waiting to be processed.
-                      </p>
-                    </div>
-                    <span className="text-2xl font-bold text-slate-950">
-                      {openReports.length}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        Operational health
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Open jobs relative to total jobs on the platform.
-                      </p>
-                    </div>
-                    <span className="text-2xl font-bold text-slate-950">
-                      {stats?.total_jobs
-                        ? `${Math.round(((stats?.open_jobs || 0) / stats.total_jobs) * 100)}%`
-                        : "0%"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
+              </ul>
+            </UiCard>
           </div>
         </div>
-      </div>
+      </Page>
     </AppShell>
   );
 }
@@ -507,152 +242,85 @@ export function AdminUsers() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-7xl space-y-5">
-        <PageHeader
-          title="User Management"
-          description={`${data?.total || 0} users`}
-        />
+      <Page>
+        <UiPageHeader title="Users" description={data ? `${data.total || 0} accounts` : "Search and manage accounts."} />
 
-        <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              className="fixly-input pl-9"
-              placeholder="Search users..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <UiCard as="div" className="mb-5 p-3 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
+              <input type="search" aria-label="Search users" className="fixly-input pl-9" placeholder="Search by name or email" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <select aria-label="Filter by role" className="fixly-input fixly-select sm:w-40" value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="">All roles</option>
+              <option value="customer">Customers</option>
+              <option value="worker">Workers</option>
+            </select>
           </div>
-          <select
-            className="fixly-input w-36 bg-white"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="">All Roles</option>
-            <option value="customer">Customer</option>
-            <option value="worker">Worker</option>
-          </select>
-        </div>
+        </UiCard>
 
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
+          <UiCard className="space-y-3 p-5">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</UiCard>
+        ) : users.length === 0 ? (
+          <UiCard><EmptyState icon={Users} title="No users found" description="Try a different name, email or role." /></UiCard>
         ) : (
           <>
-          <div className="space-y-3 md:hidden">
-            {users.map((u) => (
-              <Card key={u.id} className="p-4">
-                <div className="flex items-start gap-3">
-                  <Avatar name={u.full_name} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-900">{u.full_name}</p>
-                    <p className="break-all text-xs text-slate-500">{u.email}</p>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 capitalize dark:bg-slate-800">{u.role}</span>
-                      {u.district && <span className="px-1 py-1">{u.district}</span>}
-                      {u.is_suspended && <span className="rounded-full bg-red-50 px-2 py-1 font-semibold text-red-600 dark:bg-red-950/40">Suspended</span>}
+            <ul className="space-y-3 md:hidden">
+              {users.map((u) => (
+                <UiCard as="li" key={u.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <PersonAvatar name={u.full_name} src={u.profile_photo} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-fg">{u.full_name}</p>
+                      <p className="break-all text-xs text-fg-muted">{u.email}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5"><RoleBadge role={u.role} /><UserFlags user={u} /></div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-                  <Button size="sm" variant="outline" onClick={() => setSelectedUser(u)}>Manage</Button>
-                  <Button size="sm" variant={u.is_suspended ? "success" : "danger"} onClick={() => toggleSuspension(u)} loading={isUpdating(u, "suspend")}>
-                    {u.is_suspended ? "Reinstate" : "Suspend"}
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-          <Card className="hidden md:block">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-4">
+                    <Button size="sm" variant="secondary" onClick={() => setSelectedUser(u)}>Manage</Button>
+                    <Button size="sm" variant={u.is_suspended ? "success" : "danger-ghost"} onClick={() => toggleSuspension(u)} loading={isUpdating(u, "suspend")}>
+                      {u.is_suspended ? "Reinstate" : "Suspend"}
+                    </Button>
+                  </div>
+                </UiCard>
+              ))}
+            </ul>
+            <UiCard className="hidden overflow-hidden md:block">
+              <Table>
                 <thead>
-                  <tr className="border-b border-slate-100">
-                    {["User", "Role", "District", "Status", "Actions"].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide"
-                        >
-                          {h}
-                        </th>
-                      ),
-                    )}
-                  </tr>
+                  <tr><Th>User</Th><Th>Role</Th><Th>District</Th><Th>Status</Th><Th align="right">Actions</Th></tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
+                    <tr key={u.id} className="transition-colors hover:bg-subtle/60 [&:last-child>td]:border-b-0">
+                      <Td>
                         <div className="flex items-center gap-3">
-                          <Avatar name={u.full_name} size="sm" />
-                          <div>
-                            <p className="font-medium text-slate-900">
-                              {u.full_name}
-                            </p>
-                            <p className="text-xs text-slate-500">{u.email}</p>
+                          <PersonAvatar name={u.full_name} src={u.profile_photo} />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-fg">{u.full_name}</p>
+                            <p className="truncate text-xs text-fg-muted">{u.email}</p>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full capitalize">
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {u.district || "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          {u.is_email_verified && (
-                            <span className="text-xs text-emerald-600">
-                              ✓ Email
-                            </span>
-                          )}
-                          {u.is_nic_verified && (
-                            <span className="text-xs text-sky-600">✓ NIC</span>
-                          )}
-                          {u.force_verified && (
-                            <span className="text-xs text-violet-600">
-                              ✓ Force
-                            </span>
-                          )}
-                          {u.is_suspended && (
-                            <span className="text-xs text-red-600">
-                              ⛔ Suspended
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setSelectedUser(u)}
-                          >
-                            Manage
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={u.is_suspended ? "success" : "danger"}
-                            onClick={() => toggleSuspension(u)}
-                            loading={isUpdating(u, "suspend")}
-                          >
+                      </Td>
+                      <Td><RoleBadge role={u.role} /></Td>
+                      <Td className="text-fg-muted">{u.district || "—"}</Td>
+                      <Td><div className="flex flex-wrap gap-1.5"><UserFlags user={u} /></div></Td>
+                      <Td align="right">
+                        <div className="flex justify-end gap-1.5">
+                          <Button size="sm" variant="secondary" onClick={() => setSelectedUser(u)}>Manage</Button>
+                          <Button size="sm" variant={u.is_suspended ? "success" : "danger-ghost"} onClick={() => toggleSuspension(u)} loading={isUpdating(u, "suspend")}>
                             {u.is_suspended ? "Reinstate" : "Suspend"}
                           </Button>
                         </div>
-                      </td>
+                      </Td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
-          </Card>
+              </Table>
+            </UiCard>
           </>
         )}
-      </div>
+      </Page>
 
       {/* User detail modal */}
       <Modal
@@ -669,20 +337,21 @@ export function AdminUsers() {
                 ["District", selectedUser.district || "-"],
                 ["Joined", formatDate(selectedUser.created_at)],
               ].map(([l, v]) => (
-                <div key={l}>
-                  <p className="text-slate-400 text-xs">{l}</p>
-                  <p className="font-medium">{v}</p>
+                <div key={l} className="min-w-0">
+                  <p className="text-xs text-fg-subtle">{l}</p>
+                  <p className="break-words font-medium text-fg">{v}</p>
                 </div>
               ))}
             </div>
-            <div className="border-t border-slate-100 pt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  Force Verify (bypass email)
+            <div className="space-y-3 border-t border-line pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm">
+                  <span className="block font-medium text-fg">Skip email verification</span>
+                  <span className="block text-xs text-fg-muted">Lets them post and apply before confirming their email</span>
                 </span>
                 <Button
                   size="sm"
-                  variant={selectedUser.force_verified ? "danger" : "primary"}
+                  variant={selectedUser.force_verified ? "danger-ghost" : "secondary"}
                   onClick={() =>
                     update.mutate({
                       id: selectedUser.id,
@@ -692,19 +361,18 @@ export function AdminUsers() {
                   }
                   loading={update.isPending}
                 >
-                  {selectedUser.force_verified
-                    ? "Remove Force Verify"
-                    : "Force Verify"}
+                  {selectedUser.force_verified ? "Undo" : "Skip"}
                 </Button>
               </div>
               {selectedUser.role === "worker" && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">NIC Verification</span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm">
+                    <span className="block font-medium text-fg">Verified badge</span>
+                    <span className="block text-xs text-fg-muted">Shown on the worker’s profile and cards</span>
+                  </span>
                   <Button
                     size="sm"
-                    variant={
-                      selectedUser.is_nic_verified ? "danger" : "success"
-                    }
+                    variant={selectedUser.is_nic_verified ? "danger-ghost" : "success"}
                     onClick={() =>
                       update.mutate({
                         id: selectedUser.id,
@@ -714,9 +382,7 @@ export function AdminUsers() {
                     }
                     loading={update.isPending}
                   >
-                    {selectedUser.is_nic_verified
-                      ? "Remove NIC Badge"
-                      : "Verify NIC"}
+                    {selectedUser.is_nic_verified ? "Remove badge" : "Verify"}
                   </Button>
                 </div>
               )}
@@ -775,154 +441,89 @@ export function AdminWorkers() {
   const pending = workers.filter((w) => w.nic_image_path && !w.is_nic_verified);
   return (
     <AppShell>
-      <div className="fixly-page max-w-6xl space-y-5">
-        <PageHeader
-          title="Worker Management"
-          description="Manage NIC verification"
-        />
-
-        {pending.length > 0 && (
-          <div>
-            <h2 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <span className="w-5 h-5 bg-amber-100 text-amber-700 rounded-full text-xs flex items-center justify-center font-bold">
-                {pending.length}
-              </span>
-              Pending NIC Review
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {pending.map((w) => (
-                <Card key={w.id} className="p-5 border-amber-200">
-                  <div className="flex items-start gap-3 mb-3">
-                    <Avatar name={w.full_name} size="md" />
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        {w.full_name}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {w.primary_skill} • {w.district}
-                      </p>
+      <Page>
+        <UiPageHeader title="Worker verification" description="Check NIC photos and manage verified badges." />
+        <div className="space-y-6">
+          {pending.length > 0 && (
+            <section aria-labelledby="pending-nic">
+              <h2 id="pending-nic" className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-fg">
+                Waiting for review
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{pending.length}</span>
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {pending.map((w) => (
+                  <UiCard as="article" key={w.id} className="border-amber-200 p-4 dark:border-amber-500/30 sm:p-5">
+                    <div className="mb-3 flex items-start gap-3">
+                      <PersonAvatar name={w.full_name} src={w.profile_photo} size="md" />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-fg">{w.full_name}</p>
+                        <p className="truncate text-[13px] text-fg-muted">{[w.primary_skill, w.district].filter(Boolean).join(" · ") || "Profile incomplete"}</p>
+                      </div>
                     </div>
-                  </div>
-                  {w.nic_image_path && (
-                    <PrivateNicImage src={w.nic_image_path} />
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="success"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => verify.mutate(w)}
-                      loading={verify.isPending && verify.variables?.id === w.id}
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" /> Verify
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setRejecting(w)}
-                    >
-                      <XCircle className="w-3.5 h-3.5" /> Reject
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <h2 className="font-semibold text-slate-700 mb-3">
-            All Workers ({workers.length})
-          </h2>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
-          ) : (
-            <>
-            <div className="space-y-3 md:hidden">
-              {workers.map((w) => (
-                <Card key={w.id} className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={w.full_name} size="md" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900">{w.full_name}</p>
-                      <p className="text-sm text-slate-500">{w.primary_skill || "Skill not set"}</p>
-                      <p className="mt-1 text-xs text-slate-400">{w.district || "District not set"} • {w.total_jobs_done || 0} jobs • {w.avg_rating ? `${Number(w.avg_rating).toFixed(1)}★` : "No rating"}</p>
+                    {w.nic_image_path && <PrivateNicImage src={w.nic_image_path} alt={`NIC photo for ${w.full_name}`} />}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="success" size="sm" onClick={() => verify.mutate(w)} loading={verify.isPending && verify.variables?.id === w.id}>
+                        <CheckCircle className="h-4 w-4" aria-hidden="true" /> Verify
+                      </Button>
+                      <Button variant="danger-ghost" size="sm" onClick={() => setRejecting(w)}>
+                        <XCircle className="h-4 w-4" aria-hidden="true" /> Reject
+                      </Button>
                     </div>
-                  </div>
-                  <div className="mt-3 border-t border-slate-100 pt-3 text-xs font-semibold dark:border-slate-800">
-                    {w.is_nic_verified ? <span className="text-emerald-600">✓ Identity verified</span> : w.nic_image_path ? <span className="text-amber-600">NIC review pending</span> : <span className="text-slate-400">NIC not uploaded</span>}
-                  </div>
-                </Card>
-              ))}
-            </div>
-            <Card className="hidden md:block">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      {["Worker", "Skill", "Rating", "Jobs", "NIC Status"].map(
-                        (h) => (
-                          <th
-                            key={h}
-                            className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase"
-                          >
-                            {h}
-                          </th>
-                        ),
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {workers.map((w) => (
-                      <tr key={w.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Avatar name={w.full_name} size="sm" />
-                            <div>
-                              <p className="font-medium">{w.full_name}</p>
-                              <p className="text-xs text-slate-400">
-                                {w.district}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {w.primary_skill || "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {w.avg_rating
-                            ? `${Number(w.avg_rating).toFixed(1)}★`
-                            : "-"}
-                        </td>
-                        <td className="px-4 py-3">{w.total_jobs_done || 0}</td>
-                        <td className="px-4 py-3">
-                          {w.is_nic_verified ? (
-                            <span className="text-xs text-emerald-600 font-medium">
-                              ✓ Verified
-                            </span>
-                          ) : w.nic_image_path ? (
-                            <span className="text-xs text-amber-600 font-medium">
-                              ⏳ Pending
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400">
-                              Not uploaded
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  </UiCard>
+                ))}
               </div>
-            </Card>
-            </>
+            </section>
           )}
+
+          <section aria-labelledby="all-workers">
+            <h2 id="all-workers" className="mb-3 text-[15px] font-semibold text-fg">All workers <span className="font-normal text-fg-subtle">({workers.length})</span></h2>
+            {isLoading ? (
+              <UiCard className="space-y-3 p-5">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</UiCard>
+            ) : (
+              <>
+                <ul className="space-y-3 md:hidden">
+                  {workers.map((w) => (
+                    <UiCard as="li" key={w.id} className="flex items-center gap-3 p-4">
+                      <PersonAvatar name={w.full_name} src={w.profile_photo} size="md" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-fg">{w.full_name}</p>
+                        <p className="truncate text-[13px] text-fg-muted">{w.primary_skill || "Skill not set"} · {pluralize(w.total_jobs_done || 0, "job")}</p>
+                      </div>
+                      <NicStatus worker={w} />
+                    </UiCard>
+                  ))}
+                </ul>
+                <UiCard className="hidden overflow-hidden md:block">
+                  <Table>
+                    <thead>
+                      <tr><Th>Worker</Th><Th>Skill</Th><Th align="right">Rating</Th><Th align="right">Jobs</Th><Th>NIC</Th></tr>
+                    </thead>
+                    <tbody>
+                      {workers.map((w) => (
+                        <tr key={w.id} className="transition-colors hover:bg-subtle/60 [&:last-child>td]:border-b-0">
+                          <Td>
+                            <Link to={`/workers/${w.id}`} className="flex items-center gap-3 hover:text-brand-text">
+                              <PersonAvatar name={w.full_name} src={w.profile_photo} />
+                              <span className="min-w-0">
+                                <span className="block truncate font-medium">{w.full_name}</span>
+                                <span className="block truncate text-xs text-fg-muted">{w.district || "—"}</span>
+                              </span>
+                            </Link>
+                          </Td>
+                          <Td className="text-fg-muted">{w.primary_skill || "—"}</Td>
+                          <Td align="right">{w.avg_rating ? <span className="inline-flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />{Number(w.avg_rating).toFixed(1)}</span> : "—"}</Td>
+                          <Td align="right">{w.total_jobs_done || 0}</Td>
+                          <Td><NicStatus worker={w} /></Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </UiCard>
+              </>
+            )}
+          </section>
         </div>
-      </div>
+      </Page>
 
       <ConfirmDialog
         open={Boolean(rejecting)}
@@ -955,7 +556,7 @@ export function AdminCategories() {
   const add = useMutation({
     mutationFn: () => api.post("/admin/categories", newCat),
     onSuccess: () => {
-      toast({ title: "Category added!", variant: "success" });
+      toast({ title: "Category added", variant: "success" });
       qc.invalidateQueries({ queryKey: ["admin-categories"] });
       setNewCat({ name: "", icon: "" });
       setAdding(false);
@@ -970,56 +571,40 @@ export function AdminCategories() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-5xl space-y-5">
-        <PageHeader
+      <Page width="narrow">
+        <UiPageHeader
           title="Categories"
-          action={
-            <Button variant="primary" size="sm" onClick={() => setAdding(true)}>
-              + Add Category
-            </Button>
-          }
+          description="The services customers can post jobs for."
+          actions={<Button onClick={() => setAdding(true)}><Plus className="h-4 w-4" aria-hidden="true" /> Add category</Button>}
         />
 
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Spinner />
-          </div>
+          <UiCard className="space-y-3 p-5">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</UiCard>
         ) : (
-          <Card>
-            <div className="divide-y divide-slate-50">
-              {cats.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 p-4">
-                  <div className="w-8 h-8 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600 text-sm">
-                    {c.icon || "🔧"}
-                  </div>
-                  <span
-                    className={cn(
-                      "flex-1 font-medium text-sm",
-                      !c.is_active && "line-through text-slate-400",
-                    )}
-                  >
-                    {c.name}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant={c.is_active ? "outline" : "success"}
-                    onClick={() =>
-                      toggle.mutate({ id: c.id, is_active: !c.is_active })
-                    }
-                  >
-                    {c.is_active ? "Disable" : "Enable"}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <UiCard>
+            <ul className="divide-y divide-line">
+              {cats.map((c) => {
+                const { icon, tone } = categoryStyle(c.name);
+                return (
+                  <li key={c.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+                    <IconChip icon={icon} tone={c.is_active ? tone : "slate"} size="sm" />
+                    <span className={cn("flex-1 text-sm font-medium", c.is_active ? "text-fg" : "text-fg-subtle line-through")}>{c.name}</span>
+                    {!c.is_active && <StatusBadge tone="slate">Hidden</StatusBadge>}
+                    <Button size="sm" variant={c.is_active ? "ghost" : "secondary"} onClick={() => toggle.mutate({ id: c.id, is_active: !c.is_active })} loading={toggle.isPending && toggle.variables?.id === c.id}>
+                      {c.is_active ? "Hide" : "Show"}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </UiCard>
         )}
-      </div>
+      </Page>
 
       <Modal
         open={adding}
         onClose={() => setAdding(false)}
-        title="Add Category"
+        title="Add a category"
       >
         <div className="space-y-4">
           <Input
@@ -1034,11 +619,10 @@ export function AdminCategories() {
             onChange={(e) => setNewCat((c) => ({ ...c, icon: e.target.value }))}
             placeholder="e.g. ☀️"
           />
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
               variant="secondary"
               onClick={() => setAdding(false)}
-              className="flex-1"
             >
               Cancel
             </Button>
@@ -1047,13 +631,32 @@ export function AdminCategories() {
               onClick={() => add.mutate()}
               loading={add.isPending}
               disabled={!newCat.name}
-              className="flex-1"
             >
-              Add Category
+              Add category
             </Button>
           </div>
         </div>
       </Modal>
     </AppShell>
   );
+}
+
+function RoleBadge({ role }) {
+  return <StatusBadge tone={role === "worker" ? "violet" : role === "admin" ? "rose" : "sky"}>{role === "worker" ? "Worker" : role === "admin" ? "Admin" : "Customer"}</StatusBadge>;
+}
+
+function UserFlags({ user }) {
+  return (
+    <>
+      {user.is_suspended && <StatusBadge tone="rose">Suspended</StatusBadge>}
+      {user.is_nic_verified && <StatusBadge tone="sky">ID verified</StatusBadge>}
+      {user.is_email_verified ? <StatusBadge tone="emerald">Email verified</StatusBadge> : user.force_verified ? <StatusBadge tone="indigo">Email skipped</StatusBadge> : <StatusBadge tone="amber">Email unverified</StatusBadge>}
+    </>
+  );
+}
+
+function NicStatus({ worker }) {
+  if (worker.is_nic_verified) return <StatusBadge tone="emerald">Verified</StatusBadge>;
+  if (worker.nic_image_path) return <StatusBadge tone="amber">Pending</StatusBadge>;
+  return <StatusBadge tone="slate">Not uploaded</StatusBadge>;
 }

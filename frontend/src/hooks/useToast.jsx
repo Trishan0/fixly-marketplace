@@ -39,18 +39,19 @@ export function ToastProvider({ children }) {
   }, [])
 
   const icons = { success: CheckCircle, error: XCircle, warning: AlertTriangle, default: Info }
-  const colors = {
-    success: 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-100',
-    error: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-100',
-    warning: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-100',
-    default: 'bg-white border-slate-200 text-slate-800 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100',
+  // White card with a coloured icon, matching the rest of the interface.
+  const iconTones = {
+    success: 'bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20',
+    error: 'bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20',
+    warning: 'bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20',
+    default: 'bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20',
   }
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[100] flex flex-col gap-2 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-full sm:max-w-sm lg:bottom-4"
+        className="pointer-events-none fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[100] flex flex-col gap-2 sm:inset-x-auto sm:bottom-4 sm:right-5 sm:w-full sm:max-w-sm lg:bottom-5"
         role="region"
         aria-label="Notifications"
       >
@@ -65,14 +66,16 @@ export function ToastProvider({ children }) {
                 onMouseLeave={() => schedule(item.id, item.variant)}
                 onFocus={() => clearTimeout(timers.current.get(item.id))}
                 onBlur={() => schedule(item.id, item.variant)}
-                className={`animate-toast-in pointer-events-auto flex items-start gap-3 rounded-2xl border p-4 shadow-lg ${colors[item.variant] || colors.default}`}
+                className="animate-toast-in pointer-events-auto flex items-start gap-3 rounded-card border border-line bg-surface p-3.5 text-fg shadow-overlay"
               >
-                <Icon className="mt-0.5 h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${iconTones[item.variant] || iconTones.default}`}>
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </span>
                 <div className="min-w-0 flex-1">
-                  {item.title && <p className="text-sm font-semibold">{item.title}</p>}
-                  {item.description && <p className="mt-0.5 text-sm opacity-90">{item.description}</p>}
+                  {item.title && <p className="pt-1 text-sm font-semibold text-fg">{item.title}</p>}
+                  {item.description && <p className="mt-0.5 text-[13px] leading-5 text-fg-muted">{item.description}</p>}
                 </div>
-                <button type="button" onClick={() => dismiss(item.id)} className="-m-2 flex h-11 w-11 items-center justify-center rounded-xl opacity-70 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10" aria-label="Dismiss notification">
+                <button type="button" onClick={() => dismiss(item.id)} className="-m-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-control text-fg-subtle hover:bg-subtle hover:text-fg" aria-label="Dismiss notification">
                   <X className="h-4 w-4" />
                 </button>
               </div>

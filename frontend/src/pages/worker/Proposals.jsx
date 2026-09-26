@@ -75,7 +75,7 @@ export default function Proposals() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-5xl space-y-5">
+      <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader title="My proposals" description="Every job you’ve applied for, and what happened" />
 
         <div className="fixly-tab-strip" role="tablist" aria-label="Filter proposals">
@@ -83,7 +83,7 @@ export default function Proposals() {
             <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={cn('fixly-tab', tab === t.key && 'active')}>
               {t.label}
               {typeof counts?.[t.countKey] === 'number' && (
-                <span className="ml-1.5 rounded-full bg-slate-200/70 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">{counts[t.countKey]}</span>
+                <span className="ml-1.5 rounded-full bg-subtle px-1.5 py-0.5 text-[11px] font-bold text-fg-muted">{counts[t.countKey]}</span>
               )}
             </button>
           ))}
@@ -112,22 +112,22 @@ export default function Proposals() {
                         <Badge status={proposal.status} />
                         {proposal.category_name && <span className="fixly-pill-sky">{proposal.category_name}</span>}
                       </div>
-                      <Link to={`/jobs/${proposal.job_id}`} className="text-lg font-bold text-slate-900 hover:text-sky-700 dark:hover:text-sky-300">{proposal.job_title}</Link>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                      <Link to={`/jobs/${proposal.job_id}`} className="text-lg font-bold text-fg hover:text-brand-text">{proposal.job_title}</Link>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-subtle">
                         <span>{proposal.customer_name}</span>
                         {proposal.district && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" aria-hidden="true" />{proposal.district}</span>}
                         <span>Updated {formatRelativeTime(proposal.updated_at)}</span>
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-slate-500">Your price</p>
-                      <p className="font-bold text-slate-900">
+                      <p className="text-xs text-fg-subtle">Your price</p>
+                      <p className="font-bold text-fg">
                         {proposal.proposed_price ? formatCurrency(proposal.proposed_price) : proposal.inspection_needed ? 'After inspection' : 'Not sent yet'}
                       </p>
                     </div>
                   </div>
-                  <p className={cn('mt-3 text-sm', needsQuote(proposal) ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300')}>{outcome(proposal)}</p>
-                  <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+                  <p className={cn('mt-3 text-sm', needsQuote(proposal) ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-fg-muted')}>{outcome(proposal)}</p>
+                  <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
                     {open && (
                       <Link to={`/jobs/${proposal.job_id}/propose`} className={cn(needsQuote(proposal) ? 'fixly-btn-primary' : 'fixly-btn-secondary', 'min-h-11 gap-1.5 px-4 text-sm')}>
                         <Pencil className="h-4 w-4" aria-hidden="true" /> {needsQuote(proposal) ? 'Add your price' : 'Edit proposal'}
@@ -138,9 +138,9 @@ export default function Proposals() {
                         <MessagesSquare className="h-4 w-4" aria-hidden="true" /> Message customer
                       </Link>
                     )}
-                    <Link to={`/jobs/${proposal.job_id}`} className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">View job</Link>
+                    <Link to={`/jobs/${proposal.job_id}`} className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-fg-muted hover:bg-subtle">View job</Link>
                     {open && (
-                      <Button variant="ghost" className="ml-auto text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40" onClick={() => setWithdrawing(proposal)}>
+                      <Button variant="ghost" className="ml-auto text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10" onClick={() => setWithdrawing(proposal)}>
                         Withdraw
                       </Button>
                     )}

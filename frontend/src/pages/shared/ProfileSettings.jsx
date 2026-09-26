@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Upload, Camera, Trash2, Save, Bot, BadgeCheck, Clock, ShieldAlert } from 'lucide-react'
+import { BadgeCheck, Bot, Camera, Clock, Eye, LayoutDashboard, Save, ShieldAlert, Smartphone, Trash2, Upload } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Button, Card, Input, Textarea, Select, PageHeader, Avatar, Toggle } from '../../components/shared/UI'
+import { Avatar, Input, Select, Textarea, Toggle } from '../../components/shared/UI'
+import { Button, Card, IconChip, Page, PageHeader, StatusBadge, buttonClasses } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
 import { DISTRICTS, cn } from '../../lib/utils'
@@ -107,113 +108,111 @@ export function ProfilePage() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-4xl space-y-5">
+      <Page width="default">
         <PageHeader
-          title="Edit Profile"
-          description="Update the information shown on your public profile"
-          action={<Link to="/profile"><Button variant="outline">View Public Profile</Button></Link>}
+          title="Edit profile"
+          description="Update what people see on your public profile."
+          actions={<Button to="/profile" variant="secondary"><Eye className="h-4 w-4" aria-hidden="true" /> View public profile</Button>}
         />
 
-        {/* Photo */}
-        <Card className="p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-800 mb-4">Profile Photo</h3>
-          <div className="flex flex-wrap items-center gap-4">
-            <Avatar name={user?.full_name} src={user?.profile_photo} size="xl" />
-            <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700 dark:text-slate-200">
-              {uploadPhoto.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Camera className="w-4 h-4" />}
-              {uploadPhoto.isPending ? 'Uploading…' : 'Change photo'}
-              <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadPhoto.isPending} onChange={pickFile(uploadPhoto)} />
-            </label>
-            <p className="w-full text-xs text-slate-500 sm:w-auto">JPEG, PNG or WebP, up to 5 MB.</p>
-          </div>
-        </Card>
-
-        {/* Basic info */}
-        <Card className="space-y-4 p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-800">Basic Information</h3>
-          <Input label="Full Name" value={form.full_name} onChange={set('full_name')} />
-          <Input label="Phone" type="tel" value={form.phone} onChange={set('phone')} placeholder="077 123 4567" />
-          <Select label="District" value={form.district} onChange={set('district')}>
-            <option value="">Select district</option>
-            {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
-          </Select>
-          <Input label="Area / Town" value={form.area} onChange={set('area')} placeholder="e.g. Nugegoda" />
-        </Card>
-
-        {/* Worker-specific */}
-        {user?.role === 'worker' && (
-          <Card className="space-y-4 p-4 sm:p-6">
-            <h3 className="font-semibold text-slate-800">Worker Details</h3>
-            <Select label="Primary Skill" value={form.primary_skill} onChange={set('primary_skill')}>
-              <option value="">Select skill</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </Select>
-            <Input label="Starting price (LKR)" inputMode="decimal" value={form.starting_price} onChange={set('starting_price')} placeholder="e.g. 2500" error={startingPriceError} />
-            <Textarea label="Bio" value={form.bio} onChange={set('bio')} placeholder="Describe your experience and expertise..." rows={4} />
-          </Card>
-        )}
-
-        {/* NIC Verification */}
-        {user?.role === 'worker' && (
-        <Card id="identity" className="scroll-mt-24 p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-800 mb-2">Identity verification</h3>
-          <p className="text-sm text-slate-500 mb-4">
-            Upload a clear photo of your NIC to get a verified badge. Only Fixly reviewers see it; it is never shown on your profile.
-            {' '}See our <Link to="/privacy" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">Privacy Policy</Link>.
-          </p>
-          {nicStatus === 'verified' ? (
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"><BadgeCheck className="h-5 w-5" aria-hidden="true" /> Verified — the badge is on your profile</p>
-          ) : nicStatus === 'pending' ? (
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300"><Clock className="h-5 w-5" aria-hidden="true" /> Under review — we’ll notify you when it’s checked</p>
-          ) : (
-            <div className="space-y-3">
-              {nicStatus === 'rejected' && (
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200" role="status">
-                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  <p><span className="font-semibold">We couldn’t verify your last photo.</span>{nicRejectionReason ? ` Reason: ${nicRejectionReason}.` : ''} Please upload a new, clear photo showing the whole card.</p>
-                </div>
-              )}
-              <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700 dark:text-slate-200">
-                {uploadNic.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Upload className="w-4 h-4" />}
-                {uploadNic.isPending ? 'Uploading…' : nicStatus === 'rejected' ? 'Upload a new photo' : 'Upload NIC'}
-                <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadNic.isPending} onChange={pickFile(uploadNic)} />
-              </label>
-            </div>
-          )}
-        </Card>
-        )}
-
-        {/* Portfolio (workers only) */}
-        {user?.role === 'worker' && (
-          <Card className="p-4 sm:p-6">
-            <h3 className="font-semibold text-slate-800 mb-1">Portfolio photos</h3>
-            <p className="mb-4 text-sm text-slate-500">{portfolioPhotos.length} of 10 · Photos of your finished work help customers choose you.</p>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {portfolioPhotos.map((p, index) => (
-                <div key={p.id} className="relative aspect-square">
-                  <img src={p.path} alt={`Portfolio photo ${index + 1}`} className="w-full h-full object-cover rounded-xl" />
-                  <button type="button" onClick={() => setRemovingPhoto(p)} aria-label={`Remove portfolio photo ${index + 1}`}
-                    className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              {portfolioPhotos.length < 10 && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-400 focus-within:ring-2 focus-within:ring-sky-500 flex flex-col items-center justify-center cursor-pointer dark:border-slate-700">
-                  {uploadPortfolio.isPending ? <span className="mb-1 h-5 w-5 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" /> : <Upload className="w-5 h-5 text-slate-500 mb-1" />}
-                  <span className="text-xs font-semibold text-slate-500">{uploadPortfolio.isPending ? 'Uploading…' : 'Add photo'}</span>
-                  <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadPortfolio.isPending} onChange={pickFile(uploadPortfolio)} />
+        <div className="space-y-6">
+          <SettingsSection title="Profile photo" description="A clear, friendly photo of your face builds trust.">
+            <div className="flex flex-wrap items-center gap-4">
+              <Avatar name={user?.full_name} src={user?.profile_photo} size="xl" />
+              <div className="space-y-1.5">
+                <label className={buttonClasses({ variant: 'secondary', className: 'cursor-pointer focus-within:ring-2 focus-within:ring-brand' })}>
+                  {uploadPhoto.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Camera className="h-4 w-4" aria-hidden="true" />}
+                  {uploadPhoto.isPending ? 'Uploading…' : 'Change photo'}
+                  <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadPhoto.isPending} onChange={pickFile(uploadPhoto)} />
                 </label>
-              )}
+                <p className="text-xs text-fg-subtle">JPEG, PNG or WebP, up to 5 MB. Saves straight away.</p>
+              </div>
             </div>
-          </Card>
-        )}
+          </SettingsSection>
 
-        <Button variant="primary" size="lg" onClick={() => save.mutate()} loading={save.isPending} disabled={Boolean(startingPriceError)} className="w-full">
-          <Save className="w-4 h-4" /> Save profile details
-        </Button>
-        <p className="-mt-2 text-center text-xs text-slate-500">Photos and your NIC save as soon as you upload them.</p>
-      </div>
+          <SettingsSection title="Basic information" description="Your name and where you are. Your phone number is only shared once a job is agreed.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2"><Input label="Full name" value={form.full_name} onChange={set('full_name')} /></div>
+              <Input label="Phone" type="tel" value={form.phone} onChange={set('phone')} placeholder="077 123 4567" />
+              <Select label="District" value={form.district} onChange={set('district')}>
+                <option value="">Choose a district</option>
+                {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </Select>
+              <div className="sm:col-span-2"><Input label="Area or town" value={form.area} onChange={set('area')} placeholder="e.g. Nugegoda" /></div>
+            </div>
+          </SettingsSection>
+
+          {user?.role === 'worker' && (
+            <SettingsSection title="Work details" description="What you do and roughly what you charge. Customers compare these first.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Select label="Main skill" value={form.primary_skill} onChange={set('primary_skill')}>
+                  <option value="">Choose a skill</option>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </Select>
+                <Input label="Starting price (LKR)" inputMode="decimal" value={form.starting_price} onChange={set('starting_price')} placeholder="e.g. 2500" error={startingPriceError} />
+                <div className="sm:col-span-2">
+                  <Textarea label="About you" value={form.bio} onChange={set('bio')} placeholder="Your experience, the kind of work you do best, and anything included in your price." rows={4} />
+                </div>
+              </div>
+            </SettingsSection>
+          )}
+
+          <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end lg:pl-[calc(16rem+1.5rem)]">
+            <p className="text-center text-xs text-fg-subtle sm:mr-auto sm:text-left">Photos and your NIC save as soon as you upload them.</p>
+            <Button onClick={() => save.mutate()} loading={save.isPending} disabled={Boolean(startingPriceError)}>
+              <Save className="h-4 w-4" aria-hidden="true" /> Save changes
+            </Button>
+          </div>
+
+          {user?.role === 'worker' && (
+            <SettingsSection id="identity" title="Identity verification" description="Get a verified badge by uploading a photo of your NIC. Only Fixly reviewers see it.">
+              {nicStatus === 'verified' ? (
+                <p className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"><BadgeCheck className="h-5 w-5" aria-hidden="true" /> Verified — the badge is on your profile</p>
+              ) : nicStatus === 'pending' ? (
+                <p className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300"><Clock className="h-5 w-5" aria-hidden="true" /> Under review — we’ll notify you when it’s checked</p>
+              ) : (
+                <div className="space-y-3">
+                  {nicStatus === 'rejected' && (
+                    <div className="flex items-start gap-2 rounded-control border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200" role="status">
+                      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <p><span className="font-semibold">We couldn’t verify your last photo.</span>{nicRejectionReason ? ` Reason: ${nicRejectionReason}.` : ''} Please upload a new, clear photo showing the whole card.</p>
+                    </div>
+                  )}
+                  <label className={buttonClasses({ variant: 'secondary', className: 'cursor-pointer focus-within:ring-2 focus-within:ring-brand' })}>
+                    {uploadNic.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Upload className="h-4 w-4" aria-hidden="true" />}
+                    {uploadNic.isPending ? 'Uploading…' : nicStatus === 'rejected' ? 'Upload a new photo' : 'Upload NIC'}
+                    <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadNic.isPending} onChange={pickFile(uploadNic)} />
+                  </label>
+                  <p className="text-xs text-fg-subtle">It’s never shown on your profile. See our <Link to="/privacy" className="font-semibold text-brand-text underline underline-offset-2">Privacy Policy</Link>.</p>
+                </div>
+              )}
+            </SettingsSection>
+          )}
+
+          {user?.role === 'worker' && (
+            <SettingsSection title="Portfolio" description={`${portfolioPhotos.length} of 10 photos. Pictures of finished work help customers choose you.`}>
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {portfolioPhotos.map((p, index) => (
+                  <div key={p.id} className="relative aspect-square">
+                    <img src={p.path} alt={`Portfolio photo ${index + 1}`} className="h-full w-full rounded-control border border-line object-cover" />
+                    <button type="button" onClick={() => setRemovingPhoto(p)} aria-label={`Remove portfolio photo ${index + 1}`}
+                      className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/60 text-[#fff] hover:bg-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                {portfolioPhotos.length < 10 && (
+                  <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-control border-2 border-dashed border-line-strong bg-subtle/50 transition-colors hover:border-brand hover:bg-brand-subtle focus-within:ring-2 focus-within:ring-brand">
+                    {uploadPortfolio.isPending ? <span className="mb-1 h-5 w-5 animate-spin rounded-full border-2 border-fg-subtle border-t-transparent" /> : <Upload className="mb-1 h-5 w-5 text-fg-subtle" aria-hidden="true" />}
+                    <span className="text-xs font-semibold text-fg-muted">{uploadPortfolio.isPending ? 'Uploading…' : 'Add photo'}</span>
+                    <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadPortfolio.isPending} onChange={pickFile(uploadPortfolio)} />
+                  </label>
+                )}
+              </div>
+            </SettingsSection>
+          )}
+        </div>
+      </Page>
 
       <ConfirmDialog
         open={Boolean(removingPhoto)}
@@ -225,7 +224,7 @@ export function ProfilePage() {
         confirmLabel="Remove photo"
         tone="danger"
       >
-        {removingPhoto && <img src={removingPhoto.path} alt="" className="h-40 w-full rounded-xl object-cover" />}
+        {removingPhoto && <img src={removingPhoto.path} alt="" className="h-40 w-full rounded-control object-cover" />}
       </ConfirmDialog>
     </AppShell>
   )
@@ -257,99 +256,108 @@ export function SettingsPage() {
     onError: (e) => toast({ title: 'Couldn’t update AI matching', description: errorMessage(e), variant: 'error' }),
   })
 
+  const emailVerified = user?.is_email_verified || user?.force_verified
   return (
     <AppShell>
-      <div className="fixly-page max-w-4xl space-y-5">
-        <PageHeader title="Settings" />
-        {user?.role === 'customer' && <EmailVerificationNotice />}
+      <Page width="default">
+        <PageHeader title="Settings" description="Your account and how Fixly works for you." />
+        {user?.role === 'customer' && <div className="mb-6"><EmailVerificationNotice /></div>}
 
-        <Card className="p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-800 mb-1">Account</h3>
-          <p className="text-sm text-slate-500 mb-4">Your account details</p>
-          <div className="space-y-2 text-sm">
-            <div className="grid gap-1 border-b border-slate-50 py-2 sm:grid-cols-[auto_1fr] sm:gap-4">
-              <span className="text-slate-500">Email</span>
-              <span className="break-all font-medium sm:text-right">{user?.email}</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-slate-50">
-              <span className="text-slate-500">Role</span>
-              <span className="font-medium capitalize">{user?.role}</span>
-            </div>
-            <div className="flex justify-between py-2">
-              <span className="text-slate-500">Email Verified</span>
-              <span className={user?.is_email_verified || user?.force_verified ? 'text-emerald-600 font-medium' : 'text-amber-600 font-medium'}>
-                {user?.is_email_verified || user?.force_verified ? '✓ Verified' : 'Not Verified'}
-              </span>
-            </div>
-          </div>
-        </Card>
+        <div className="space-y-6">
+          <SettingsSection title="Account" description="The details you sign in with.">
+            <dl className="divide-y divide-line text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3">
+                <dt className="text-fg-muted">Email</dt>
+                <dd className="break-all font-medium text-fg">{user?.email}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-2 py-3">
+                <dt className="text-fg-muted">Account type</dt>
+                <dd className="font-medium capitalize text-fg">{user?.role}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-3">
+                <dt className="text-fg-muted">Email status</dt>
+                <dd>{emailVerified
+                  ? <StatusBadge tone="emerald">Verified</StatusBadge>
+                  : <StatusBadge tone="amber">Not verified</StatusBadge>}</dd>
+              </div>
+            </dl>
+          </SettingsSection>
 
-        <Card className="p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-800 mb-1">Appearance</h3>
-          <p className="text-sm text-slate-500 mb-4">Choose how Fixly should look on this device</p>
-          <ThemeModeSelector />
-        </Card>
+          <SettingsSection title="Appearance" description="Choose how Fixly looks on this device.">
+            <ThemeModeSelector />
+          </SettingsSection>
 
-        {user?.role === 'worker' && (
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-900/30">
-                  <Bot className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+          {user?.role === 'worker' && (
+            <SettingsSection title="AI job matching" description="Let Fixly’s assistant recommend you to customers based on your skills, bio and reviews.">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <IconChip icon={Bot} tone="violet" />
+                  <div>
+                    <p className="text-sm font-semibold text-fg">Include me in AI matching</p>
+                    <p className="mt-0.5 text-[13px] leading-5 text-fg-muted">
+                      {aiMatchingOptIn
+                        ? 'You may be recommended and invited to jobs that fit your skills, without sending a proposal first.'
+                        : 'You won’t be recommended automatically. Customers only see you when you send a proposal.'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-800 dark:text-white">AI Job Matching</h3>
-                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                    Lets Fixly's AI recommend you to customers automatically, based on your skills, bio, and past reviews.
-                  </p>
-                </div>
+                <Toggle
+                  checked={aiMatchingOptIn}
+                  onChange={(next) => setAiMatching.mutate(next)}
+                  disabled={setAiMatching.isPending}
+                  label="Include me in AI job matching"
+                  className="mt-1"
+                />
               </div>
-              <Toggle
-                checked={aiMatchingOptIn}
-                onChange={(next) => setAiMatching.mutate(next)}
-                disabled={setAiMatching.isPending}
-                label="Include me in AI job matching"
-                className="mt-1"
-              />
-            </div>
+            </SettingsSection>
+          )}
 
-            {aiMatchingOptIn ? (
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ Included in AI matching</p>
-                <p className="mt-1 text-xs leading-relaxed text-emerald-600 dark:text-emerald-400">
-                  When a customer posts a job that fits your skills, our AI agent reads your profile, bio, and past customer
-                  reviews to decide if you're a strong match — you may be recommended and invited without sending a
-                  proposal yourself.
-                </p>
+          {user?.role === 'worker' && (
+            <SettingsSection title="Dashboard" description="Pick the home screen that suits you best.">
+              <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Dashboard mode">
+                {[
+                  ['standard', LayoutDashboard, 'Standard', 'Everything at a glance: stats, jobs and your profile.'],
+                  ['simplified', Smartphone, 'Simple', 'Big buttons and fewer options. Easier on a phone.'],
+                ].map(([value, Icon, label, description]) => {
+                  const selected = user?.dashboard_mode === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setMode.mutate(value)}
+                      className={cn(
+                        'flex items-start gap-3 rounded-control border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                        selected ? 'border-brand bg-brand-subtle ring-1 ring-brand' : 'border-line bg-surface hover:border-line-strong hover:bg-subtle',
+                      )}
+                    >
+                      <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', selected ? 'text-brand-text' : 'text-fg-subtle')} aria-hidden="true" />
+                      <span>
+                        <span className="block text-sm font-semibold text-fg">{label}</span>
+                        <span className="mt-0.5 block text-[13px] leading-5 text-fg-muted">{description}</span>
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
-            ) : (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">⛔ Excluded from AI matching</p>
-                <p className="mt-1 text-xs leading-relaxed text-amber-600 dark:text-amber-400">
-                  You won't be recommended by the AI matching system, so customers will only see you if you send a
-                  proposal yourself. Turn this on any time to start getting discovered automatically.
-                </p>
-              </div>
-            )}
-          </Card>
-        )}
-
-        {user?.role === 'worker' && (
-          <Card className="p-4 sm:p-6">
-            <h3 className="font-semibold text-slate-800 mb-1">Dashboard Mode</h3>
-            <p className="text-sm text-slate-500 mb-4">Choose your preferred dashboard experience</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[['standard', '🖥️ Standard', 'Full-featured dashboard with all details'], ['simplified', '📱 Simplified', 'Large buttons, fewer options, easier to use']].map(([v, l, d]) => (
-                <button key={v} type="button" onClick={() => setMode.mutate(v)} aria-pressed={user?.dashboard_mode === v}
-                  className={cn('min-h-28 rounded-2xl border p-3 text-left transition-all sm:p-4', user?.dashboard_mode === v ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'border-slate-200 hover:border-sky-200 dark:border-slate-700')}>
-                  <p className="font-semibold text-sm">{l}</p>
-                  <p className="text-xs text-slate-500 mt-1">{d}</p>
-                </button>
-              ))}
-            </div>
-          </Card>
-        )}
-      </div>
+            </SettingsSection>
+          )}
+        </div>
+      </Page>
     </AppShell>
+  )
+}
+
+/** Settings row: what the section is on the left, the controls in a card on the right. */
+function SettingsSection({ id, title, description, children }) {
+  return (
+    <section id={id} className="grid scroll-mt-24 gap-3 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-6" aria-labelledby={id ? `${id}-title` : undefined}>
+      <div className="lg:pt-1">
+        <h2 id={id ? `${id}-title` : undefined} className="text-[15px] font-semibold text-fg">{title}</h2>
+        {description && <p className="mt-1 text-[13px] leading-5 text-fg-muted">{description}</p>}
+      </div>
+      <Card className="p-4 sm:p-5">{children}</Card>
+    </section>
   )
 }
