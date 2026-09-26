@@ -33,7 +33,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { cn, formatCurrency, formatDate, pluralize, URGENCY_LABELS } from "../../lib/utils";
-import { errorMessage, errorStatus } from "../../lib/errors";
+import { errorMessage, errorStatus, loadFailureHint } from "../../lib/errors";
 import { threadPath } from "../../lib/messages";
 import api from "../../lib/api";
 
@@ -328,7 +328,7 @@ export default function JobDetail() {
       ? { title: "You don’t have access to this job", description: "Only the customer who posted it, the hired worker, and invited workers can view it." }
       : status === 404
         ? { title: "This job doesn’t exist", description: "It may have been removed, or the link is wrong." }
-        : { title: "We couldn’t load this job", description: "Check your connection and try again." };
+        : { title: "We couldn’t load this job", description: loadFailureHint(jobError) };
     return (
       <AppShell>
         <ErrorFallback {...copy} onRetry={status === 403 || status === 404 ? undefined : () => refetchJob()} />

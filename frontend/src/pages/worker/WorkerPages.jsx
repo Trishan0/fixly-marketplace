@@ -82,7 +82,7 @@ export function OpenJobs() {
 
   const proposalFilter = { open: 'open', sent: 'sent', rejected: 'declined' }[tab]
   const {
-    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching,
+    data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching,
   } = useInfiniteQuery({
     queryKey: ['job-feed', { category, district, search: debouncedSearch, proposal: proposalFilter }],
     queryFn: ({ pageParam }) => api.get('/jobs/feed', {
@@ -144,7 +144,7 @@ export function OpenJobs() {
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-52 w-full rounded-card" />)}</div>
         ) : isError ? (
-          <ErrorFallback title="We couldn’t load jobs" description="Check your connection and try again." onRetry={() => refetch()} />
+          <ErrorFallback title="We couldn’t load jobs" error={error} onRetry={() => refetch()} />
         ) : jobs.length === 0 ? (
           <Card><EmptyState icon={Briefcase} title={emptyCopy.title} description={emptyCopy.description} /></Card>
         ) : (
@@ -207,7 +207,7 @@ export function Invites() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   usePageTitle('Invites')
-  const { data: invites = [], isLoading, isError, refetch } = useQuery({
+  const { data: invites = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['invites'],
     queryFn: () => api.get('/invites/received').then(r => r.data),
   })
@@ -239,7 +239,7 @@ export function Invites() {
         {isLoading ? (
           <div className="space-y-4">{[0, 1].map(i => <Skeleton key={i} className="h-40 w-full rounded-card" />)}</div>
         ) : isError ? (
-          <ErrorFallback title="We couldn’t load your invites" description="Check your connection and try again." onRetry={() => refetch()} />
+          <ErrorFallback title="We couldn’t load your invites" error={error} onRetry={() => refetch()} />
         ) : invites.length === 0 ? (
           <Card><EmptyState icon={Mail} title="No invites yet" description="When a customer invites you to a job, it appears here. A complete profile helps customers find you." action={<Button to="/profile/edit" size="sm" variant="secondary">Improve your profile</Button>} /></Card>
         ) : (
@@ -276,7 +276,7 @@ export function AssignedJobs() {
   const { user } = useAuth()
   usePageTitle('My work')
 
-  const { data: jobs = [], isLoading, isError, refetch } = useQuery({
+  const { data: jobs = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['assigned-jobs'],
     queryFn: () => api.get('/jobs/assigned').then(r => r.data),
   })
@@ -294,7 +294,7 @@ export function AssignedJobs() {
         {isLoading ? (
           <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-28 w-full rounded-card" />)}</div>
         ) : isError ? (
-          <ErrorFallback title="We couldn’t load your work" description="Check your connection and try again." onRetry={() => refetch()} />
+          <ErrorFallback title="We couldn’t load your work" error={error} onRetry={() => refetch()} />
         ) : filtered.length === 0 ? (
           <Card><EmptyState icon={Wrench} title={activeTab.empty.title} description={activeTab.empty.description} action={tab === 'active' ? <Button to="/jobs/feed" size="sm">Browse open jobs</Button> : null} /></Card>
         ) : (
