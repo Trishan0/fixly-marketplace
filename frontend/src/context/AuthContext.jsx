@@ -59,6 +59,12 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    const onUnauthorized = () => clearSession()
+    window.addEventListener('fixly:auth-expired', onUnauthorized)
+    return () => window.removeEventListener('fixly:auth-expired', onUnauthorized)
+  }, [])
+
+  useEffect(() => {
     let mounted = true
     const token = localStorage.getItem(TOKEN_KEY)
 
@@ -82,15 +88,8 @@ export function AuthProvider({ children }) {
         if (mounted) setLoading(false)
       })
 
-    const onUnauthorized = () => {
-      if (!mounted) return
-      clearSession()
-    }
-
-    window.addEventListener('fixly:auth-expired', onUnauthorized)
     return () => {
       mounted = false
-      window.removeEventListener('fixly:auth-expired', onUnauthorized)
     }
   }, [])
 

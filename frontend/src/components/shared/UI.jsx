@@ -274,13 +274,21 @@ export function PageHeader({ title, description, action }) {
 
 export function Modal({ open, onClose, title, children, width = "max-w-lg" }) {
   const closeRef = useRef(null);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
 
   useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Runs only when the modal opens or closes, so parent re-renders never
+  // steal focus from a field the user is typing in.
+  useEffect(() => {
     if (!open) return undefined;
     const previousOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement;
     const closeOnEscape = (event) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current?.();
     };
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", closeOnEscape);
@@ -288,8 +296,9 @@ export function Modal({ open, onClose, title, children, width = "max-w-lg" }) {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", closeOnEscape);
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
