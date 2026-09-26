@@ -141,7 +141,7 @@ function addRecommendation(runId, type, entityId, score, factors, rationale, ran
   return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank,key_strengths,proposal_draft) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank},${JSON.stringify(keyStrengths)},${proposalDraft}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank,key_strengths=EXCLUDED.key_strengths,proposal_draft=EXCLUDED.proposal_draft RETURNING id`);
 }
 
-/** @param {string} runId @param {unknown} plan @param {string} [overallReasoning] */
+/** @param {string} runId @param {unknown} plan @param {string | null} [overallReasoning] */
 function awaitConfirmation(runId, plan, overallReasoning = null) {
   return one(sql`UPDATE agent_runs SET status='awaiting_confirmation',plan_json=${JSON.stringify(plan)},overall_reasoning=${overallReasoning} WHERE id=${runId} AND status='running' RETURNING id`);
 }

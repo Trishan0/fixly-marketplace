@@ -21,6 +21,9 @@ const jobInput = z.object({
   urgency: z.enum(['today', 'tomorrow', 'this_week', 'flexible']).optional().nullable(),
   pricing_mode: z.enum(['fixed', 'ask_quotes', 'inspection']).optional().nullable(),
   fixed_budget: decimal.optional().nullable(),
+}).refine(value => value.pricing_mode !== 'fixed' || value.fixed_budget, {
+  message: 'Enter your budget, or choose "Ask for quotes"',
+  path: ['fixed_budget'],
 });
 
 const proposalInput = z.object({
@@ -384,10 +387,64 @@ async function withdrawProposal({ proposalId, workerId }) {
       if (proposal.status !== 'pending') throw conflict('Only pending proposals can be withdrawn');
       const withdrawn = await repository.setProposalStatus(proposalId, 'pending', 'withdrawn', tx);
       if (!withdrawn) throw conflict('Only pending proposals can be withdrawn');
+      const worker = await repository.findUserSummary(workerId);
+      await repository.insertNotification({
+        userId: proposal.customer_id,
+        type: 'proposal_withdrawn',
+        title: 'Proposal withdrawn',
+        body: `${worker?.full_name || 'A worker'} withdrew their proposal for: ${proposal.job_title}`,
+        meta: { job_id: proposal.job_id, worker_id: workerId },
+      }, tx);
     }, { isolationLevel: 'serializable', maxRetries: 2 });
   } catch (error) {
     translate(error);
   }
+}
+
+async function updateProposal({ proposalId, worker, input }) {
+  const data = parse(proposalInput, input);
+  const proposedPrice = data.inspection_needed ? null : (data.proposed_price || null);
+  if (!proposedPrice && !data.inspection_needed) {
+    throw badRequest('Add your price, or say you need to inspect the job first');
+  }
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const proposal = await repository.findProposalForUpdate(proposalId, tx);
+      if (!proposal || proposal.worker_id !== worker.id) throw notFound('Proposal not found');
+      if (proposal.status !== 'pending') throw conflict('Only pending proposals can be changed');
+      if (!proposal.job_is_active || !['posted', 'proposals_received'].includes(proposal.job_status)) {
+        throw conflict('This job is no longer accepting proposals');
+      }
+      const firstQuote = !proposal.proposed_price && !proposal.inspection_needed;
+      const updated = await repository.updateProposalDetails(proposalId, {
+        proposedPrice,
+        inspectionNeeded: data.inspection_needed,
+        availability: data.availability || null,
+        message: data.message,
+      }, tx);
+      if (!updated) throw conflict('Only pending proposals can be changed');
+      await repository.insertNotification({
+        userId: proposal.customer_id,
+        type: 'new_proposal',
+        title: firstQuote ? 'Quote received' : 'Proposal updated',
+        body: firstQuote
+          ? `${worker.full_name || 'A worker'} sent their quote for: ${proposal.job_title}`
+          : `${worker.full_name || 'A worker'} updated their proposal for: ${proposal.job_title}`,
+        meta: { job_id: proposal.job_id, worker_id: worker.id },
+      }, tx);
+      return updated;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function listWorkerProposals({ workerId, status, page = 1, limit = 20 }) {
+  const [proposals, counts] = await Promise.all([
+    repository.listWorkerProposals(workerId, { status, page, limit }),
+    repository.workerProposalCounts(workerId),
+  ]);
+  return { proposals, counts };
 }
 
 async function updateJobWorkflowStatus({ jobId, actor, status }) {
@@ -506,7 +563,11 @@ async function recordPayment({ jobId, customerId, input }) {
   }
 }
 
-async function changePaymentState({ paymentId, workerId, targetStatus }) {
+async function changePaymentState({ paymentId, workerId, targetStatus, reason }) {
+  const disputeReason = typeof reason === 'string' ? reason.trim() : '';
+  if (targetStatus === 'disputed' && (disputeReason.length < 3 || disputeReason.length > 1000)) {
+    throw badRequest('Please describe why you are disputing this payment (3-1000 characters)');
+  }
   try {
     return await withTransaction(async ({ tx }) => {
       const payment = await repository.findPaymentForUpdate(paymentId, tx);
@@ -514,7 +575,9 @@ async function changePaymentState({ paymentId, workerId, targetStatus }) {
       if (payment.assigned_worker_id !== workerId) throw forbidden('Not your payment');
       if (payment.status === targetStatus) return payment;
       if (payment.status !== 'recorded') throw conflict(`Payment is already ${payment.status}`);
-      const updated = await repository.updatePaymentStatus(paymentId, targetStatus, tx);
+      const updated = await repository.updatePaymentStatus(paymentId, targetStatus, tx, {
+        disputeReason: targetStatus === 'disputed' ? disputeReason : null,
+      });
       if (!updated) throw conflict('Payment state could not be changed');
       await repository.insertNotification({
         userId: payment.customer_id,
@@ -522,7 +585,7 @@ async function changePaymentState({ paymentId, workerId, targetStatus }) {
         title: targetStatus === 'confirmed' ? 'Payment Confirmed' : 'Payment Disputed',
         body: targetStatus === 'confirmed'
           ? `Worker confirmed payment for: ${payment.job_title}`
-          : `Worker has disputed the payment for: ${payment.job_title}`,
+          : `Worker has disputed the payment for: ${payment.job_title}. Reason: ${disputeReason}`,
         meta: { job_id: payment.job_id, payment_id: payment.id },
       }, tx);
       return updated;
@@ -566,6 +629,8 @@ async function createReview({ jobId, customerId, input }) {
 }
 
 module.exports = {
+  listWorkerProposals,
+  updateProposal,
   acceptProposal,
   acceptInvitation,
   cancelJob,

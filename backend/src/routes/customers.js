@@ -1,2 +1,3 @@
-const express=require('express');const repository=require('../modules/identity/repository');const router=express.Router();
-router.get('/:id',async(req,res)=>{try{const customer=await repository.customerSummary(req.params.id);if(!customer)return res.status(404).json({error:'Customer not found'});customer.recent_jobs=await repository.customerRecentJobs(req.params.id);res.json(customer);}catch(error){console.error(error);res.status(500).json({error:'Failed to load customer'});}});module.exports=router;
+const express=require('express');const {verifyToken}=require('../middleware/auth');const repository=require('../modules/identity/repository');const router=express.Router();
+// Customer profiles are only visible to signed-in users (see the Privacy Policy).
+router.get('/:id',verifyToken,async(req,res)=>{try{const customer=await repository.customerSummary(req.params.id);if(!customer)return res.status(404).json({error:'Customer not found'});customer.recent_jobs=await repository.customerRecentJobs(req.params.id);res.json(customer);}catch(error){console.error(error);res.status(500).json({error:'Failed to load customer'});}});module.exports=router;

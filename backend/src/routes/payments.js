@@ -31,7 +31,7 @@ router.put('/:id/confirm', verifyToken, requireRole('worker'), async (req, res) 
 
 router.put('/:id/dispute', verifyToken, requireRole('worker'), async (req, res) => {
   try {
-    await changePaymentState({ paymentId: req.params.id, workerId: req.user.id, targetStatus: 'disputed' });
+    await changePaymentState({ paymentId: req.params.id, workerId: req.user.id, targetStatus: 'disputed', reason: req.body?.reason });
     res.json({ message: 'Payment disputed' });
   } catch (error) {
     respond(error, res);

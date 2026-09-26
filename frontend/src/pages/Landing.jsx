@@ -1,26 +1,30 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import {
-  ChevronRight, Droplets, Zap, Hammer, Sparkles, ShieldCheck,
-  Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search
-} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowRight, BadgeCheck, Banknote, ChevronRight, ClipboardList, MapPin, Search, ShieldCheck, Star } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { PublicNavbar } from '../components/shared/PublicNavbar'
 import { PublicFooter } from '../components/shared/PublicFooter'
+import { IconChip, PersonAvatar, StatusBadge, buttonClasses } from '../components/ui'
+import { categoryStyle } from '../lib/tones'
+import { cn } from '../lib/utils'
+import { usePageTitle } from '../hooks/usePageTitle'
+import api from '../lib/api'
 
-const categories = [
-  { icon: Droplets, name: 'Plumbing', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300' },
-  { icon: Zap, name: 'Electrical', color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-950/50 dark:text-yellow-300' },
-  { icon: Hammer, name: 'Carpentry', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' },
-  { icon: Sparkles, name: 'Cleaning', color: 'bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-300' },
+const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'AC Repair', 'Tiling', 'Landscaping']
+
+const STEPS = [
+  { icon: ClipboardList, tone: 'sky', title: 'Post your job', desc: 'Describe what needs doing and where. It takes about two minutes.' },
+  { icon: Search, tone: 'indigo', title: 'Compare proposals', desc: 'Local workers send a price and availability. Check their reviews and past work.' },
+  { icon: BadgeCheck, tone: 'emerald', title: 'Hire with confidence', desc: 'Pick the best fit, agree the details in chat, and track the job to the end.' },
+  { icon: Star, tone: 'amber', title: 'Pay and review', desc: 'Pay the worker directly, record it in Fixly, and leave an honest review.' },
 ]
 
-const features = [
-  { icon: Search, title: 'Find Skilled Workers', desc: 'Browse verified local professionals in your district' },
-  { icon: ClipboardList, title: 'Get Competitive Quotes', desc: 'Workers send proposals and you choose the best fit' },
-  { icon: Banknote, title: 'Pay Offline Safely', desc: 'Record cash or bank payments directly in the app' },
-  { icon: Star, title: 'Leave Reviews', desc: 'Help your community find the best workers' },
+const TRUST = [
+  { icon: ShieldCheck, title: 'ID-checked workers', desc: 'Look for the verified badge: Fixly has checked their National ID.' },
+  { icon: Star, title: 'Reviews from real jobs', desc: 'Only customers who hired a worker through Fixly can review them.' },
+  { icon: Banknote, title: 'You stay in control of payment', desc: 'Pay in cash or by transfer once you’re happy. Both sides confirm it.' },
 ]
 
 function getHeroContent(user) {
@@ -68,207 +72,197 @@ function getHeroContent(user) {
   }
 }
 
-function HeroVisual({ user }) {
-  const roleLabel =
-    user?.role === 'admin'
-      ? 'Platform Overview'
-      : user?.role === 'worker'
-        ? 'Worker Workspace'
-        : user?.role === 'customer'
-          ? 'Customer Workspace'
-          : 'Marketplace Flow'
-
+/** An illustrative preview of the product: a job receiving proposals. */
+function HeroVisual() {
+  const proposals = [
+    { name: 'Kasun Perera', rating: '4.9', jobs: 34, price: 'LKR 3,500', when: 'Tomorrow, 9am' },
+    { name: 'Nimal Fernando', rating: '4.8', jobs: 21, price: 'LKR 4,000', when: 'Today, after 4pm' },
+  ]
+  const { icon, tone } = categoryStyle('Plumbing')
   return (
-    <div className="relative">
-      <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.16),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.12),transparent_34%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.24),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.18),transparent_34%)]" />
-      <div className="fixly-panel relative p-5">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">{roleLabel}</p>
-            <h3 className="mt-2 text-xl font-bold text-slate-950">Fixly at a glance</h3>
-          </div>
-          <div className="rounded-2xl bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
-            <ShieldCheck className="h-5 w-5" />
+    <div className="relative" aria-hidden="true">
+      <div className="absolute -inset-6 rounded-[2rem] bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.22),transparent_55%)]" />
+      <div className="relative rounded-overlay border border-line bg-surface p-4 shadow-overlay sm:p-5">
+        <div className="flex items-start gap-3">
+          <IconChip icon={icon} tone={tone} />
+          <div className="min-w-0 flex-1">
+            <StatusBadge tone="indigo">Reviewing proposals</StatusBadge>
+            <p className="mt-1.5 text-[15px] font-semibold text-fg">Fix leaking kitchen tap</p>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-fg-muted"><MapPin className="h-3.5 w-3.5" /> Nugegoda, Colombo · Posted 20 min ago</p>
           </div>
         </div>
-
-        <div className="mt-5 grid gap-4">
-          <div className="fixly-surface-muted p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Post job or find work</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {user?.role === 'worker'
-                    ? 'Browse open jobs near you and send proposals fast.'
-                    : user?.role === 'admin'
-                      ? 'Review platform activity and moderation queues.'
-                      : 'Reach the right worker without messy back-and-forth.'}
-                </p>
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">2 proposals</p>
+        <ul className="mt-2 space-y-2">
+          {proposals.map((p, index) => (
+            <li key={p.name} className={cn('flex items-center gap-3 rounded-control border p-3', index === 0 ? 'border-brand/40 bg-brand-subtle/60' : 'border-line bg-surface')}>
+              <PersonAvatar name={p.name} size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1 text-sm font-semibold text-fg">{p.name} <BadgeCheck className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" /></p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-fg-muted"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{p.rating} · {p.jobs} jobs · {p.when}</p>
               </div>
-              <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
-                <Briefcase className="h-5 w-5 text-sky-600 dark:text-sky-300" />
+              <div className="text-right">
+                <p className="text-sm font-bold text-fg">{p.price}</p>
+                {index === 0 && <span className="mt-1 inline-flex h-7 items-center rounded-lg bg-brand px-2.5 text-xs font-semibold text-brand-on">Hire</span>}
               </div>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/80 p-4 dark:border-sky-900/50 dark:bg-sky-950/30">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white p-2.5 shadow-sm dark:bg-slate-900">
-                  <BellRing className="h-4 w-4 text-sky-600 dark:text-sky-300" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Stay updated</p>
-                  <p className="text-xs text-slate-500">Notifications, invites, and job updates stay organized.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/80 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/25">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white p-2.5 shadow-sm dark:bg-slate-900">
-                  <Banknote className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Track outcomes</p>
-                  <p className="text-xs text-slate-500">Payments, reviews, and completion signals stay visible.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-slate-100 bg-[linear-gradient(135deg,rgba(2,132,199,0.10),rgba(255,255,255,0.96))] p-5 text-slate-900 dark:border-slate-800 dark:bg-[linear-gradient(135deg,rgba(2,132,199,0.22),rgba(15,23,42,0.92))] dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">Professional marketplace flow</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Browse, match, hire, complete, and review without losing context.</p>
-              </div>
-              <ArrowRight className="h-5 w-5 text-sky-400" />
-            </div>
-          </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="absolute -bottom-12 -left-6 hidden items-center gap-2.5 rounded-control border border-line bg-surface px-3.5 py-2.5 shadow-card-hover md:flex">
+        <IconChip icon={BadgeCheck} tone="emerald" size="sm" />
+        <div>
+          <p className="text-xs font-semibold text-fg">Payment confirmed</p>
+          <p className="text-[11px] text-fg-muted">Bathroom retiling · LKR 18,000</p>
         </div>
       </div>
     </div>
   )
 }
 
+// Live marketplace numbers. Each figure only appears once it is meaningful,
+// so a young marketplace never shows placeholder or inflated claims.
+function marketplaceStats(stats) {
+  if (!stats) return []
+  const items = []
+  if (stats.workers > 0) items.push([stats.workers.toLocaleString('en-LK'), stats.workers === 1 ? 'Local worker' : 'Local workers'])
+  if (stats.verified_workers > 0) items.push([stats.verified_workers.toLocaleString('en-LK'), 'Identity verified'])
+  if (stats.districts > 1) items.push([String(stats.districts), 'Districts covered'])
+  if (stats.reviews >= 5 && stats.avg_rating) items.push([stats.avg_rating, `Average rating (${stats.reviews.toLocaleString('en-LK')} reviews)`])
+  return items.slice(0, 3)
+}
+
 export default function Landing() {
   const { user } = useAuth()
   const hero = getHeroContent(user)
+  usePageTitle(null)
+  const { data: stats } = useQuery({
+    queryKey: ['marketplace-stats'],
+    queryFn: () => api.get('/workers/stats').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+  const statItems = marketplaceStats(stats)
 
   return (
-    <div className="fixly-page-shell min-h-[100dvh]">
+    <div className="min-h-[100dvh] bg-canvas">
       <PublicNavbar />
 
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 opacity-80">
-          <div className="absolute left-[-6rem] top-10 h-72 w-72 rounded-full bg-sky-100 blur-3xl dark:bg-sky-900/50" />
-          <div className="absolute right-[-3rem] top-24 h-80 w-80 rounded-full bg-cyan-100 blur-3xl dark:bg-cyan-900/40" />
+      <section className="relative overflow-hidden border-b border-line bg-surface">
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div className="absolute -left-24 top-0 h-80 w-80 rounded-full bg-sky-200/50 blur-3xl dark:bg-sky-500/10" />
+          <div className="absolute right-0 top-32 h-72 w-72 rounded-full bg-cyan-100/60 blur-3xl dark:bg-cyan-500/10" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:px-12 md:py-20">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:px-4">
-                <ShieldCheck className="h-3.5 w-3.5 text-sky-500" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300 sm:text-xs sm:tracking-[0.18em]">{hero.eyebrow}</span>
-              </div>
+        <div className="relative mx-auto grid max-w-[1200px] items-center gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-24">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
+            <span className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> {hero.eyebrow}
+            </span>
+            <h1 className="mt-5 max-w-2xl text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-fg sm:text-5xl lg:text-[56px]">
+              {hero.title}
+            </h1>
+            <p className="mt-3 max-w-xl bg-gradient-to-r from-sky-500 to-sky-700 bg-clip-text text-xl font-bold leading-snug text-transparent dark:from-sky-300 dark:to-sky-500 sm:text-2xl">
+              {hero.accent}
+            </p>
+            <p className="mt-5 max-w-xl text-base leading-7 text-fg-muted sm:text-lg sm:leading-8">{hero.description}</p>
 
-              <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-5xl md:text-6xl">
-                {hero.title}
-              </h1>
-              <p className="mt-4 max-w-2xl text-xl font-bold leading-snug text-sky-600 dark:text-sky-300 sm:text-2xl md:text-3xl">
-                {hero.accent}
-              </p>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-                {hero.description}
-              </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Link to={hero.primary.to} className={buttonClasses({ size: 'lg', className: 'w-full shadow-brand sm:w-auto' })}>
+                {hero.primary.label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link to={hero.secondary.to} className={buttonClasses({ variant: 'secondary', size: 'lg', className: 'w-full sm:w-auto' })}>{hero.secondary.label}</Link>
+              <Link to={hero.tertiary.to} className="inline-flex min-h-11 items-center justify-center gap-1 px-2 text-sm font-semibold text-brand-text hover:underline sm:justify-start">
+                {hero.tertiary.label} <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link to={hero.primary.to} className="fixly-btn-primary w-full rounded-2xl px-8 py-3.5 text-base sm:w-auto">
-                  {hero.primary.label}
-                </Link>
-                <Link to={hero.secondary.to} className="fixly-btn-secondary w-full rounded-2xl px-8 py-3.5 text-base sm:w-auto">
-                  {hero.secondary.label}
-                </Link>
-                <Link to={hero.tertiary.to} className="inline-flex min-h-12 items-center justify-center gap-1 px-2 py-3 text-base font-semibold text-sky-700 transition hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200 sm:justify-start">
-                  {hero.tertiary.label} <ChevronRight className="h-4 w-4" />
-                </Link>
-              </div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.45 }}
-                className="mt-8 grid grid-cols-3 gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex sm:flex-wrap sm:gap-8 sm:pt-8"
-              >
-                {[['500+', 'Verified Workers'], ['25', 'Districts Covered'], ['4.8', 'Average Rating']].map(([v, l]) => (
-                  <div key={l}>
-                    <p className="text-xl font-black text-slate-950 sm:text-2xl">{v}</p>
-                    <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-sm">{l}</p>
+            {statItems.length > 0 && (
+              <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-line pt-6">
+                {statItems.map(([value, label]) => (
+                  <div key={label}>
+                    <dd className="text-2xl font-bold tracking-tight text-fg">{value}</dd>
+                    <dt className="mt-0.5 text-xs leading-4 text-fg-muted sm:text-[13px]">{label}</dt>
                   </div>
                 ))}
-              </motion.div>
-            </motion.div>
+              </dl>
+            )}
+          </motion.div>
 
-            <motion.div className="hidden sm:block" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.55, delay: 0.1 }}>
-              <HeroVisual user={user} />
-            </motion.div>
-          </div>
+          <motion.div className="hidden pb-8 sm:block lg:pl-6" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
+            <HeroVisual />
+          </motion.div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:px-12 md:py-20">
-        <h2 className="mb-6 text-2xl font-bold text-slate-900 sm:mb-8">Popular Services</h2>
+      <section className="mx-auto max-w-[1200px] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-fg sm:text-[28px]">Popular services</h2>
+            <p className="mt-1 text-sm text-fg-muted">Skilled local workers for the jobs around your home.</p>
+          </div>
+          <Link to="/workers" className="hidden items-center gap-1 text-sm font-semibold text-brand-text hover:underline sm:inline-flex">All workers <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+        </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          {categories.map(({ icon: Icon, name, color }) => (
-            <Link key={name} to={`/workers?category=${name}`} className="fixly-card group flex min-h-32 flex-col items-center justify-center gap-3 p-4 transition-shadow hover:shadow-md sm:p-6">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}>
-                <Icon className="h-6 w-6" />
-              </div>
-              <span className="text-sm font-semibold text-slate-800 transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-300">{name}</span>
-            </Link>
-          ))}
+          {CATEGORIES.map((name) => {
+            const { icon, tone } = categoryStyle(name)
+            return (
+              <Link key={name} to={`/workers?category=${encodeURIComponent(name)}`} className="group flex items-center gap-3 rounded-card border border-line/80 bg-surface p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-line-strong hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:p-5">
+                <IconChip icon={icon} tone={tone} className="h-11 w-11 rounded-xl [&>svg]:h-5 [&>svg]:w-5" />
+                <span className="min-w-0 flex-1 text-sm font-semibold text-fg">{name}</span>
+                <ChevronRight className="h-4 w-4 text-fg-subtle transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            )
+          })}
         </div>
       </section>
 
-      <section className="bg-slate-50 py-14 dark:bg-slate-950/40 md:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 md:px-12">
-          <h2 className="mb-2 text-2xl font-bold text-slate-900">How Fixly Works</h2>
-          <p className="mb-10 text-slate-500">Simple, transparent, and built for Sri Lanka</p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-            {features.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="fixly-card p-5 sm:p-6">
-                <div className="mb-4 inline-flex rounded-2xl bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
-                  <Icon className="h-5 w-5" />
+      <section className="border-y border-line bg-surface py-14 lg:py-20">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold tracking-tight text-fg sm:text-[28px]">How Fixly works</h2>
+          <p className="mt-1 text-sm text-fg-muted">From “something’s broken” to “job done” in four steps.</p>
+          <ol className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map(({ icon, tone, title, desc }, index) => (
+              <li key={title} className="relative rounded-card border border-line/80 bg-canvas/60 p-5">
+                <div className="flex items-center justify-between">
+                  <IconChip icon={icon} tone={tone} />
+                  <span className="text-3xl font-bold text-line-strong">{String(index + 1).padStart(2, '0')}</span>
                 </div>
-                <h3 className="mb-2 font-bold text-slate-900">{title}</h3>
-                <p className="text-sm leading-relaxed text-slate-500">{desc}</p>
-              </div>
+                <h3 className="mt-4 font-semibold text-fg">{title}</h3>
+                <p className="mt-1 text-sm leading-6 text-fg-muted">{desc}</p>
+              </li>
             ))}
-          </div>
-          <Link to="/how-it-works" className="mt-7 inline-flex min-h-11 items-center gap-1 text-sm font-bold text-sky-700 transition hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200">
-            See the full customer and worker journey <ChevronRight className="h-4 w-4" />
+          </ol>
+          <Link to="/how-it-works" className="mt-6 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand-text hover:underline">
+            See the full customer and worker journey <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </section>
 
-      {!user && (
-        <section className="bg-sky-600 py-14 text-center text-white dark:bg-sky-700 md:py-20">
-          <div className="mx-auto max-w-2xl px-4 sm:px-6">
-            <h2 className="mb-4 text-3xl font-bold">Ready to get started?</h2>
-            <p className="mb-8 text-sky-100">Join thousands of homeowners and skilled workers across Sri Lanka.</p>
-            <div className="flex flex-col justify-center gap-3 sm:flex-row">
-              <Link to="/auth?tab=register" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-8 py-3 font-bold text-sky-600 transition-all hover:bg-sky-50 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900">
-                Create Account
-              </Link>
-              <Link to="/workers" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-700 px-8 py-3 font-bold text-white transition-all hover:bg-sky-800 dark:bg-sky-800 dark:hover:bg-sky-900">
-                Browse Workers
-              </Link>
+      <section className="mx-auto max-w-[1200px] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+        <div className="grid gap-4 md:grid-cols-3">
+          {TRUST.map(({ icon: Icon, title, desc }) => (
+            <div key={title} className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-subtle text-brand-text"><Icon className="h-5 w-5" aria-hidden="true" /></span>
+              <div>
+                <h3 className="font-semibold text-fg">{title}</h3>
+                <p className="mt-1 text-sm leading-6 text-fg-muted">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!user && (
+          <div className="relative mt-14 overflow-hidden rounded-overlay bg-gradient-to-br from-sky-500 via-sky-600 to-sky-800 px-6 py-10 text-center shadow-brand sm:px-10 sm:py-14">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.22),transparent_45%)]" aria-hidden="true" />
+            <h2 className="relative text-2xl font-bold tracking-tight text-[#fff] sm:text-3xl">Ready to get started?</h2>
+            <p className="relative mx-auto mt-2 max-w-lg text-sky-100">Post a job in minutes, or create a profile that helps local customers find you.</p>
+            <div className="relative mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link to="/auth?tab=register&role=customer" className={buttonClasses({ variant: 'on-brand', size: 'lg' })}>Post a job</Link>
+              <Link to="/auth?tab=register&role=worker" className={buttonClasses({ variant: 'on-brand-ghost', size: 'lg' })}>Join as a worker</Link>
             </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       <PublicFooter />
     </div>

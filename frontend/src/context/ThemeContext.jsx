@@ -1,8 +1,26 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 const ThemeContext = createContext(null)
 
-const STORAGE_KEY = 'fixly_theme_mode'
+const DEFAULT_MODE = 'light'
+const MODES = ['light', 'dark', 'system']
+// Only written when someone picks a theme themselves.
+const CHOICE_KEY = 'fixly_theme_choice'
+// Older builds saved the mode on every visit, so a stored "system" there
+// wasn't a real choice; only an explicit light/dark from it is kept.
+const LEGACY_KEY = 'fixly_theme_mode'
+
+function readStoredMode() {
+  try {
+    const choice = localStorage.getItem(CHOICE_KEY)
+    if (MODES.includes(choice)) return choice
+    const legacy = localStorage.getItem(LEGACY_KEY)
+    if (legacy === 'light' || legacy === 'dark') return legacy
+  } catch {
+    // storage unavailable (private mode) - fall back to the default
+  }
+  return DEFAULT_MODE
+}
 
 function getSystemTheme() {
   if (typeof window === 'undefined') return 'light'
@@ -10,13 +28,7 @@ function getSystemTheme() {
 }
 
 export function ThemeProvider({ children }) {
-  const [themeMode, setThemeMode] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) || 'system'
-    } catch {
-      return 'system'
-    }
-  })
+  const [themeMode, setThemeModeState] = useState(readStoredMode)
   const [systemTheme, setSystemTheme] = useState(getSystemTheme)
 
   useEffect(() => {
@@ -37,22 +49,25 @@ export function ThemeProvider({ children }) {
     const root = document.documentElement
     root.classList.toggle('dark', resolvedTheme === 'dark')
     root.style.colorScheme = resolvedTheme
+  }, [resolvedTheme])
+
+  const setThemeMode = useCallback((mode) => {
+    if (!MODES.includes(mode)) return
+    setThemeModeState(mode)
     try {
-      localStorage.setItem(STORAGE_KEY, themeMode)
+      localStorage.setItem(CHOICE_KEY, mode)
+      localStorage.removeItem(LEGACY_KEY)
     } catch {
       // ignore storage issues
     }
-  }, [resolvedTheme, themeMode])
+  }, [])
 
   const value = useMemo(() => ({
     themeMode,
     resolvedTheme,
     setThemeMode,
-    toggleTheme: () => setThemeMode(curr => {
-      const active = curr === 'system' ? getSystemTheme() : curr
-      return active === 'dark' ? 'light' : 'dark'
-    }),
-  }), [themeMode, resolvedTheme])
+    toggleTheme: () => setThemeMode(resolvedTheme === 'dark' ? 'light' : 'dark'),
+  }), [themeMode, resolvedTheme, setThemeMode])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

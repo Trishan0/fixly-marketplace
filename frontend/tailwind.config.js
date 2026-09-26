@@ -30,8 +30,40 @@ export default {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
         },
+        // Design system tokens - see --ds-* in index.css
+        canvas: 'hsl(var(--ds-canvas))',
+        surface: 'hsl(var(--ds-surface))',
+        subtle: 'hsl(var(--ds-subtle))',
+        line: {
+          DEFAULT: 'hsl(var(--ds-line))',
+          strong: 'hsl(var(--ds-line-strong))',
+        },
+        fg: {
+          DEFAULT: 'hsl(var(--ds-fg))',
+          muted: 'hsl(var(--ds-fg-muted))',
+          subtle: 'hsl(var(--ds-fg-subtle))',
+        },
+        brand: {
+          DEFAULT: 'hsl(var(--ds-brand))',
+          hover: 'hsl(var(--ds-brand-hover))',
+          subtle: 'hsl(var(--ds-brand-subtle))',
+          text: 'hsl(var(--ds-brand-text))',
+          on: 'hsl(var(--ds-on-brand))',
+        },
+      },
+      boxShadow: {
+        // Only for things that float above the page (menus, dialogs, toasts).
+        overlay: '0 12px 32px -8px rgb(15 23 42 / 0.18), 0 4px 8px -4px rgb(15 23 42 / 0.08)',
+        xs: '0 1px 2px 0 rgb(15 23 42 / 0.05)',
+        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
+        'card-hover': '0 8px 20px -6px rgb(15 23 42 / 0.12), 0 2px 6px -2px rgb(15 23 42 / 0.06)',
+        brand: '0 1px 2px 0 rgb(2 132 199 / 0.35), inset 0 1px 0 0 rgb(255 255 255 / 0.18)',
       },
       borderRadius: {
+        // Design system radii: controls, cards, overlays.
+        control: '10px',
+        card: '14px',
+        overlay: '16px',
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',

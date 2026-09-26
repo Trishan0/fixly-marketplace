@@ -1,4 +1,7 @@
 require('dotenv').config();
+const { captureException, initSentry } = require('./observability/sentry');
+
+initSentry();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -85,6 +88,7 @@ app.use('/api', reviewsRouter);
 
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/messages', require('./routes/messages'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/uploads', require('./routes/uploads'));
 app.use('/api/admin', require('./routes/admin'));
@@ -117,6 +121,9 @@ app.use((err, req, res, _next) => {
     error_name: err.name,
     error_code: err.code,
   }));
+  if (err.code !== 'LIMIT_FILE_SIZE' && err.message !== 'Origin is not allowed by CORS') {
+    captureException(err, { request_id: requestId, method: req.method, path: req.path });
+  }
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ error: 'File too large (max 5MB)' });
   }

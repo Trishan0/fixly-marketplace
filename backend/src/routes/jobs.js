@@ -52,11 +52,13 @@ router.post(
 // GET /api/jobs/feed - worker open jobs
 router.get("/feed", verifyToken, requireRole("worker"), async (req, res) => {
   const { category, district } = req.query;
+  const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
+  const proposal = ['open', 'sent', 'declined'].includes(req.query.proposal) ? req.query.proposal : null;
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
 
   try {
-    res.json(await repository.listJobFeed(req.user.id, { category, district, page, limit }));
+    res.json(await repository.listJobFeed(req.user.id, { category, district, search: search || null, proposal, page, limit }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed" });
@@ -79,14 +81,27 @@ router.put(
 );
 
 // GET /api/jobs/my - customer jobs
+// GET /api/jobs/my/summary - counts and spend across all of a customer's jobs
+router.get("/my/summary", verifyToken, requireRole("customer"), async (req, res) => {
+  try {
+    res.json(await repository.customerJobSummary(req.user.id));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
 router.get("/my", verifyToken, requireRole("customer"), async (req, res) => {
   const status = req.query.status || null;
+  const group = ['active', 'completed', 'cancelled'].includes(req.query.group) ? req.query.group : null;
+  const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) || null : null;
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
 
   try {
-    res.json(await repository.listCustomerJobs(req.user.id, { status, page, limit }));
+    res.json(await repository.listCustomerJobs(req.user.id, { status, group, search, page, limit }));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed" });
   }
 });
@@ -131,8 +146,11 @@ router.get("/:id", verifyToken, async (req, res) => {
       job.assigned_worker_phone = maskPhone(job.assigned_worker_phone);
     }
 
-    // Photos
-    job.photos = await repository.listJobPhotos(req.params.id);
+    // Photos and status history (for the timeline)
+    [job.photos, job.status_events] = await Promise.all([
+      repository.listJobPhotos(req.params.id),
+      repository.listJobStatusEvents(req.params.id),
+    ]);
 
     res.json(job);
   } catch (err) {

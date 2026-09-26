@@ -197,6 +197,48 @@ function setProposalStatus(proposalId, fromStatus, toStatus, client) {
   `, client);
 }
 
+function updateProposalDetails(proposalId, input, client) {
+  return one(sql`
+    UPDATE proposals
+    SET proposed_price = ${input.proposedPrice}, inspection_needed = ${input.inspectionNeeded},
+        availability = ${input.availability}, message = ${input.message}, updated_at = NOW()
+    WHERE id = ${proposalId} AND status = 'pending'
+    RETURNING *
+  `, client);
+}
+
+const WORKER_PROPOSAL_STATUSES = ['pending', 'accepted', 'declined', 'withdrawn'];
+
+function listWorkerProposals(workerId, { status, page, limit }) {
+  const statusCondition = WORKER_PROPOSAL_STATUSES.includes(status) ? sql`AND p.status = ${status}` : sql``;
+  return rows(sql`
+    SELECT p.id, p.job_id, p.status, p.proposed_price, p.inspection_needed, p.availability, p.message,
+           p.created_at, p.updated_at,
+           j.title AS job_title, j.status AS job_status, j.district, j.town, j.urgency,
+           j.pricing_mode, j.fixed_budget, j.is_active AS job_is_active,
+           (j.assigned_worker_id IS NOT NULL AND j.assigned_worker_id <> p.worker_id) AS hired_someone_else,
+           c.name AS category_name, u.full_name AS customer_name
+    FROM proposals p
+    JOIN jobs j ON j.id = p.job_id
+    LEFT JOIN categories c ON c.id = j.category_id
+    LEFT JOIN users u ON u.id = j.customer_id
+    WHERE p.worker_id = ${workerId} ${statusCondition}
+    ORDER BY p.updated_at DESC
+    LIMIT ${limit} OFFSET ${(page - 1) * limit}
+  `);
+}
+
+function workerProposalCounts(workerId) {
+  return one(sql`
+    SELECT COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+           COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted,
+           COUNT(*) FILTER (WHERE status = 'declined')::int AS declined,
+           COUNT(*) FILTER (WHERE status = 'withdrawn')::int AS withdrawn
+    FROM proposals WHERE worker_id = ${workerId}
+  `);
+}
+
 function updateJobStatus(jobId, expectedStatus, nextStatus, client) {
   return one(sql`
     UPDATE jobs SET status = ${nextStatus}, updated_at = NOW()
@@ -234,13 +276,20 @@ function listCategories(limit = 500) {
   return rows(sql`SELECT * FROM categories WHERE is_active = true ORDER BY name LIMIT ${limit}`);
 }
 
-function listJobFeed(workerId, { category, district, page, limit }) {
+function listJobFeed(workerId, { category, district, search, proposal, page, limit }) {
   const conditions = [
     sql`j.status IN ('posted', 'proposals_received')`,
     sql`j.is_active = true`,
   ];
   if (category) conditions.push(sql`c.name ILIKE ${`%${category}%`}`);
   if (district) conditions.push(sql`j.district ILIKE ${`%${district}%`}`);
+  if (search) conditions.push(sql`(j.title ILIKE ${`%${search}%`} OR j.description ILIKE ${`%${search}%`})`);
+  if (proposal === 'open') {
+    conditions.push(sql`NOT EXISTS(SELECT 1 FROM proposals fp WHERE fp.job_id = j.id AND fp.worker_id = ${workerId})`);
+  } else if (proposal === 'sent' || proposal === 'declined') {
+    const status = proposal === 'sent' ? 'pending' : 'declined';
+    conditions.push(sql`EXISTS(SELECT 1 FROM proposals fp WHERE fp.job_id = j.id AND fp.worker_id = ${workerId} AND fp.status = ${status})`);
+  }
   const offset = (page - 1) * limit;
 
   return rows(sql`
@@ -260,19 +309,52 @@ function listJobFeed(workerId, { category, district, page, limit }) {
   `);
 }
 
-function listCustomerJobs(customerId, { status, page, limit }) {
-  const statusCondition = status ? sql`AND j.status = ${status}` : sql``;
+const CUSTOMER_JOB_GROUPS = {
+  active: ['posted', 'proposals_received', 'assigned', 'in_progress'],
+  completed: ['completed', 'payment_recorded', 'reviewed'],
+  cancelled: ['cancelled'],
+};
+
+function customerJobStatusCondition({ status, group }) {
+  if (status) return sql`AND j.status = ${status}`;
+  const statuses = CUSTOMER_JOB_GROUPS[group];
+  if (!statuses) return sql``;
+  return sql`AND j.status IN (${sql.join(statuses.map(value => sql`${value}`), sql`, `)})`;
+}
+
+function listCustomerJobs(customerId, { status, group, search, page, limit }) {
+  const statusCondition = customerJobStatusCondition({ status, group });
+  const searchCondition = search ? sql`AND (j.title ILIKE ${`%${search}%`} OR c.name ILIKE ${`%${search}%`} OR j.town ILIKE ${`%${search}%`})` : sql``;
   const offset = (page - 1) * limit;
   return rows(sql`
     SELECT j.*, c.name AS category_name, c.icon AS category_icon,
            u.full_name AS assigned_worker_name, u.profile_photo AS assigned_worker_photo,
-           (SELECT COUNT(*) FROM proposals p WHERE p.job_id = j.id) AS proposal_count
+           (SELECT COUNT(*) FROM proposals p WHERE p.job_id = j.id) AS proposal_count,
+           (SELECT COUNT(*)::int FROM proposals p WHERE p.job_id = j.id AND p.status = 'pending') AS pending_proposal_count
     FROM jobs j
     LEFT JOIN categories c ON c.id = j.category_id
     LEFT JOIN users u ON u.id = j.assigned_worker_id
-    WHERE j.customer_id = ${customerId} ${statusCondition}
+    WHERE j.customer_id = ${customerId} ${statusCondition} ${searchCondition}
     ORDER BY j.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
+  `);
+}
+
+function customerJobSummary(customerId) {
+  return one(sql`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE j.status IN ('posted', 'proposals_received', 'assigned', 'in_progress'))::int AS active,
+      COUNT(*) FILTER (WHERE j.status IN ('completed', 'payment_recorded', 'reviewed'))::int AS completed,
+      COUNT(*) FILTER (WHERE j.status = 'cancelled')::int AS cancelled,
+      COUNT(*) FILTER (
+        WHERE j.status = 'proposals_received'
+          AND EXISTS(SELECT 1 FROM proposals p WHERE p.job_id = j.id AND p.status = 'pending')
+      )::int AS awaiting_review,
+      COALESCE(SUM(pay.amount) FILTER (WHERE pay.id IS NOT NULL), 0)::text AS total_spent
+    FROM jobs j
+    LEFT JOIN payments pay ON pay.job_id = j.id
+    WHERE j.customer_id = ${customerId}
   `);
 }
 
@@ -294,7 +376,8 @@ function findJobDetail(jobId) {
            u.full_name AS customer_name, u.phone AS customer_phone, u.profile_photo AS customer_photo,
            aw.full_name AS assigned_worker_name, aw.phone AS assigned_worker_phone, aw.profile_photo AS assigned_worker_photo,
            p.id AS payment_id, p.amount AS payment_amount, p.method AS payment_method,
-           p.worker_confirmed AS payment_worker_confirmed, p.disputed AS payment_disputed
+           p.worker_confirmed AS payment_worker_confirmed, p.disputed AS payment_disputed,
+           p.dispute_reason AS payment_dispute_reason
     FROM jobs j
     LEFT JOIN categories c ON c.id = j.category_id
     LEFT JOIN users u ON u.id = j.customer_id
@@ -357,6 +440,10 @@ function listJobProposals(jobId, workerId = null, limit = 100) {
   `);
 }
 
+function listJobStatusEvents(jobId, limit = 50) {
+  return rows(sql`SELECT status, created_at FROM job_status_events WHERE job_id = ${jobId} ORDER BY created_at ASC LIMIT ${limit}`);
+}
+
 function listJobPhotos(jobId, limit = 20) {
   return rows(sql`SELECT * FROM job_photos WHERE job_id = ${jobId} ORDER BY order_idx LIMIT ${limit}`);
 }
@@ -387,8 +474,14 @@ function findPaymentForUpdate(paymentId, client) {
   `, client);
 }
 
-function updatePaymentStatus(paymentId, status, client) {
-  return one(sql`UPDATE payments SET status = ${status} WHERE id = ${paymentId} RETURNING *`, client);
+function updatePaymentStatus(paymentId, status, client, { disputeReason = null } = {}) {
+  return one(sql`
+    UPDATE payments
+    SET status = ${status},
+        dispute_reason = CASE WHEN ${status} = 'disputed' THEN ${disputeReason} ELSE dispute_reason END
+    WHERE id = ${paymentId}
+    RETURNING *
+  `, client);
 }
 
 function insertReview(input, client) {
@@ -464,8 +557,13 @@ module.exports = instrumentRepository('marketplace', {
   listAssignedJobs,
   listAgentOpenJobs,
   listAgentOpenJobsForWorker,
+  customerJobSummary,
   listCustomerJobs,
   listJobFeed,
+  listWorkerProposals,
+  updateProposalDetails,
+  workerProposalCounts,
+  listJobStatusEvents,
   listCategories,
   listJobPhotos,
   listJobProposals,

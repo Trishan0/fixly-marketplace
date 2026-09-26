@@ -25,10 +25,10 @@ function insertUser(input, client) {
   return one(sql`
     INSERT INTO users (
       full_name, email, password_hash, phone, role, district, area,
-      email_verify_token_hash, email_verify_expires_at, dashboard_mode
+      email_verify_token_hash, email_verify_expires_at, dashboard_mode, terms_accepted_at
     ) VALUES (
       ${input.fullName}, ${input.email}, ${input.passwordHash}, ${input.phone}, ${input.role},
-      ${input.district}, ${input.area}, ${input.verifyTokenHash}, ${input.verifyExpiresAt}, ${input.dashboardMode}
+      ${input.district}, ${input.area}, ${input.verifyTokenHash}, ${input.verifyExpiresAt}, ${input.dashboardMode}, NOW()
     )
     RETURNING id, email, role, full_name, is_email_verified, force_verified, dashboard_mode
   `, client);
@@ -86,6 +86,11 @@ function selfProfile(userId) {
   return one(sql`
     SELECT u.id, u.email, u.full_name, u.role, u.phone, u.district, u.area, u.profile_photo,
       u.is_email_verified, u.force_verified, u.is_nic_verified, u.dashboard_mode, u.created_at,
+      CASE WHEN u.is_nic_verified THEN 'verified'
+           WHEN u.nic_image_path IS NOT NULL THEN 'pending'
+           WHEN u.nic_rejection_reason IS NOT NULL THEN 'rejected'
+           ELSE 'none' END AS nic_status,
+      u.nic_rejection_reason,
       wp.id AS worker_profile_id, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating,
       wp.ai_matching_opt_in
     FROM users u LEFT JOIN worker_profiles wp ON wp.user_id = u.id WHERE u.id = ${userId}
@@ -114,7 +119,15 @@ function updateWorkerProfile(input, client) {
   `, client);
 }
 function setProfilePhoto(userId, path) { return one(sql`UPDATE users SET profile_photo = ${path}, updated_at = NOW() WHERE id = ${userId} RETURNING profile_photo`); }
-function setNicImage(userId, path) { return one(sql`UPDATE users SET nic_image_path = ${path}, is_nic_verified = false, nic_verified_by = NULL, updated_at = NOW() WHERE id = ${userId} RETURNING nic_image_path`); }
+function setNicImage(userId, path) { return one(sql`UPDATE users SET nic_image_path = ${path}, is_nic_verified = false, nic_verified_by = NULL, nic_rejection_reason = NULL, updated_at = NOW() WHERE id = ${userId} RETURNING nic_image_path`); }
+function setEmailVerifyToken(userId, tokenHash, expiresAt) {
+  return one(sql`
+    UPDATE users SET email_verify_token_hash = ${tokenHash}, email_verify_expires_at = ${expiresAt}, updated_at = NOW()
+    WHERE id = ${userId} AND is_email_verified = false AND is_suspended = false
+    RETURNING id, email
+  `);
+}
+function findVerificationState(userId) { return one(sql`SELECT id, email, is_email_verified, force_verified, is_suspended FROM users WHERE id = ${userId}`); }
 function setDashboardMode(userId, mode) { return one(sql`UPDATE users SET dashboard_mode = ${mode}, updated_at = NOW() WHERE id = ${userId} RETURNING dashboard_mode`); }
 function setAiMatchingOptIn(userId, optIn) { return one(sql`UPDATE worker_profiles SET ai_matching_opt_in = ${optIn} WHERE user_id = ${userId} RETURNING ai_matching_opt_in`); }
 function portfolioCount(workerId, client) { return one(sql`SELECT COUNT(*)::int AS count FROM worker_portfolio_photos WHERE worker_id = ${workerId}`, client); }
@@ -139,7 +152,16 @@ function countWorkers({ category, district, minRating, verified, search }) { ret
     AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) AND (${minRating}::numeric IS NULL OR wp.avg_rating >= ${minRating})
     AND (${verified}::boolean = false OR u.is_nic_verified = true) AND (${search}::text IS NULL OR u.full_name ILIKE ${`%${search || ''}%`} OR wp.primary_skill ILIKE ${`%${search || ''}%`})
 `); }
-function publicWorker(id) { return one(sql`SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.phone, u.created_at, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=${id} AND u.role='worker' AND u.is_suspended=false`); }
+function publicWorker(id) { return one(sql`SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.phone, u.created_at, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating, (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id) AS review_count FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=${id} AND u.role='worker' AND u.is_suspended=false`); }
+function publicMarketplaceStats() { return one(sql`
+  SELECT
+    (SELECT COUNT(*)::int FROM users WHERE role='worker' AND is_suspended=false) AS workers,
+    (SELECT COUNT(*)::int FROM users WHERE role='worker' AND is_suspended=false AND is_nic_verified=true) AS verified_workers,
+    (SELECT COUNT(DISTINCT district)::int FROM users WHERE role='worker' AND is_suspended=false AND district IS NOT NULL) AS districts,
+    (SELECT COUNT(*)::int FROM reviews) AS reviews,
+    (SELECT ROUND(AVG(rating), 1)::text FROM reviews) AS avg_rating,
+    (SELECT COUNT(*)::int FROM jobs WHERE status IN ('completed','payment_recorded','reviewed')) AS completed_jobs
+`); }
 function workerReviews(id, limit, offset) { return rows(sql`SELECT r.id,r.rating,r.feedback,r.created_at,u.full_name AS customer_name,u.profile_photo AS customer_photo,j.title AS job_title FROM reviews r JOIN users u ON u.id=r.customer_id JOIN jobs j ON j.id=r.job_id WHERE r.worker_id=${id} ORDER BY r.created_at DESC LIMIT ${limit} OFFSET ${offset}`); }
 function customerSummary(id) { return one(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.created_at, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id) AS jobs_posted, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('posted','proposals_received','assigned','in_progress')) AS active_jobs, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('completed','payment_recorded','reviewed')) AS jobs_completed, (SELECT COUNT(*)::int FROM reviews WHERE customer_id=u.id) AS reviews_given FROM users u WHERE u.id=${id} AND u.role='customer' AND u.is_suspended=false`); }
 function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j.created_at,c.name AS category_name,(SELECT COUNT(*)::int FROM proposals p WHERE p.job_id=j.id) AS proposal_count FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.customer_id=${id} ORDER BY j.created_at DESC LIMIT 4`); }
@@ -150,4 +172,5 @@ module.exports = instrumentRepository('identity', {
   selfProfile, setAiMatchingOptIn, setDashboardMode, setNicImage, setPasswordResetToken, setProfilePhoto,
   updateProfile, updateWorkerProfile, verifyEmail, workerPortfolio, workerProfileId, workerSkills,
   countWorkers, customerRecentJobs, customerSummary, listWorkers, publicWorker, workerReviews,
+  findVerificationState, publicMarketplaceStats, setEmailVerifyToken,
 });

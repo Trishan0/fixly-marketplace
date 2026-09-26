@@ -11,7 +11,7 @@ export function ThemeToggleIconButton({ className }) {
     <button
       type="button"
       onClick={toggleTheme}
-      className={cn('flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white', className)}
+      className={cn('flex h-9 w-9 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-subtle hover:text-fg [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11', className)}
       aria-label="Toggle theme"
     >
       <Icon className="h-4 w-4" />
@@ -36,10 +36,10 @@ export function ThemeModeSelector() {
           type="button"
           onClick={() => setThemeMode(value)}
           className={cn(
-            'min-h-16 rounded-2xl border px-2 py-3 text-center transition-all sm:px-4 sm:text-left',
+            'min-h-14 rounded-control border px-2 py-3 text-center transition-colors sm:px-4 sm:text-left',
             themeMode === value
-              ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-500 dark:bg-sky-950/40 dark:text-sky-300'
-              : 'border-slate-200 text-slate-600 hover:border-sky-200 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
+              ? 'border-brand bg-brand-subtle text-brand-text'
+              : 'border-line text-fg-muted hover:border-line-strong hover:text-fg'
           )}
         >
           <div className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">

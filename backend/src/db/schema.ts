@@ -145,6 +145,49 @@ export const proposals = pgTable("proposals", {
 	check("proposals_price_positive", sql`(proposed_price IS NULL) OR (proposed_price > (0)::numeric)`),
 ]);
 
+export const jobMessages = pgTable("job_messages", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	jobId: uuid("job_id").notNull(),
+	workerId: uuid("worker_id").notNull(),
+	senderId: uuid("sender_id").notNull(),
+	body: text().notNull(),
+	readAt: timestamp("read_at", { withTimezone: true, mode: 'date' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_job_messages_thread_created").using("btree", table.jobId.asc().nullsLast().op("timestamptz_ops"), table.workerId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.asc().nullsLast().op("uuid_ops")),
+	index("idx_job_messages_worker_created").using("btree", table.workerId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+	foreignKey({
+			columns: [table.jobId],
+			foreignColumns: [jobs.id],
+			name: "job_messages_job_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.workerId],
+			foreignColumns: [users.id],
+			name: "job_messages_worker_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.senderId],
+			foreignColumns: [users.id],
+			name: "job_messages_sender_id_fkey"
+		}).onDelete("cascade"),
+	check("job_messages_body_length", sql`(char_length(body) >= 1) AND (char_length(body) <= 2000)`),
+]);
+
+export const jobStatusEvents = pgTable("job_status_events", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	jobId: uuid("job_id").notNull(),
+	status: varchar({ length: 30 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_job_status_events_job_created").using("btree", table.jobId.asc().nullsLast().op("timestamptz_ops"), table.createdAt.asc().nullsLast().op("timestamptz_ops")),
+	foreignKey({
+			columns: [table.jobId],
+			foreignColumns: [jobs.id],
+			name: "job_status_events_job_id_fkey"
+		}).onDelete("cascade"),
+]);
+
 export const payments = pgTable("payments", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	jobId: uuid("job_id"),
@@ -156,6 +199,10 @@ export const payments = pgTable("payments", {
 	disputed: boolean().default(false),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	status: varchar({ length: 20 }).default('recorded').notNull(),
+	disputeReason: text("dispute_reason"),
+	disputeResolvedAt: timestamp("dispute_resolved_at", { withTimezone: true, mode: 'date' }),
+	disputeResolvedBy: uuid("dispute_resolved_by"),
+	disputeResolutionNote: text("dispute_resolution_note"),
 }, (table) => [
 	foreignKey({
 			columns: [table.recordedBy],
@@ -166,6 +213,11 @@ export const payments = pgTable("payments", {
 			columns: [table.jobId],
 			foreignColumns: [jobs.id],
 			name: "payments_job_id_fkey"
+		}),
+	foreignKey({
+			columns: [table.disputeResolvedBy],
+			foreignColumns: [users.id],
+			name: "payments_dispute_resolved_by_fkey"
 		}),
 	unique("payments_job_id_key").on(table.jobId),
 	check("payments_method_check", sql`(method)::text = ANY ((ARRAY['cash'::character varying, 'bank_transfer'::character varying, 'other'::character varying])::text[])`),
@@ -368,6 +420,8 @@ export const jobs = pgTable("jobs", {
 	isActive: boolean("is_active").default(true),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'date' }).defaultNow(),
+	flagReason: text("flag_reason"),
+	flaggedAt: timestamp("flagged_at", { withTimezone: true, mode: 'date' }),
 }, (table) => [
 	index("idx_jobs_assigned_worker_status").using("btree", table.assignedWorkerId.asc().nullsLast().op("uuid_ops"), table.status.asc().nullsLast().op("uuid_ops")),
 	index("idx_jobs_category_district").using("btree", table.categoryId.asc().nullsLast().op("uuid_ops"), table.district.asc().nullsLast().op("uuid_ops")),
@@ -466,6 +520,8 @@ export const users = pgTable("users", {
 	emailVerifyExpiresAt: timestamp("email_verify_expires_at", { withTimezone: true, mode: 'date' }),
 	passwordResetTokenHash: varchar("password_reset_token_hash", { length: 255 }),
 	passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true, mode: 'date' }),
+	nicRejectionReason: text("nic_rejection_reason"),
+	termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true, mode: 'date' }),
 }, (table) => [
 	index("idx_users_email_verify_token_hash").using("btree", table.emailVerifyTokenHash.asc().nullsLast().op("text_ops")),
 	index("idx_users_password_reset_token_hash").using("btree", table.passwordResetTokenHash.asc().nullsLast().op("text_ops")),

@@ -1,64 +1,69 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
-  LayoutDashboard,
-  Briefcase,
-  Users,
-  Bell,
-  User,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  MessageSquare,
-  DollarSign,
-  Wrench,
   BarChart3,
-  Shield,
+  Bell,
+  Briefcase,
+  ChevronDown,
   FileText,
-  Tag,
+  LayoutDashboard,
+  LifeBuoy,
+  LogOut,
+  Mail,
+  Menu,
+  MessagesSquare,
+  Moon,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  ChevronDown,
+  Pencil,
   Plus,
-  MoreHorizontal,
+  Scale,
+  Settings,
+  Shield,
+  Sun,
+  Tag,
+  User,
+  Users,
+  Wallet,
+  Wrench,
+  X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 import { cn, getInitials } from "../../lib/utils";
 import { BrandLogo } from "../shared/BrandLogo";
 import api from "../../lib/api";
-import { ThemeToggleIconButton } from "../shared/ThemeToggle";
 
 const customerNav = [
   { href: "/customer-dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/jobs", icon: Briefcase, label: "My Jobs" },
-  { href: "/find-workers", icon: Users, label: "Find Workers" },
+  { href: "/jobs", icon: Briefcase, label: "My jobs" },
+  { href: "/find-workers", icon: Users, label: "Find workers" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
 ];
 
 const workerNav = [
   { href: "/worker-dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/jobs/feed", icon: Briefcase, label: "Open Jobs" },
-  { href: "/invites", icon: MessageSquare, label: "Invites" },
-  { href: "/jobs/assigned", icon: Wrench, label: "My Work" },
-  { href: "/earnings", icon: DollarSign, label: "Earnings" },
+  { href: "/jobs/feed", icon: Briefcase, label: "Open jobs" },
+  { href: "/invites", icon: Mail, label: "Invites" },
+  { href: "/proposals", icon: FileText, label: "My proposals" },
+  { href: "/jobs/assigned", icon: Wrench, label: "My work" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
+  { href: "/earnings", icon: Wallet, label: "Earnings" },
 ];
 
-const workerNavSimplified = [
-  { href: "/worker-dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/jobs/feed", icon: Briefcase, label: "New Jobs" },
-  { href: "/invites", icon: MessageSquare, label: "Invites" },
-  { href: "/jobs/assigned", icon: Wrench, label: "My Jobs" },
-  { href: "/earnings", icon: DollarSign, label: "Earnings" },
-];
+const workerNavSimplified = workerNav.map((item) =>
+  item.href === "/jobs/feed" ? { ...item, label: "New jobs" } : item.href === "/jobs/assigned" ? { ...item, label: "My jobs" } : item,
+);
 
 const adminNav = [
-  { href: "/admin", icon: BarChart3, label: "Dashboard" },
+  { href: "/admin", icon: BarChart3, label: "Overview" },
   { href: "/admin/users", icon: Users, label: "Users" },
   { href: "/admin/workers", icon: Shield, label: "Workers" },
+  { href: "/admin/jobs", icon: Briefcase, label: "Jobs" },
   { href: "/admin/reports", icon: FileText, label: "Reports" },
+  { href: "/admin/disputes", icon: Scale, label: "Disputes" },
   { href: "/admin/categories", icon: Tag, label: "Categories" },
 ];
 
@@ -66,393 +71,297 @@ const customerMobileNav = [
   { href: "/customer-dashboard", icon: LayoutDashboard, label: "Home" },
   { href: "/jobs", icon: Briefcase, label: "Jobs" },
   { href: "/jobs/new", icon: Plus, label: "Post", featured: true },
-  { href: "/find-workers", icon: Users, label: "Workers" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
 ];
 
 const workerMobileNav = [
   { href: "/worker-dashboard", icon: LayoutDashboard, label: "Home" },
-  { href: "/jobs/feed", icon: Briefcase, label: "Find jobs" },
-  { href: "/invites", icon: MessageSquare, label: "Invites" },
+  { href: "/jobs/feed", icon: Briefcase, label: "Jobs" },
   { href: "/jobs/assigned", icon: Wrench, label: "My work" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
 ];
 
 const adminMobileNav = [
   { href: "/admin", icon: BarChart3, label: "Overview" },
   { href: "/admin/users", icon: Users, label: "Users" },
-  { href: "/admin/workers", icon: Shield, label: "Workers" },
   { href: "/admin/reports", icon: FileText, label: "Reports" },
+  { href: "/admin/disputes", icon: Scale, label: "Disputes" },
 ];
 
-function routeIsActive(pathname, href) {
-  if (pathname === href) return true;
-  if (pathname === "/jobs/new") return false;
-  if (["/", "/admin", "/worker-dashboard", "/customer-dashboard"].includes(href)) return false;
-  return pathname.startsWith(`${href}/`);
+// Pages that aren't in the nav but still need a name in the top bar.
+const EXTRA_SECTIONS = [
+  [/^\/jobs\/new$/, "Post a job"],
+  [/^\/jobs\/[^/]+\/propose$/, "Proposal"],
+  [/^\/jobs\/[^/]+$/, "Job"],
+  [/^\/profile/, "Profile"],
+  [/^\/(workers|customers)\//, "Profile"],
+  [/^\/settings/, "Settings"],
+  [/^\/notifications/, "Notifications"],
+];
+
+/** The nav item that best matches the path (longest prefix wins). */
+function activeHref(items, pathname) {
+  if (pathname === "/jobs/new") return null;
+  let best = null;
+  for (const { href } of items) {
+    if (pathname === href || pathname.startsWith(`${href}/`)) {
+      if (!best || href.length > best.length) best = href;
+    }
+  }
+  return best;
 }
 
-function MobileBottomNav({ items, unread, onMore }) {
-  const location = useLocation();
+function CountBadge({ count, className }) {
+  if (!count) return null;
+  return (
+    <span className={cn("inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[11px] font-semibold leading-none text-brand-on tabular-nums", className)}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+function UserAvatar({ user, size = "h-8 w-8" }) {
+  return (
+    <span className={cn("flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-sky-600 text-xs font-semibold text-white", size)}>
+      {user?.profile_photo ? <img src={user.profile_photo} alt="" className="h-full w-full object-cover" /> : getInitials(user?.full_name)}
+    </span>
+  );
+}
+
+function SidebarNav({ items, active, collapsed, onNavigate }) {
+  return (
+    <ul className="space-y-0.5">
+      {items.map(({ href, icon: Icon, label, badge }) => {
+        const isActive = active === href;
+        return (
+          <li key={href}>
+            <Link
+              to={href}
+              onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
+              title={collapsed ? label : undefined}
+              className={cn(
+                "group relative flex h-10 items-center gap-3 rounded-control px-3 text-sm transition-colors [@media(pointer:coarse)]:h-11",
+                collapsed && "justify-center px-0",
+                isActive ? "bg-brand-subtle font-semibold text-brand-text" : "font-medium text-fg-muted hover:bg-subtle hover:text-fg",
+              )}
+            >
+              {isActive && !collapsed && <span className="absolute -left-3 top-2 bottom-2 w-1 rounded-r-full bg-brand" aria-hidden="true" />}
+              <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-brand" : "text-fg-subtle group-hover:text-fg-muted")} aria-hidden="true" />
+              {!collapsed && <span className="flex-1 truncate">{label}</span>}
+              {badge > 0 && (collapsed
+                ? <span className="absolute ml-5 -mt-5 h-2 w-2 rounded-full bg-brand" aria-label={`${badge} unread`} />
+                : <CountBadge count={badge} />)}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// A short prompt for the most valuable action for each role.
+const SIDEBAR_PROMPTS = {
+  customer: { title: "Need something fixed?", text: "Post a job and get quotes from local pros.", to: "/jobs/new", action: "Post a job" },
+  worker: { title: "Looking for work?", text: "New jobs near you are waiting.", to: "/jobs/feed", action: "Browse jobs" },
+};
+
+function Sidebar({ items, active, collapsed = false, onClose }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const drawer = Boolean(onClose);
+  const prompt = SIDEBAR_PROMPTS[user?.role];
+  return (
+    <div className={cn("flex h-full flex-col border-r border-line bg-surface", collapsed ? "w-16" : "w-60")}>
+      <div className={cn("flex h-14 shrink-0 items-center border-b border-line", collapsed ? "justify-center px-2" : "justify-between px-4")}>
+        <Link to="/dashboard" onClick={onClose} aria-label="Fixly dashboard" className="flex items-center rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+          {collapsed ? <BrandLogo compact className="h-8 w-8" /> : <BrandLogo className="h-9 w-[8.2rem]" />}
+        </Link>
+        {drawer && (
+          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-control text-fg-muted hover:bg-subtle hover:text-fg" aria-label="Close navigation">
+            <X className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+
+      <nav className={cn("flex-1 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")} aria-label="Main">
+        {!collapsed && <p className="mb-2 px-3 text-xs font-medium text-fg-subtle">Menu</p>}
+        <SidebarNav items={items} active={active} collapsed={collapsed} onNavigate={onClose} />
+      </nav>
+
+      {prompt && !collapsed && (
+        <div className="mx-3 mb-3 overflow-hidden rounded-card bg-gradient-to-br from-sky-500 to-sky-700 p-4 text-white shadow-brand">
+          <p className="text-sm font-semibold">{prompt.title}</p>
+          <p className="mt-1 text-[13px] leading-5 text-sky-50/90">{prompt.text}</p>
+          <Link to={prompt.to} onClick={onClose} className="mt-3 inline-flex h-8 items-center rounded-lg bg-[#fff] px-3 text-[13px] font-semibold text-[#0369a1] transition-colors hover:bg-[#f0f9ff]">
+            {prompt.action}
+          </Link>
+        </div>
+      )}
+
+      <div className={cn("border-t border-line py-3", collapsed ? "px-2" : "px-3")}>
+        <Link
+          to="/safety"
+          onClick={onClose}
+          title={collapsed ? "Help & safety" : undefined}
+          className={cn("flex h-9 items-center gap-2.5 rounded-control px-2.5 text-sm font-medium text-fg-muted hover:bg-subtle hover:text-fg [@media(pointer:coarse)]:h-11", collapsed && "justify-center px-0")}
+        >
+          <LifeBuoy className="h-4 w-4 text-fg-subtle" aria-hidden="true" />
+          {!collapsed && "Help & safety"}
+        </Link>
+        {!collapsed && (
+          <Link to="/profile/edit" onClick={onClose} className="mt-1 flex items-center gap-3 rounded-control px-2 py-2 hover:bg-subtle">
+            <UserAvatar user={user} size="h-9 w-9" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-fg">{user?.full_name}</span>
+              <span className="block text-xs capitalize text-fg-subtle">{user?.role}</span>
+            </span>
+          </Link>
+        )}
+        {drawer && (
+          <button
+            type="button"
+            onClick={() => { logout(); navigate("/auth"); }}
+            className="flex h-11 w-full items-center gap-2.5 rounded-control px-2.5 text-sm font-medium text-fg-muted hover:bg-subtle hover:text-fg"
+          >
+            <LogOut className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> Sign out
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AccountMenu() {
+  const { user, logout } = useAuth();
+  const { resolvedTheme, setThemeMode } = useTheme();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointer = (event) => { if (ref.current && !ref.current.contains(event.target)) setOpen(false); };
+    const onKey = (event) => {
+      if (event.key === "Escape") { setOpen(false); buttonRef.current?.focus(); }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const item = "flex h-9 w-full items-center gap-2.5 rounded-control px-2.5 text-left text-sm text-fg hover:bg-subtle [@media(pointer:coarse)]:h-11";
+  const close = () => setOpen(false);
 
   return (
-    <nav
-      className="mobile-bottom-nav lg:hidden"
-      aria-label="Primary navigation"
+    <div className="relative" ref={ref}>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Account menu"
+        className="flex h-9 items-center gap-1.5 rounded-full pl-0.5 pr-1.5 hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand [@media(pointer:coarse)]:h-11"
+      >
+        <UserAvatar user={user} />
+        <ChevronDown className="h-4 w-4 text-fg-subtle" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div role="menu" className="absolute right-0 top-11 z-40 w-64 rounded-overlay border border-line bg-surface p-1.5 shadow-overlay">
+          <div className="flex items-center gap-3 px-2.5 py-2">
+            <UserAvatar user={user} size="h-9 w-9" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-fg">{user?.full_name}</p>
+              <p className="truncate text-xs text-fg-muted">{user?.email}</p>
+            </div>
+          </div>
+          <div className="my-1 h-px bg-line" />
+          {user?.role !== "admin" && (
+            <Link role="menuitem" to="/profile" onClick={close} className={item}><User className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> View profile</Link>
+          )}
+          <Link role="menuitem" to="/profile/edit" onClick={close} className={item}><Pencil className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> Edit profile</Link>
+          <Link role="menuitem" to="/settings" onClick={close} className={item}><Settings className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> Settings</Link>
+          <button role="menuitem" type="button" onClick={() => setThemeMode(resolvedTheme === "dark" ? "light" : "dark")} className={item}>
+            {resolvedTheme === "dark" ? <Sun className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> : <Moon className="h-4 w-4 text-fg-subtle" aria-hidden="true" />}
+            {resolvedTheme === "dark" ? "Light theme" : "Dark theme"}
+          </button>
+          <div className="my-1 h-px bg-line" />
+          <button role="menuitem" type="button" onClick={() => { logout(); navigate("/auth"); }} className={item}>
+            <LogOut className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IconLink({ to, icon: Icon, label, count }) {
+  const { pathname } = useLocation();
+  const active = pathname.startsWith(to);
+  return (
+    <Link
+      to={to}
+      aria-label={count > 0 ? `${label}, ${count} unread` : label}
+      aria-current={active ? "page" : undefined}
+      title={label}
+      className={cn(
+        "relative flex h-9 w-9 items-center justify-center rounded-control text-fg-muted transition-colors hover:bg-subtle hover:text-fg [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11",
+        active && "bg-subtle text-fg",
+      )}
     >
+      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+      {count > 0 && <CountBadge count={count} className="absolute -right-0.5 -top-0.5 ring-2 ring-surface" />}
+    </Link>
+  );
+}
+
+function MobileBottomNav({ items, active, unread, onMore }) {
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Primary">
       <div className="grid grid-cols-5">
-        {items.map(({ href, icon: Icon, label, featured }) => {
-          const active = routeIsActive(location.pathname, href);
+        {items.map(({ href, icon: Icon, label, featured, badge }) => {
+          const isActive = active === href;
           return (
             <Link
               key={href}
               to={href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold transition-colors",
-                active
-                  ? "text-sky-600 dark:text-sky-300"
-                  : "text-slate-500 dark:text-slate-400",
-              )}
+              aria-current={isActive ? "page" : undefined}
+              className={cn("relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium", isActive ? "text-brand" : "text-fg-muted")}
             >
-              <span
-                className={cn(
-                  "flex h-7 w-10 items-center justify-center rounded-xl transition-colors",
-                  active && "bg-sky-50 dark:bg-sky-950/60",
-                  featured && "bg-sky-600 text-white shadow-sm dark:bg-sky-500",
-                )}
-              >
-                <Icon className="h-4 w-4" />
+              <span className={cn("relative flex items-center justify-center", featured && "h-7 w-7 rounded-full bg-brand text-brand-on")}>
+                <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                {badge > 0 && <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-brand ring-2 ring-surface" aria-label={`${badge} unread`} />}
               </span>
-              <span>{label}</span>
+              {label}
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={onMore}
-          className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400"
-          aria-label="Open more navigation options"
-        >
-          <span className="relative flex h-7 w-10 items-center justify-center rounded-xl">
-            <MoreHorizontal className="h-4 w-4" />
-            {unread > 0 && (
-              <span className="absolute right-1 top-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-950" />
-            )}
+        <button type="button" onClick={onMore} className="relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium text-fg-muted" aria-label="More navigation">
+          <span className="relative">
+            <MoreHorizontal className="h-[18px] w-[18px]" aria-hidden="true" />
+            {unread > 0 && <span className="absolute -right-2 -top-1 h-2 w-2 rounded-full bg-brand ring-2 ring-surface" />}
           </span>
-          <span>More</span>
+          More
         </button>
       </div>
     </nav>
   );
 }
 
-function AccountMenu({ unread }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const close = (event) => {
-      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/auth");
-  };
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900"
-      >
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-sky-100 text-sm font-bold text-sky-700">
-          {user?.profile_photo ? (
-            <img
-              src={user.profile_photo}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            getInitials(user?.full_name)
-          )}
-        </div>
-        <div className="hidden min-w-0 sm:block">
-          <p className="truncate text-sm font-semibold text-slate-900">
-            {user?.full_name}
-          </p>
-          <p className="text-xs capitalize text-slate-500">{user?.role}</p>
-        </div>
-        {(unread || 0) > 0 && (
-          <span className="hidden rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white sm:inline-flex">
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
-        <ChevronDown className="h-4 w-4 text-slate-400" />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-14 z-30 w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-slate-700 dark:bg-slate-900">
-          <Link
-            to="/profile"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <User className="h-4 w-4" /> View Profile
-          </Link>
-          <Link
-            to="/profile/edit"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <User className="h-4 w-4" /> Edit Profile
-          </Link>
-          <Link
-            to="/settings"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <Settings className="h-4 w-4" /> Settings
-          </Link>
-          <Link
-            to="/notifications"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <Bell className="h-4 w-4" /> Notifications
-          </Link>
-          <div className="px-3 py-2">
-            <ThemeToggleIconButton className="h-11 w-full justify-center rounded-xl" />
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
-          >
-            <LogOut className="h-4 w-4" /> Log Out
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isMobileDrawer = Boolean(onClose);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/auth");
-  };
-
-  return (
-    <div
-      className={cn(
-        "flex h-full flex-col transition-all duration-200",
-        isMobileDrawer
-          ? "bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
-          : "bg-slate-950 text-white",
-        collapsed ? "w-20" : "w-64",
-      )}
-    >
-      {/* Logo */}
-      <div
-        className={cn(
-          "flex h-[72px] items-center border-b py-0",
-          isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10",
-          collapsed ? "justify-center px-3" : "justify-between px-6",
-        )}
-      >
-        <div className="flex items-center gap-2">
-          {collapsed ? (
-            <BrandLogo compact className="h-8 w-8" />
-          ) : (
-            <BrandLogo onDark={!isMobileDrawer} className="h-8 w-[7.5rem]" />
-          )}
-        </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white lg:hidden"
-            aria-label="Close navigation"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      {/* User info */}
-      <div
-        className={cn(
-          "border-b py-4",
-          isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10",
-          collapsed ? "px-2" : "px-4",
-        )}
-      >
-        <div
-          className={cn(
-            "flex px-2",
-            collapsed ? "justify-center" : "items-center gap-3",
-          )}
-        >
-          <div className={cn(
-            "flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-bold",
-            isMobileDrawer
-              ? "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300"
-              : "bg-sky-500/20 text-sky-400",
-          )}>
-            {user?.profile_photo ? (
-              <img
-                src={user.profile_photo}
-                alt=""
-                className="w-9 h-9 object-cover"
-              />
-            ) : (
-              getInitials(user?.full_name)
-            )}
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">
-                {user?.full_name}
-              </p>
-              <p className={cn("text-xs capitalize", isMobileDrawer ? "text-slate-500 dark:text-slate-400" : "text-slate-400")}>{user?.role}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ href, icon: Icon, label, badge }) => {
-          const isProfileRoute =
-            href === "/profile" &&
-            (location.pathname === "/profile" ||
-              location.pathname.startsWith("/profile/") ||
-              location.pathname === `/workers/${user?.id}` ||
-              location.pathname === `/customers/${user?.id}`);
-
-          const isActive =
-            isProfileRoute ||
-            location.pathname === href ||
-            (href.length > 1 &&
-              ![
-                "/",
-                "/admin",
-                "/worker-dashboard",
-                "/customer-dashboard",
-              ].includes(href) &&
-              location.pathname.startsWith(href)) ||
-            location.pathname === href;
-
-          return (
-            <Link
-              key={href}
-              to={href}
-              onClick={onClose}
-              title={collapsed ? label : undefined}
-              className={cn(
-                "flex items-center rounded-xl transition-all duration-150 font-medium text-sm relative",
-                collapsed ? "justify-center px-3 py-3" : "gap-3 px-4 py-2.5",
-                isActive
-                  ? "bg-sky-600 text-white"
-                  : isMobileDrawer
-                    ? "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
-                    : "text-slate-400 hover:bg-white/10 hover:text-white",
-              )}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span className="flex-1">{label}</span>}
-              {badge && (
-                <span
-                  className={cn(
-                    "bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center flex-shrink-0",
-                    collapsed
-                      ? "absolute right-1 top-1 h-4 min-w-4 px-1"
-                      : "w-5 h-5",
-                  )}
-                >
-                  {badge > 9 ? "9+" : badge}
-                </span>
-              )}
-              {!collapsed && isActive && (
-                <ChevronRight className="w-3 h-3 opacity-60 flex-shrink-0" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {onClose && (
-        <div className="border-t border-slate-200 px-3 py-3 dark:border-white/10">
-          {[
-            { href: "/profile", icon: User, label: "Public profile" },
-            { href: "/profile/edit", icon: User, label: "Edit profile" },
-            { href: "/settings", icon: Settings, label: "Settings" },
-            { href: "/notifications", icon: Bell, label: "Notifications", badge: unread },
-          ].map(({ href, icon: Icon, label, badge }) => (
-            <Link
-              key={href}
-              to={href}
-              onClick={onClose}
-              className="flex min-h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              <Icon className="h-4 w-4" />
-              <span className="flex-1">{label}</span>
-              {badge > 0 && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">{badge > 9 ? '9+' : badge}</span>}
-            </Link>
-          ))}
-          <div className="mt-1 px-2">
-            <ThemeToggleIconButton className="h-11 w-full justify-center rounded-xl border-slate-200 bg-slate-50 text-slate-600 shadow-none dark:border-white/10 dark:bg-white/5 dark:text-slate-300" />
-          </div>
-        </div>
-      )}
-
-      {/* Logout */}
-      <div className={cn("border-t px-3 pb-6 pt-2", isMobileDrawer ? "border-slate-200 dark:border-white/10" : "border-white/10")}>
-        <button
-          type="button"
-          onClick={handleLogout}
-          title={collapsed ? "Sign Out" : undefined}
-          className={cn(
-            "flex w-full rounded-xl text-sm font-medium transition-all",
-            isMobileDrawer
-              ? "text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-400/10 dark:hover:text-red-400"
-              : "text-slate-400 hover:bg-red-400/10 hover:text-red-400",
-            collapsed
-              ? "justify-center px-3 py-3"
-              : "items-center gap-3 px-4 py-2.5",
-          )}
-        >
-          <LogOut className="w-4 h-4" />
-          {!collapsed && "Sign Out"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function AppShell({ children }) {
   const { user } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("fixly_sidebar_collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
   const location = useLocation();
   const mainRef = useRef(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("fixly_sidebar_collapsed") === "true"; } catch { return false; }
+  });
 
   const { data: notifData } = useQuery({
     queryKey: ["notifications"],
@@ -462,13 +371,18 @@ export function AppShell({ children }) {
   });
   const unread = notifData?.unread || 0;
 
+  const canMessage = user?.role === "customer" || user?.role === "worker";
+  const { data: messageData } = useQuery({
+    queryKey: ["messages-unread"],
+    queryFn: () => api.get("/messages/unread-count").then((r) => r.data),
+    refetchInterval: 30000,
+    enabled: canMessage,
+  });
+  const unreadMessages = messageData?.unread || 0;
+
   useEffect(() => {
-    try {
-      localStorage.setItem("fixly_sidebar_collapsed", String(desktopCollapsed));
-    } catch {
-      // ignore storage issues
-    }
-  }, [desktopCollapsed]);
+    try { localStorage.setItem("fixly_sidebar_collapsed", String(collapsed)); } catch { /* ignore */ }
+  }, [collapsed]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
@@ -476,182 +390,75 @@ export function AppShell({ children }) {
 
   useEffect(() => {
     if (!mobileOpen) return undefined;
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") setMobileOpen(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    const onKey = (event) => { if (event.key === "Escape") setMobileOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
 
-  let baseNav = customerNav;
-  if (user?.role === "worker") {
-    baseNav =
-      user.dashboard_mode === "simplified" ? workerNavSimplified : workerNav;
-  } else if (user?.role === "admin") {
-    baseNav = adminNav;
-  }
+  const withBadges = (items) => items.map((item) => (item.href === "/messages" && unreadMessages > 0 ? { ...item, badge: unreadMessages } : item));
+  const navItems = withBadges(
+    user?.role === "admin" ? adminNav : user?.role === "worker" ? (user.dashboard_mode === "simplified" ? workerNavSimplified : workerNav) : customerNav,
+  );
+  const mobileItems = withBadges(user?.role === "admin" ? adminMobileNav : user?.role === "worker" ? workerMobileNav : customerMobileNav);
+  const active = activeHref(navItems, location.pathname);
+  const mobileActive = activeHref(mobileItems, location.pathname);
 
-  // Inject unread badge on notifications link
-  const navItems = baseNav;
-  let mobileNavItems = customerMobileNav;
-  if (user?.role === "worker") mobileNavItems = workerMobileNav;
-  if (user?.role === "admin") mobileNavItems = adminMobileNav;
-
-  const currentSection = useMemo(() => {
-    if (
-      location.pathname === "/profile" ||
-      location.pathname.startsWith("/profile/") ||
-      location.pathname === `/workers/${user?.id}` ||
-      location.pathname === `/customers/${user?.id}`
-    )
-      return "Profile";
-    if (location.pathname.startsWith("/settings")) return "Settings";
-    if (location.pathname.startsWith("/notifications")) return "Notifications";
-
-    const activeItem = navItems.find((item) => {
-      if (item.href === "/profile") {
-        return (
-          location.pathname === "/profile" ||
-          location.pathname.startsWith("/profile/") ||
-          location.pathname === `/workers/${user?.id}` ||
-          location.pathname === `/customers/${user?.id}`
-        );
-      }
-      return (
-        location.pathname === item.href ||
-        (item.href.length > 1 && location.pathname.startsWith(item.href))
-      );
-    });
-    return activeItem?.label || "Fixly";
-  }, [location.pathname, navItems, user?.id]);
+  const section = useMemo(() => {
+    const fromNav = navItems.find((item) => item.href === active)?.label;
+    if (fromNav && location.pathname === active) return fromNav;
+    const extra = EXTRA_SECTIONS.find(([pattern]) => pattern.test(location.pathname));
+    if (location.pathname.startsWith("/messages")) return "Messages";
+    return extra?.[1] || fromNav || "Fixly";
+  }, [navItems, active, location.pathname]);
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-slate-50 dark:bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_18%),linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
-      {/* Desktop sidebar */}
-      <aside
-        className={cn(
-          "hidden lg:flex flex-col flex-shrink-0 shadow-lg transition-all duration-200",
-          desktopCollapsed ? "w-20" : "w-64",
-        )}
-      >
-        <SidebarContent navItems={navItems} collapsed={desktopCollapsed} />
+    <div className="flex h-[100dvh] overflow-hidden bg-canvas">
+      <aside className="hidden shrink-0 lg:flex">
+        <Sidebar items={navItems} active={active} collapsed={collapsed} />
       </aside>
 
-      {/* Mobile overlay */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-              onClick={() => setMobileOpen(false)}
-              aria-hidden="true"
-            />
-            <motion.aside
-              initial={{ x: -270 }}
-              animate={{ x: 0 }}
-              exit={{ x: -270 }}
-              transition={{ type: "spring", damping: 28, stiffness: 220 }}
-              className="fixed bottom-0 left-0 top-0 z-50 flex flex-col shadow-2xl lg:hidden"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Navigation menu"
-            >
-              <SidebarContent
-                navItems={navItems}
-                onClose={() => setMobileOpen(false)}
-                unread={unread}
-              />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="hidden h-[72px] lg:flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 py-0 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/75">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setDesktopCollapsed((v) => !v)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
-              aria-label={
-                desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"
-              }
-            >
-              {desktopCollapsed ? (
-                <PanelLeftOpen className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-            </button>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                Workspace
-              </p>
-              <h1 className="text-lg font-bold text-slate-900">
-                {currentSection}
-              </h1>
-            </div>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+          <div className="absolute inset-0 bg-slate-950/40" onClick={() => setMobileOpen(false)} aria-hidden="true" />
+          <div className="absolute inset-y-0 left-0 animate-[drawer-in_0.2s_ease-out] shadow-overlay">
+            <Sidebar items={navItems} active={active} onClose={() => setMobileOpen(false)} />
           </div>
+        </div>
+      )}
 
-          <div className="flex items-center gap-3">
-            <ThemeToggleIconButton />
-            <AccountMenu unread={unread} />
-          </div>
-        </header>
-
-        {/* Mobile top bar */}
-        <header className="flex min-h-16 flex-shrink-0 items-center gap-3 border-b border-slate-100 bg-white/95 px-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 lg:hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur sm:px-4">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="flex h-9 w-9 items-center justify-center rounded-control text-fg-muted hover:bg-subtle hover:text-fg lg:hidden [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
             aria-label="Open navigation"
           >
-            <Menu className="w-5 h-5 text-slate-700 dark:text-slate-200" />
+            <Menu className="h-5 w-5" />
           </button>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-            <BrandLogo compact className="h-6 w-6" />
-              <span className="truncate text-sm font-bold text-slate-900 dark:text-white">
-                {currentSection}
-              </span>
-            </div>
-          </div>
-          <Link
-            to="/notifications"
-            className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            aria-label={unread ? `${unread} unread notifications` : "Notifications"}
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            className="hidden h-9 w-9 items-center justify-center rounded-control text-fg-muted hover:bg-subtle hover:text-fg lg:flex"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <Bell className="h-5 w-5" />
-            {unread > 0 && (
-              <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                {unread > 9 ? "9+" : unread}
-              </span>
-            )}
-          </Link>
+            {collapsed ? <PanelLeftOpen className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
+          </button>
+          <div className="mx-1 hidden h-5 w-px bg-line lg:block" aria-hidden="true" />
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">{section}</p>
+
+          <div className="flex items-center gap-1">
+            {canMessage && <IconLink to="/messages" icon={MessagesSquare} label="Messages" count={unreadMessages} />}
+            <IconLink to="/notifications" icon={Bell} label="Notifications" count={unread} />
+            <div className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+            <AccountMenu />
+          </div>
         </header>
 
-        {/* Page content */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18 }}
-            className="min-h-full"
-          >
-            {children}
-          </motion.div>
+        <main ref={mainRef} id="main-content" className="flex-1 overflow-y-auto overscroll-contain pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {children}
         </main>
-        <MobileBottomNav
-          items={mobileNavItems}
-          unread={unread}
-          onMore={() => setMobileOpen(true)}
-        />
+        <MobileBottomNav items={mobileItems} active={mobileActive} unread={unread} onMore={() => setMobileOpen(true)} />
       </div>
     </div>
   );

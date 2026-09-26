@@ -1,15 +1,73 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play, Bot, SlidersHorizontal } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import {
+  Banknote, Briefcase, CheckCircle2, Clock, Mail, MapPin, MessagesSquare, Play, Search, SlidersHorizontal, Sparkles, Users, Wrench, X,
+} from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Button, Card, Badge, PageHeader, Spinner, EmptyState } from '../../components/shared/UI'
+import { Button, Card, EmptyState, IconChip, JobStatusBadge, Page, PageHeader, Skeleton, StatusBadge, Tabs } from '../../components/ui'
+import { Select } from '../../components/shared/UI'
+import { ErrorFallback } from '../../components/shared/ErrorBoundary'
+import { AgentSheet } from '../../components/agent/AgentSheet'
+import { useJobStatusAction } from '../../components/worker/useJobStatusAction'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
-import { formatCurrency, formatRelativeTime, URGENCY_LABELS, DISTRICTS, cn } from '../../lib/utils'
+import { usePageTitle } from '../../hooks/usePageTitle'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useCategories } from '../../hooks/useCategories'
+import { cn, formatCurrency, formatRelativeTime, pluralize, DISTRICTS, URGENCY_LABELS } from '../../lib/utils'
+import { jobPriceLabel, urgencyTone } from '../../lib/jobs'
+import { categoryStyle } from '../../lib/tones'
+import { threadPath } from '../../lib/messages'
+import { errorMessage } from '../../lib/errors'
 import api from '../../lib/api'
-import AgentPanel from '../../components/agent/AgentPanel'
 
-const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
+const FEED_PAGE_SIZE = 20
+
+function Meta({ children }) {
+  return <span className="inline-flex items-center gap-1">{children}</span>
+}
+
+function FeedCard({ job }) {
+  const { icon, tone } = categoryStyle(job.category_name)
+  const declined = job.my_proposal_status === 'declined'
+  return (
+    <article className="group relative flex flex-col rounded-card border border-line/80 bg-surface p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-card-hover sm:p-5">
+      <div className="flex items-start gap-3">
+        <IconChip icon={icon} tone={tone} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {job.urgency && <StatusBadge tone={urgencyTone(job.urgency)}>{URGENCY_LABELS[job.urgency]}</StatusBadge>}
+            {job.has_my_proposal && !declined && <StatusBadge tone="indigo">Proposal sent</StatusBadge>}
+            {declined && <StatusBadge tone="rose">Not chosen</StatusBadge>}
+          </div>
+          <h3 className="mt-1.5 text-[15px] font-semibold leading-snug text-fg">
+            <Link to={`/jobs/${job.id}`} className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand">
+              {job.title}
+            </Link>
+          </h3>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-muted">
+            {job.category_name && <span>{job.category_name}</span>}
+            {job.district && <Meta><MapPin className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{job.town || job.district}</Meta>}
+            <Meta><Clock className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{formatRelativeTime(job.created_at)}</Meta>
+          </p>
+        </div>
+      </div>
+      {job.description && <p className="mt-3 line-clamp-2 text-[13px] leading-5 text-fg-muted">{job.description}</p>}
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
+        <div>
+          <p className="text-[15px] font-bold text-fg">{jobPriceLabel(job)}</p>
+          <p className="text-xs text-fg-subtle">{pluralize(job.proposal_count || 0, 'proposal')} so far · {job.customer_name}</p>
+        </div>
+        {job.has_my_proposal ? (
+          <Button to={`/jobs/${job.id}`} variant="secondary" size="sm" className="relative z-10">View proposal</Button>
+        ) : (
+          <Button to={`/jobs/${job.id}/propose`} size="sm" className="relative z-10">Send proposal</Button>
+        )}
+      </div>
+    </article>
+  )
+}
 
 export function OpenJobs() {
   const [search, setSearch] = useState('')
@@ -18,320 +76,270 @@ export function OpenJobs() {
   const [tab, setTab] = useState('open')
   const [agentOpen, setAgentOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const { data: feed = [], isLoading } = useQuery({
-    queryKey: ['job-feed', category, district],
-    queryFn: () => api.get(`/jobs/feed?category=${category}&district=${district}`).then(r => r.data),
-  })
+  const debouncedSearch = useDebouncedValue(search.trim())
+  const { categories } = useCategories()
+  usePageTitle('Open jobs')
 
-  const filtered = feed.filter(j => {
-    if (search && !j.title.toLowerCase().includes(search.toLowerCase())) return false
-    if (tab === 'open') return !j.has_my_proposal
-    if (tab === 'sent') return j.has_my_proposal && j.my_proposal_status === 'pending'
-    if (tab === 'rejected') return j.my_proposal_status === 'declined'
-    return true
+  const proposalFilter = { open: 'open', sent: 'sent', rejected: 'declined' }[tab]
+  const {
+    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching,
+  } = useInfiniteQuery({
+    queryKey: ['job-feed', { category, district, search: debouncedSearch, proposal: proposalFilter }],
+    queryFn: ({ pageParam }) => api.get('/jobs/feed', {
+      params: { category: category || undefined, district: district || undefined, search: debouncedSearch || undefined, proposal: proposalFilter, page: pageParam, limit: FEED_PAGE_SIZE },
+    }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => (lastPage.length === FEED_PAGE_SIZE ? pages.length + 1 : undefined),
+    placeholderData: previous => previous,
   })
+  const jobs = data?.pages.flat() || []
+  const activeFilters = Number(Boolean(category)) + Number(Boolean(district))
+  const emptyCopy = {
+    open: debouncedSearch || activeFilters
+      ? { title: 'No matching jobs', description: 'Try a different search, category or district.' }
+      : { title: 'No new jobs right now', description: 'New jobs appear here as customers post them. Check back soon.' },
+    sent: { title: 'No proposals waiting', description: 'Jobs you’ve sent a proposal for show here until the customer decides.' },
+    rejected: { title: 'No declined proposals', description: 'If a customer chooses someone else, the job shows here.' },
+  }[tab]
 
   return (
     <AppShell>
-      <div className="fixly-app-page">
-        <div className="fixly-page max-w-7xl space-y-6">
-          <div className="flex items-start justify-between gap-4">
-            <PageHeader title="Open Jobs" description="Browse jobs looking for workers" />
-            <Button
-              id="run-proposal-agent-btn"
-              variant="primary"
-              className="hidden flex-shrink-0 bg-gradient-to-r from-violet-600 to-purple-600 shadow-md shadow-violet-200 hover:from-violet-700 hover:to-purple-700 dark:shadow-violet-900/30 sm:inline-flex"
-              onClick={() => setAgentOpen(true)}
-            >
-              <Bot className="w-4 h-4" /> Run Proposal Agent
-            </Button>
-          </div>
+      <Page>
+        <PageHeader
+          title="Open jobs"
+          description="Jobs near you that are looking for a worker."
+          actions={<Button variant="secondary" onClick={() => setAgentOpen(true)}><Sparkles className="h-4 w-4 text-violet-500" aria-hidden="true" /> Find jobs for me</Button>}
+        />
 
-          <Button
-            id="run-proposal-agent-mobile-btn"
-            variant="outline"
-            className="w-full border-violet-200 text-violet-700 dark:border-violet-800 dark:text-violet-300 sm:hidden"
-            onClick={() => setAgentOpen(true)}
-          >
-            <Bot className="h-4 w-4" /> Get AI job suggestions
-          </Button>
-
-          <div className="fixly-tab-strip" role="tablist" aria-label="Filter available jobs">
-            {[
-              ['open', 'Open Jobs'],
-              ['sent', 'Proposal Sent'],
-              ['rejected', 'Rejected'],
-            ].map(([key, label]) => (
-              <button type="button" role="tab" aria-selected={tab === key} key={key} onClick={() => setTab(key)} className={cn('fixly-tab', tab === key && 'active')}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="fixly-glow-panel p-3 sm:p-4">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-              <div className="relative min-w-0 flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input aria-label="Search available jobs" className="fixly-input pl-9" placeholder="Search jobs..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Card as="div" className="mb-5 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <Tabs label="Filter jobs" value={tab} onChange={setTab} tabs={[{ value: 'open', label: 'New' }, { value: 'sent', label: 'Proposal sent' }, { value: 'rejected', label: 'Not chosen' }]} />
+            <div className="flex flex-1 gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
+                <input type="search" aria-label="Search jobs" className="fixly-input pl-9" placeholder="Search jobs" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
-              <Button type="button" variant="outline" className="px-3 md:hidden" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen} aria-controls="job-feed-filters">
-                <SlidersHorizontal className="h-4 w-4" />
-                {(category || district) && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] text-white">{Number(Boolean(category)) + Number(Boolean(district))}</span>}
+              <Button variant="secondary" className="lg:hidden" onClick={() => setFiltersOpen(v => !v)} aria-expanded={filtersOpen} aria-controls="feed-filters">
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                {activeFilters > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] text-brand-on">{activeFilters}</span>}
+                <span className="sr-only">Filters</span>
               </Button>
             </div>
-            <div id="job-feed-filters" className={cn('mt-3 grid gap-2 md:flex', !filtersOpen && 'hidden md:flex')}>
-              <select aria-label="Filter jobs by category" className="fixly-input w-full bg-white dark:bg-slate-900 md:w-44" value={category} onChange={e => setCategory(e.target.value)}>
-                  <option value="">All Categories</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select aria-label="Filter jobs by district" className="fixly-input w-full bg-white dark:bg-slate-900 md:w-44" value={district} onChange={e => setDistrict(e.target.value)}>
-                  <option value="">All Districts</option>
-                  {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-                {(category || district) && <button type="button" onClick={() => { setCategory(''); setDistrict('') }} className="min-h-11 px-3 text-sm font-semibold text-sky-600 dark:text-sky-300">Clear filters</button>}
+            <div id="feed-filters" className={cn('grid gap-2 sm:grid-cols-2 lg:flex lg:w-auto', !filtersOpen && 'hidden lg:flex')}>
+              <Select aria-label="Category" value={category} onChange={e => setCategory(e.target.value)} className="lg:w-44">
+                <option value="">All categories</option>
+                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </Select>
+              <Select aria-label="District" value={district} onChange={e => setDistrict(e.target.value)} className="lg:w-40">
+                <option value="">All districts</option>
+                {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </Select>
+              {activeFilters > 0 && (
+                <Button variant="ghost" onClick={() => { setCategory(''); setDistrict('') }}><X className="h-4 w-4" aria-hidden="true" /> Clear</Button>
+              )}
             </div>
           </div>
+        </Card>
 
-          {isLoading ? (
-            <div className="flex justify-center py-12"><Spinner /></div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={Briefcase} title="No jobs found" description="Try adjusting your filters" />
-          ) : (
-            <div className="grid gap-5 md:grid-cols-2">
-              {filtered.map(job => (
-                <Card key={job.id} className="p-4 transition-shadow hover:shadow-md dark:border-slate-800 sm:p-6">
-                  <div className="mb-3 sm:flex sm:items-start sm:justify-between sm:gap-3">
-                    <div className="flex-1">
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        {job.category_name && <span className="fixly-pill-sky">{job.category_name}</span>}
-                        {job.has_my_proposal && <span className="fixly-pill-emerald">Proposal sent</span>}
-                        {job.my_proposal_status === 'declined' && <span className="fixly-pill-rose">Proposal rejected</span>}
-                        {job.urgency && <span className="text-xs text-slate-500">{URGENCY_LABELS[job.urgency]}</span>}
-                      </div>
-                      <h3 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{job.title}</h3>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                        {job.customer_name && <span>Posted by {job.customer_name}</span>}
-                        {job.district && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{job.district}</span>}
-                        <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{job.proposal_count} proposals</span>
-                      </div>
-                    </div>
-                    <span className="mt-2 block shrink-0 text-xs text-slate-400 sm:mt-0">{formatRelativeTime(job.created_at)}</span>
-                  </div>
-
-                  {job.pricing_mode === 'fixed' && job.fixed_budget && (
-                    <p className="mb-3 text-sm font-bold text-sky-600 dark:text-sky-300">Budget: {formatCurrency(job.fixed_budget)}</p>
-                  )}
-                  {job.pricing_mode === 'ask_quotes' && (
-                    <p className="mb-3 text-xs font-medium text-violet-600 dark:text-violet-300">Open for quotes</p>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Link to={`/jobs/${job.id}`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full">View Details</Button>
-                    </Link>
-                    <Link to={job.has_my_proposal ? `/jobs/${job.id}` : `/jobs/${job.id}/propose`}>
-                      <Button variant={job.has_my_proposal ? 'secondary' : 'primary'} size="sm">
-                        {job.has_my_proposal ? 'View Proposal Status' : 'Send Proposal'}
-                      </Button>
-                    </Link>
-                  </div>
-                </Card>
-              ))}
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-52 w-full rounded-card" />)}</div>
+        ) : isError ? (
+          <ErrorFallback title="We couldn’t load jobs" description="Check your connection and try again." onRetry={() => refetch()} />
+        ) : jobs.length === 0 ? (
+          <Card><EmptyState icon={Briefcase} title={emptyCopy.title} description={emptyCopy.description} /></Card>
+        ) : (
+          <div className={cn('space-y-5', isFetching && !isFetchingNextPage && 'opacity-60 transition-opacity')}>
+            <div className="grid gap-4 md:grid-cols-2">{jobs.map(job => <FeedCard key={job.id} job={job} />)}</div>
+            <div className="flex flex-col items-center gap-3 text-[13px] text-fg-muted">
+              <span aria-live="polite">{pluralize(jobs.length, 'job')}</span>
+              {hasNextPage && <Button variant="secondary" size="sm" onClick={() => fetchNextPage()} loading={isFetchingNextPage}>Load more</Button>}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Proposal Agent slide-in modal ── */}
-      {agentOpen && (
-        <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Proposal Agent">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setAgentOpen(false)}
-          />
-          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
-            <AgentPanel
-              mode="proposal"
-              onClose={() => setAgentOpen(false)}
-            />
           </div>
-        </div>
-      )}
+        )}
+      </Page>
+      <AgentSheet open={agentOpen} mode="proposal" onClose={() => setAgentOpen(false)} />
     </AppShell>
   )
 }
 
-export function Invites() {
-  const { toast } = useToast()
-  const qc = useQueryClient()
-
-  const { data: invites = [], isLoading } = useQuery({
-    queryKey: ['invites'],
-    queryFn: () => api.get('/invites/received').then(r => r.data),
-  })
-
-  const respond = useMutation({
-    mutationFn: ({ id, action }) => api.put(`/invites/${id}/${action}`),
-    onSuccess: (_, vars) => {
-      toast({ title: vars.action === 'accept' ? 'Invite accepted!' : 'Invite declined', variant: vars.action === 'accept' ? 'success' : 'default' })
-      qc.invalidateQueries(['invites'])
-    },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
-
-  const pending = invites.filter(i => i.status === 'pending')
-  const past = invites.filter(i => i.status !== 'pending')
-
+function InviteCard({ invite, onRespond, pendingAction }) {
+  const { user } = useAuth()
+  const { icon, tone } = categoryStyle(invite.category_name)
+  const pending = invite.status === 'pending'
   return (
-    <AppShell>
-      <div className="fixly-app-page">
-        <div className="fixly-page max-w-5xl space-y-6">
-          <PageHeader title="Job Invites" description="Customers have personally invited you to their jobs" />
-
-          {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
-            invites.length === 0 ? (
-              <EmptyState icon={MessageSquare} title="No invites yet" description="When customers invite you to jobs, they'll appear here" />
-            ) : (
-              <div className="space-y-6">
-                {pending.length > 0 && (
-                  <div>
-                    <h2 className="mb-3 text-sm font-semibold text-slate-700">Pending ({pending.length})</h2>
-                    <div className="space-y-4">
-                      {pending.map(inv => (
-                        <InviteCard key={inv.id} invite={inv} onRespond={(action) => respond.mutate({ id: inv.id, action })} loading={respond.isPending} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {past.length > 0 && (
-                  <div>
-                    <h2 className="mb-3 text-sm font-semibold text-slate-500">Past</h2>
-                    <div className="space-y-3">
-                      {past.map(inv => <InviteCard key={inv.id} invite={inv} past />)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-        </div>
-      </div>
-    </AppShell>
-  )
-}
-
-function InviteCard({ invite, onRespond, loading, past }) {
-  return (
-    <Card className={cn('p-4 sm:p-6', past && 'opacity-60')}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-slate-900">{invite.job_title}</h3>
-          <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-            {invite.district && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{invite.district}</span>}
+    <Card as="article" className={cn('p-4 sm:p-5', pending && 'border-violet-200 dark:border-violet-500/30')}>
+      <div className="flex items-start gap-3">
+        <IconChip icon={pending ? Mail : icon} tone={pending ? 'violet' : tone} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <Link to={`/jobs/${invite.job_id}`} className="text-[15px] font-semibold text-fg hover:text-brand-text">{invite.job_title}</Link>
+            <StatusBadge tone={{ pending: 'violet', accepted: 'emerald', declined: 'slate' }[invite.status] || 'slate'}>
+              {{ pending: 'Waiting for you', accepted: 'Accepted', declined: 'Declined' }[invite.status] || invite.status}
+            </StatusBadge>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-muted">
+            <span>From {invite.customer_name}</span>
+            {invite.district && <Meta><MapPin className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{invite.district}</Meta>}
             {invite.urgency && <span>{URGENCY_LABELS[invite.urgency]}</span>}
-          </div>
+            <Meta><Clock className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{formatRelativeTime(invite.created_at)}</Meta>
+          </p>
         </div>
-        <Badge status={invite.status} />
       </div>
       {invite.message && (
-        <p className="mb-3 rounded-xl bg-slate-50 p-3 text-sm italic text-slate-600 dark:bg-slate-900/70">"{invite.message}"</p>
+        <blockquote className="mt-3 rounded-control border-l-2 border-violet-300 bg-subtle px-3.5 py-2.5 text-sm leading-6 text-fg-muted dark:border-violet-500/50">
+          {invite.message}
+        </blockquote>
       )}
-      <p className="mb-3 text-xs text-slate-400">From: {invite.customer_name} • {formatRelativeTime(invite.created_at)}</p>
-      {!past && invite.status === 'pending' && (
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Button variant="primary" size="sm" className="flex-1" onClick={() => onRespond('accept')} loading={loading}>Accept</Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => onRespond('decline')}>Decline</Button>
-          <Link to={`/jobs/${invite.job_id}`} className="col-span-2 sm:col-span-1">
-            <Button variant="ghost" size="sm" className="w-full">View Job</Button>
-          </Link>
+      {pending && (
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
+          <Button size="sm" onClick={() => onRespond('accept')} loading={pendingAction === 'accept'} disabled={Boolean(pendingAction)}>Accept and quote</Button>
+          <Button size="sm" variant="secondary" onClick={() => onRespond('decline')} loading={pendingAction === 'decline'} disabled={Boolean(pendingAction)}>Decline</Button>
+          <Button size="sm" variant="ghost" to={threadPath(invite.job_id, user.id)}><MessagesSquare className="h-4 w-4" aria-hidden="true" /> Ask a question</Button>
+          <Button size="sm" variant="ghost" to={`/jobs/${invite.job_id}`} className="sm:ml-auto">View job</Button>
         </div>
       )}
     </Card>
   )
 }
 
-export function AssignedJobs() {
-  const [tab, setTab] = useState('active')
+export function Invites() {
   const { toast } = useToast()
+  const navigate = useNavigate()
   const qc = useQueryClient()
-
-  const { data: jobs = [], isLoading } = useQuery({
-    queryKey: ['assigned-jobs'],
-    queryFn: () => api.get('/jobs/assigned').then(r => r.data),
+  usePageTitle('Invites')
+  const { data: invites = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['invites'],
+    queryFn: () => api.get('/invites/received').then(r => r.data),
   })
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }) => api.put(`/jobs/${id}/status`, { status }),
-    onSuccess: () => { toast({ title: 'Updated!', variant: 'success' }); qc.invalidateQueries(['assigned-jobs']) },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+  const respond = useMutation({
+    mutationFn: ({ id, action }) => api.put(`/invites/${id}/${action}`),
+    meta: { track: 'invite_responded', trackProps: ({ action }) => ({ action }) },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['invites'] })
+      qc.invalidateQueries({ queryKey: ['job-feed'] })
+      qc.invalidateQueries({ queryKey: ['my-proposals'] })
+      if (vars.action === 'accept') {
+        toast({ title: 'Invite accepted', description: 'Now add your price and availability so the customer can hire you.', variant: 'success' })
+        navigate(`/jobs/${vars.jobId}/propose`)
+      } else {
+        toast({ title: 'Invite declined', description: 'We’ve let the customer know.' })
+      }
+    },
+    onError: (e) => toast({ title: 'Couldn’t respond to the invite', description: errorMessage(e), variant: 'error' }),
   })
-
-  const filteredJobs = jobs.filter(job => {
-    if (tab === 'active') return ['assigned', 'in_progress'].includes(job.status)
-    if (tab === 'awaiting_payment') return ['completed', 'payment_recorded'].includes(job.status)
-    if (tab === 'finished') return job.status === 'reviewed'
-    return true
-  })
+  const pendingAction = (invite) => (respond.isPending && respond.variables?.id === invite.id ? respond.variables.action : null)
+  const pending = invites.filter(i => i.status === 'pending')
+  const past = invites.filter(i => i.status !== 'pending')
 
   return (
     <AppShell>
-      <div className="fixly-app-page">
-        <div className="fixly-page max-w-6xl space-y-6">
-          <PageHeader title="My Work" description="Jobs assigned to you" />
-          <div className="fixly-tab-strip" role="tablist" aria-label="Filter assigned work">
-            {[
-              ['active', 'Active'],
-              ['awaiting_payment', 'Awaiting Payment'],
-              ['finished', 'Finished'],
-              ['all', 'All'],
-            ].map(([key, label]) => (
-              <button type="button" role="tab" aria-selected={tab === key} key={key} onClick={() => setTab(key)} className={cn('fixly-tab', tab === key && 'active')}>
-                {label}
-              </button>
-            ))}
+      <Page width="default">
+        <PageHeader title="Invites" description="Customers who asked for you personally." />
+        {isLoading ? (
+          <div className="space-y-4">{[0, 1].map(i => <Skeleton key={i} className="h-40 w-full rounded-card" />)}</div>
+        ) : isError ? (
+          <ErrorFallback title="We couldn’t load your invites" description="Check your connection and try again." onRetry={() => refetch()} />
+        ) : invites.length === 0 ? (
+          <Card><EmptyState icon={Mail} title="No invites yet" description="When a customer invites you to a job, it appears here. A complete profile helps customers find you." action={<Button to="/profile/edit" size="sm" variant="secondary">Improve your profile</Button>} /></Card>
+        ) : (
+          <div className="space-y-8">
+            {pending.length > 0 && (
+              <section aria-labelledby="pending-invites" className="space-y-3">
+                <h2 id="pending-invites" className="text-sm font-semibold text-fg">Waiting for you <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{pending.length}</span></h2>
+                {pending.map(inv => <InviteCard key={inv.id} invite={inv} onRespond={(action) => respond.mutate({ id: inv.id, jobId: inv.job_id, action })} pendingAction={pendingAction(inv)} />)}
+              </section>
+            )}
+            {past.length > 0 && (
+              <section aria-labelledby="past-invites" className="space-y-3">
+                <h2 id="past-invites" className="text-sm font-semibold text-fg-muted">Earlier</h2>
+                {past.map(inv => <InviteCard key={inv.id} invite={inv} />)}
+              </section>
+            )}
           </div>
+        )}
+      </Page>
+    </AppShell>
+  )
+}
 
-          {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
-            filteredJobs.length === 0 ? (
-              <EmptyState icon={Briefcase} title="No assigned jobs" description="Accept proposals or invites to get started" />
-            ) : (
-              <div className="grid gap-5 md:grid-cols-2">
-                {filteredJobs.map(job => (
-                  <Card key={job.id} className="p-4 sm:p-6">
-                    <div className="mb-2 flex items-start justify-between">
-                      <h3 className="font-semibold text-slate-900">{job.title}</h3>
-                      <Badge status={job.status} />
+const WORK_TABS = [
+  { value: 'active', label: 'Active', statuses: ['assigned', 'in_progress'], empty: { title: 'No active jobs', description: 'When a customer hires you, the job appears here.' } },
+  { value: 'awaiting_payment', label: 'Awaiting payment', statuses: ['completed', 'payment_recorded'], empty: { title: 'Nothing awaiting payment', description: 'Finished jobs wait here until the payment is recorded and confirmed.' } },
+  { value: 'finished', label: 'Finished', statuses: ['reviewed'], empty: { title: 'No finished jobs yet', description: 'Jobs the customer has reviewed appear here.' } },
+  { value: 'all', label: 'All', statuses: null, empty: { title: 'No jobs yet', description: 'Send proposals or accept invites to get hired.' } },
+]
+
+export function AssignedJobs() {
+  const [tab, setTab] = useState('active')
+  const statusAction = useJobStatusAction()
+  const { user } = useAuth()
+  usePageTitle('My work')
+
+  const { data: jobs = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['assigned-jobs'],
+    queryFn: () => api.get('/jobs/assigned').then(r => r.data),
+  })
+  const counts = Object.fromEntries(WORK_TABS.map(t => [t.value, t.statuses ? jobs.filter(j => t.statuses.includes(j.status)).length : jobs.length]))
+  const activeTab = WORK_TABS.find(t => t.value === tab)
+  const filtered = activeTab.statuses ? jobs.filter(j => activeTab.statuses.includes(j.status)) : jobs
+
+  return (
+    <AppShell>
+      <Page width="default">
+        {statusAction.dialog}
+        <PageHeader title="My work" description="Jobs you’ve been hired for, and what to do next." />
+        <Tabs label="Filter work" value={tab} onChange={setTab} tabs={WORK_TABS.map(t => ({ value: t.value, label: t.label, count: isLoading ? undefined : counts[t.value] }))} className="mb-5" />
+
+        {isLoading ? (
+          <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-28 w-full rounded-card" />)}</div>
+        ) : isError ? (
+          <ErrorFallback title="We couldn’t load your work" description="Check your connection and try again." onRetry={() => refetch()} />
+        ) : filtered.length === 0 ? (
+          <Card><EmptyState icon={Wrench} title={activeTab.empty.title} description={activeTab.empty.description} action={tab === 'active' ? <Button to="/jobs/feed" size="sm">Browse open jobs</Button> : null} /></Card>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map(job => {
+              const { icon, tone } = categoryStyle(job.category_name)
+              return (
+                <Card key={job.id} as="article" className="p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <IconChip icon={icon} tone={tone} />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link to={`/jobs/${job.id}`} className="text-[15px] font-semibold text-fg hover:text-brand-text">{job.title}</Link>
+                          <JobStatusBadge status={job.status} />
+                        </div>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-muted">
+                          <Meta><Users className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{job.customer_name}</Meta>
+                          {job.district && <Meta><MapPin className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{[job.town, job.district].filter(Boolean).join(', ')}</Meta>}
+                          {job.final_price && <Meta><Banknote className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" /><span className="font-semibold text-fg">{formatCurrency(job.final_price)}</span></Meta>}
+                        </p>
+                      </div>
                     </div>
-                    <p className="mb-1 flex items-center gap-1 text-sm text-slate-500">
-                      <MapPin className="h-3.5 w-3.5" />{job.district}{job.town ? `, ${job.town}` : ''}
-                    </p>
-                    {job.customer_name && <p className="mb-3 text-xs text-slate-400">Customer: {job.customer_name}</p>}
-                    {job.final_price && <p className="mb-3 text-sm font-bold text-emerald-600 dark:text-emerald-300">Payment: {formatCurrency(job.final_price)}</p>}
-                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <div className="flex flex-wrap items-center gap-2 pl-[3.25rem] sm:pl-0">
                       {job.status === 'assigned' && (
-                        <Button variant="primary" size="sm" className="flex-1" onClick={() => updateStatus.mutate({ id: job.id, status: 'in_progress' })} loading={updateStatus.isPending}>
-                          <Play className="h-3.5 w-3.5" /> Start
-                        </Button>
+                        <Button size="sm" onClick={() => statusAction.start(job)} loading={statusAction.isPending(job)}><Play className="h-3.5 w-3.5" aria-hidden="true" /> Start</Button>
                       )}
                       {job.status === 'in_progress' && (
-                        <Button variant="success" size="sm" className="flex-1" onClick={() => updateStatus.mutate({ id: job.id, status: 'completed' })} loading={updateStatus.isPending}>
-                          <CheckCircle className="h-3.5 w-3.5" /> Complete
-                        </Button>
+                        <Button size="sm" variant="success" onClick={() => statusAction.requestComplete(job)} loading={statusAction.isPending(job)}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> Complete</Button>
                       )}
                       {job.status === 'payment_recorded' && (
-                        <Link to={`/jobs/${job.id}`} className="flex-1">
-                          <Button variant="success" size="sm" className="w-full">Confirm Payment</Button>
-                        </Link>
+                        <Button size="sm" variant="success" to={`/jobs/${job.id}`}><Banknote className="h-3.5 w-3.5" aria-hidden="true" /> Confirm payment</Button>
                       )}
-                      <Link to={`/jobs/${job.id}`}>
-                        <Button variant="outline" size="sm">Details</Button>
-                      </Link>
+                      {['assigned', 'in_progress', 'completed'].includes(job.status) && (
+                        <Button size="sm" variant="secondary" to={threadPath(job.id, user.id)}><MessagesSquare className="h-3.5 w-3.5" aria-hidden="true" /> Message</Button>
+                      )}
+                      <Button size="sm" variant="ghost" to={`/jobs/${job.id}`}>Details</Button>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-        </div>
-      </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </Page>
     </AppShell>
   )
 }

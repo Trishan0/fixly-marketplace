@@ -64,7 +64,7 @@ function cleanupRateLimitBuckets() {
 }
 
 function adminStats() {
-  return one(sql`SELECT (SELECT COUNT(*)::int FROM users WHERE role <> 'admin') AS total_users,(SELECT COUNT(*)::int FROM users WHERE role='worker') AS total_workers,(SELECT COUNT(*)::int FROM jobs) AS total_jobs,(SELECT COUNT(*)::int FROM reports WHERE status='open') AS open_reports,(SELECT COUNT(*)::int FROM jobs WHERE status IN ('posted','proposals_received')) AS open_jobs,(SELECT COUNT(*)::int FROM worker_profiles WHERE ai_matching_opt_in=false) AS ai_matching_opted_out`);
+  return one(sql`SELECT (SELECT COUNT(*)::int FROM payments WHERE status='disputed' AND dispute_resolved_at IS NULL) AS open_disputes,(SELECT COUNT(*)::int FROM users WHERE role <> 'admin') AS total_users,(SELECT COUNT(*)::int FROM users WHERE role='worker') AS total_workers,(SELECT COUNT(*)::int FROM jobs) AS total_jobs,(SELECT COUNT(*)::int FROM reports WHERE status='open') AS open_reports,(SELECT COUNT(*)::int FROM jobs WHERE status IN ('posted','proposals_received')) AS open_jobs,(SELECT COUNT(*)::int FROM worker_profiles WHERE ai_matching_opt_in=false) AS ai_matching_opted_out`);
 }
 
 /** @param {AdminUserFilters} filters */
@@ -84,7 +84,12 @@ function adminUser(id) {
 
 /** @param {string} id @param {AdminUserUpdate} fields @param {QueryExecutor} [client] */
 function updateAdminUser(id, fields, client) {
-  return one(sql`UPDATE users SET force_verified=COALESCE(${fields.forceVerified},force_verified),is_suspended=COALESCE(${fields.suspended},is_suspended),is_nic_verified=COALESCE(${fields.nicVerified},is_nic_verified),nic_verified_by=CASE WHEN ${fields.nicVerified}::boolean THEN ${fields.actorId} ELSE nic_verified_by END,updated_at=NOW() WHERE id=${id} RETURNING id,force_verified,is_suspended,is_nic_verified`, client);
+  return one(sql`UPDATE users SET force_verified=COALESCE(${fields.forceVerified},force_verified),is_suspended=COALESCE(${fields.suspended},is_suspended),is_nic_verified=COALESCE(${fields.nicVerified},is_nic_verified),nic_verified_by=CASE WHEN ${fields.nicVerified}::boolean THEN ${fields.actorId} ELSE nic_verified_by END,nic_rejection_reason=CASE WHEN ${fields.nicVerified}::boolean THEN NULL ELSE nic_rejection_reason END,updated_at=NOW() WHERE id=${id} RETURNING id,force_verified,is_suspended,is_nic_verified`, client);
+}
+
+/** Rejects a pending NIC: clears the image so the worker can upload a new one, and keeps the reason to show them. @param {string} id @param {string} reason @param {QueryExecutor} [client] */
+function rejectNic(id, reason, client) {
+  return one(sql`UPDATE users u SET is_nic_verified=false,nic_verified_by=NULL,nic_image_path=NULL,nic_rejection_reason=${reason},updated_at=NOW() FROM (SELECT id,nic_image_path FROM users WHERE id=${id} FOR UPDATE) prev WHERE u.id=prev.id AND u.role='worker' RETURNING u.id,u.is_nic_verified,u.nic_rejection_reason,prev.nic_image_path AS previous_nic_image_path`, client);
 }
 
 /** @param {AuditInput} input @param {QueryExecutor} [client] */
@@ -98,7 +103,7 @@ function listAdminWorkers() {
 
 /** @param {AdminJobFilters} filters */
 function listAdminJobs({ status, category, district, limit, offset }) {
-  return rows(sql`SELECT j.id,j.customer_id,j.title,j.description,j.category_id,j.district,j.status,j.is_active,j.created_at,c.name AS category_name,u.full_name AS customer_name FROM jobs j LEFT JOIN categories c ON c.id=j.category_id LEFT JOIN users u ON u.id=j.customer_id WHERE (${status}::text IS NULL OR j.status=${status}) AND (${category}::text IS NULL OR c.name ILIKE ${`%${category || ''}%`}) AND (${district}::text IS NULL OR j.district ILIKE ${`%${district || ''}%`}) ORDER BY j.created_at DESC LIMIT ${limit} OFFSET ${offset}`);
+  return rows(sql`SELECT j.id,j.customer_id,j.title,j.description,j.category_id,j.district,j.status,j.is_active,j.flag_reason,j.flagged_at,j.created_at,(SELECT COUNT(*)::int FROM reports rp WHERE rp.job_id=j.id AND rp.status IN ('open','reviewing')) AS open_reports,c.name AS category_name,u.full_name AS customer_name FROM jobs j LEFT JOIN categories c ON c.id=j.category_id LEFT JOIN users u ON u.id=j.customer_id WHERE (${status}::text IS NULL OR j.status=${status}) AND (${category}::text IS NULL OR c.name ILIKE ${`%${category || ''}%`}) AND (${district}::text IS NULL OR j.district ILIKE ${`%${district || ''}%`}) ORDER BY j.created_at DESC LIMIT ${limit} OFFSET ${offset}`);
 }
 
 /** @param {Pick<AdminJobFilters, 'status' | 'category' | 'district'>} filters */
@@ -108,7 +113,7 @@ function countAdminJobs({ status, category, district }) {
 
 /** @param {string | null} status @param {string | null} type */
 function listAdminReports(status, type) {
-  return rows(sql`SELECT r.id,r.reporter_id,r.reported_user_id,r.job_id,r.report_type,r.description,r.status,r.resolution_note,r.created_at,r.updated_at,u1.full_name AS reporter_name,u2.full_name AS reported_user_name,j.title AS job_title FROM reports r LEFT JOIN users u1 ON u1.id=r.reporter_id LEFT JOIN users u2 ON u2.id=r.reported_user_id LEFT JOIN jobs j ON j.id=r.job_id WHERE (${status}::text IS NULL OR r.status=${status}) AND (${type}::text IS NULL OR r.report_type=${type}) ORDER BY r.created_at DESC LIMIT 100`);
+  return rows(sql`SELECT r.id,r.reporter_id,r.reported_user_id,r.job_id,r.report_type,r.description,r.status,r.resolution_note,r.created_at,r.updated_at,u1.full_name AS reporter_name,u1.role AS reporter_role,u2.full_name AS reported_user_name,u2.role AS reported_user_role,u2.is_suspended AS reported_user_suspended,j.title AS job_title,j.is_active AS job_is_active FROM reports r LEFT JOIN users u1 ON u1.id=r.reporter_id LEFT JOIN users u2 ON u2.id=r.reported_user_id LEFT JOIN jobs j ON j.id=r.job_id WHERE (${status}::text IS NULL OR r.status=${status}) AND (${type}::text IS NULL OR r.report_type=${type}) ORDER BY r.created_at DESC LIMIT 100`);
 }
 
 function listCategoriesAdmin() {
@@ -130,9 +135,27 @@ function updateCategory(id, input, client) {
   return one(sql`UPDATE categories SET name=COALESCE(${input.name},name),icon=COALESCE(${input.icon},icon),is_active=COALESCE(${input.isActive},is_active) WHERE id=${id} RETURNING id,name,icon,parent_id,is_active`, client);
 }
 
+/** Takes a job down; the reason is shown to the customer. @param {string} id @param {string | null} reason @param {QueryExecutor} [client] */
+function flagJob(id, reason, client) {
+  return one(sql`UPDATE jobs SET is_active=false,flag_reason=${reason},flagged_at=NOW(),updated_at=NOW() WHERE id=${id} RETURNING id,is_active,status,title,customer_id,flag_reason`, client);
+}
+
 /** @param {string} id @param {QueryExecutor} [client] */
-function flagJob(id, client) {
-  return one(sql`UPDATE jobs SET is_active=false,updated_at=NOW() WHERE id=${id} RETURNING id,is_active,status`, client);
+function restoreJob(id, client) {
+  return one(sql`UPDATE jobs SET is_active=true,flag_reason=NULL,flagged_at=NULL,updated_at=NOW() WHERE id=${id} AND is_active=false RETURNING id,is_active,status,title,customer_id`, client);
+}
+
+/** Disputed payments with both parties. @param {'open' | 'resolved' | 'all'} state */
+function listDisputes(state, limit = 100) {
+  const stateCondition = state === 'open'
+    ? sql`AND p.dispute_resolved_at IS NULL`
+    : state === 'resolved' ? sql`AND p.dispute_resolved_at IS NOT NULL` : sql``;
+  return rows(sql`SELECT p.id,p.job_id,p.amount,p.method,p.note,p.dispute_reason,p.dispute_resolved_at,p.dispute_resolution_note,p.created_at,j.title AS job_title,j.final_price,c.id AS customer_id,c.full_name AS customer_name,c.phone AS customer_phone,w.id AS worker_id,w.full_name AS worker_name,w.phone AS worker_phone,r.full_name AS resolved_by_name FROM payments p JOIN jobs j ON j.id=p.job_id JOIN users c ON c.id=j.customer_id JOIN users w ON w.id=j.assigned_worker_id LEFT JOIN users r ON r.id=p.dispute_resolved_by WHERE p.status='disputed' ${stateCondition} ORDER BY p.dispute_resolved_at NULLS FIRST,p.created_at DESC LIMIT ${limit}`);
+}
+
+/** @param {string} paymentId @param {{ actorId: string, note: string }} input @param {QueryExecutor} [client] */
+function resolveDispute(paymentId, input, client) {
+  return one(sql`UPDATE payments p SET dispute_resolved_at=NOW(),dispute_resolved_by=${input.actorId},dispute_resolution_note=${input.note} FROM jobs j WHERE p.id=${paymentId} AND j.id=p.job_id AND p.status='disputed' AND p.dispute_resolved_at IS NULL RETURNING p.id,p.job_id,p.dispute_resolution_note,j.title AS job_title,j.customer_id,j.assigned_worker_id`, client);
 }
 
 /** @param {string} id @param {ReportResolution} input @param {QueryExecutor} [client] */
@@ -142,7 +165,7 @@ function resolveReport(id, input, client) {
 
 module.exports = instrumentRepository('operations', {
   adminStats, adminUser, adminUsers, cleanupRateLimitBuckets, countAdminJobs, countAdminUsers,
-  flagJob, findCategory, incrementRateLimit, insertAudit, insertCategory, insertNotification,
+  flagJob, restoreJob, listDisputes, resolveDispute, findCategory, incrementRateLimit, insertAudit, insertCategory, insertNotification, rejectNic,
   insertReport, listAdminJobs, listAdminReports, listAdminWorkers, listCategoriesAdmin,
   listMyReports, listNotifications, markAllNotificationsRead, markNotificationRead, resolveReport,
   updateAdminUser, updateCategory,

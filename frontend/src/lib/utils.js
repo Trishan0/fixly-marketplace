@@ -63,10 +63,10 @@ export const STATUS_COLORS = {
 };
 
 export const URGENCY_LABELS = {
-  today: "🔥 Today",
-  tomorrow: "📅 Tomorrow",
-  this_week: "📆 This Week",
-  flexible: "🕐 Flexible",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  this_week: "This week",
+  flexible: "Flexible",
 };
 
 export const DISTRICTS = [
@@ -105,4 +105,24 @@ export function getInitials(name) {
     .map((w) => w[0])
     .join("")
     .toUpperCase();
+}
+
+// Worker starting prices are stored as plain numbers (older profiles may hold
+// free text); show numbers as rupees and anything else as written.
+export function formatStartingPrice(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? formatCurrency(numeric) : String(value);
+}
+
+// Counts from the API can arrive as strings (Postgres COUNT is bigint).
+export function pluralize(count, singular, plural = `${singular}s`) {
+  const n = Number(count) || 0;
+  return `${n.toLocaleString("en-LK")} ${n === 1 ? singular : plural}`;
+}
+
+/** "a", "a and b", "a, b and c" */
+export function joinWithAnd(parts) {
+  if (parts.length <= 1) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
