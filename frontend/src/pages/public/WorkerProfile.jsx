@@ -1,21 +1,14 @@
 import React from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query'
-import {
-  MapPin, Briefcase, Shield, Send, Star, Camera, ArrowUpRight,
-  BadgeCheck, Sparkles, CheckCircle2
-} from 'lucide-react'
-import { Button, Card, Avatar, StarRating, Spinner, Modal, Select, Textarea } from '../../components/shared/UI'
-import {
-  ProfileHeroCard,
-  ProfilePageIntro,
-  ProfileSectionCard,
-  ProfileStatPanel,
-  PublicPageChrome,
-} from '../../components/shared/ProfileLayout'
+import { BadgeCheck, Briefcase, Camera, CheckCircle2, MapPin, MessageSquare, Send, ShieldCheck, Star } from 'lucide-react'
+import { Avatar, StarRating, Modal, Select, Textarea } from '../../components/shared/UI'
+import { Button, Card, IconChip, Page, Skeleton, buttonClasses } from '../../components/ui'
+import { OwnProfileBar, ProfileEmpty, ProfileHero, ProfileSectionCard, PublicPageChrome } from '../../components/shared/ProfileLayout'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
-import { formatRelativeTime, formatStartingPrice } from '../../lib/utils'
+import { formatRelativeTime, formatStartingPrice, pluralize } from '../../lib/utils'
+import { categoryStyle } from '../../lib/tones'
 import api from '../../lib/api'
 import { errorMessage, errorStatus } from '../../lib/errors'
 import { usePageTitle } from '../../hooks/usePageTitle'
@@ -67,293 +60,213 @@ export default function WorkerProfile() {
     onError: (e) => toast({ title: 'Invite not sent', description: errorMessage(e), variant: 'error' }),
   })
 
+  const useShell = !!user
+  const wrap = (children) => useShell
+    ? <AppShell>{children}</AppShell>
+    : <div className="min-h-[100dvh] bg-canvas">{children}<PublicFooter /></div>
+
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <Spinner />
-      </div>
+    return wrap(
+      <Page className="space-y-5" aria-busy="true">
+        <Skeleton className="h-72 w-full rounded-card" />
+        <Skeleton className="h-48 w-full rounded-card" />
+      </Page>,
     )
   }
 
   if (!worker) {
     const notFound = errorStatus(error) === 404
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-        <ErrorFallback
-          title={notFound ? 'This worker profile isn’t available' : 'We couldn’t load this profile'}
-          description={notFound ? 'The worker may have closed their account. Browse other workers nearby.' : 'Check your connection and try again.'}
-          onRetry={notFound ? undefined : () => refetch()}
-        />
-      </div>
+    return wrap(
+      <ErrorFallback
+        title={notFound ? 'This worker profile isn’t available' : 'We couldn’t load this profile'}
+        description={notFound ? 'The worker may have closed their account. Browse other workers nearby.' : 'Check your connection and try again.'}
+        onRetry={notFound ? undefined : () => refetch()}
+      />,
     )
   }
 
   const reviewCount = Number(worker.review_count ?? reviews.length)
-  const averageRating = Number(worker.avg_rating || 0).toFixed(1)
   const isOwnProfile = !!user && user.role === 'worker' && String(user.id) === String(id)
-  const useShell = !!user
+  const body = <WorkerProfileBody worker={worker} reviews={reviews} reviewsQuery={reviewsQuery} reviewCount={reviewCount} user={user} isOwnProfile={isOwnProfile} onInvite={() => setInviteModal(true)} />
 
-  const content = (
+  return wrap(
     <>
-      {useShell ? (
-        <div className="p-6">
-          <ProfilePageIntro
-            ownView={isOwnProfile}
-            title={isOwnProfile ? 'Public Profile' : worker.full_name}
-            subtitle={isOwnProfile ? 'This is how customers see your profile across Fixly.' : 'Worker profile inside your Fixly workspace.'}
-          />
-          <WorkerProfileBody worker={worker} reviews={reviews} reviewsQuery={reviewsQuery} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
-        </div>
-      ) : (
-        <>
-          <PublicPageChrome crumbLabel="Workers" crumbTo="/workers" currentLabel={worker.full_name} />
-          <div className="fixly-page max-w-7xl">
-            <WorkerProfileBody worker={worker} reviews={reviews} reviewsQuery={reviewsQuery} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
-          </div>
-        </>
-      )}
+      {!useShell && <PublicPageChrome crumbLabel="Workers" crumbTo="/workers" currentLabel={worker.full_name} />}
+      <Page>
+        {isOwnProfile && <OwnProfileBar audience="customers" />}
+        {body}
+      </Page>
 
       <Modal open={inviteModal} onClose={() => setInviteModal(false)} title={`Invite ${worker.full_name}`}>
         <div className="space-y-4">
           {myJobs.length === 0 ? (
             <div className="py-4 text-center">
-              <p className="mb-4 text-sm text-slate-500">You have no active jobs to invite this worker to.</p>
-              <Link to={`/jobs/new?invite=${worker.id}`} onClick={() => setInviteModal(false)} className="fixly-btn-primary text-sm">
+              <p className="mb-4 text-sm text-fg-muted">You have no open jobs to invite this worker to.</p>
+              <Button to={`/jobs/new?invite=${worker.id}`} onClick={() => setInviteModal(false)}>
                 Post a job and invite {worker.full_name.split(' ')[0]}
-              </Link>
+              </Button>
             </div>
           ) : (
             <>
-              <Select label="Select Job" value={jobId} onChange={e => setJobId(e.target.value)}>
-                <option value="">Select a job...</option>
+              <Select label="Job" value={jobId} onChange={e => setJobId(e.target.value)}>
+                <option value="">Choose a job…</option>
                 {myJobs.map(job => <option key={job.id} value={job.id}>{job.title}</option>)}
               </Select>
               <Textarea
                 label="Message (optional)"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder="Tell the worker why you'd like them on this job..."
+                placeholder="Tell the worker why you’d like them on this job."
                 rows={3}
               />
-              <div className="flex gap-3 pt-2">
-                <Button variant="secondary" onClick={() => setInviteModal(false)} className="flex-1">Cancel</Button>
-                <Button variant="primary" onClick={() => sendInvite.mutate()} loading={sendInvite.isPending} disabled={!jobId} className="flex-1">
-                  Send Invite
-                </Button>
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                <Button variant="secondary" onClick={() => setInviteModal(false)}>Cancel</Button>
+                <Button onClick={() => sendInvite.mutate()} loading={sendInvite.isPending} disabled={!jobId}>Send invite</Button>
               </div>
             </>
           )}
         </div>
       </Modal>
-    </>
+    </>,
   )
-
-  if (useShell) {
-    return (
-      <AppShell>
-        <div className="min-h-full bg-slate-50 dark:bg-slate-950">{content}</div>
-      </AppShell>
-    )
-  }
-
-  return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}<PublicFooter /></div>
 }
 
-function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, averageRating, user, onInvite }) {
+function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, user, isOwnProfile, onInvite }) {
   const location = useLocation()
+  const rating = Number(worker.avg_rating || 0)
+  const price = formatStartingPrice(worker.starting_price)
+  const firstName = worker.full_name.split(' ')[0]
+  const { icon: skillIcon, tone: skillTone } = categoryStyle(worker.primary_skill)
+  const photos = worker.portfolio_photos || []
+  const otherSkills = (worker.skills || []).filter(skill => !skill.is_primary && (skill.category_name || skill.name))
+
+  const primaryAction = user?.role === 'customer'
+    ? <Button onClick={onInvite}><Send className="h-4 w-4" aria-hidden="true" /> Invite to a job</Button>
+    : !user
+      ? <Link to={`/auth?tab=register&role=customer&next=${encodeURIComponent(location.pathname)}`} className={buttonClasses()}><Send className="h-4 w-4" aria-hidden="true" /> Sign up to invite {firstName}</Link>
+      : null
+
   return (
-    <>
-      <ProfileHeroCard
-        avatarName={worker.full_name}
-        avatarSrc={worker.profile_photo}
-        header={(
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-4xl">{worker.full_name}</h1>
-              {worker.is_nic_verified && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
-                  <Shield className="h-3.5 w-3.5" /> Verified
-                </span>
-              )}
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
-              {worker.primary_skill && (
-                <span className="rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-700">
-                  {worker.primary_skill}
-                </span>
-              )}
-              {worker.district && (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-4 w-4 text-slate-400" /> {worker.district}{worker.area ? `, ${worker.area}` : ''}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-        summary={(
-          <>
-            <div className="flex flex-wrap gap-6 text-sm text-slate-600">
-              <span className="inline-flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-slate-400" />
-                <strong className="font-semibold text-slate-900">{worker.total_jobs_done || 0}</strong> jobs completed
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 space-y-5">
+        <ProfileHero
+          avatarName={worker.full_name}
+          avatarSrc={worker.profile_photo}
+          title={worker.full_name}
+          badges={worker.is_nic_verified && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/15 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/20">
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> ID verified
+            </span>
+          )}
+          actions={!isOwnProfile && primaryAction && <div className="lg:hidden">{primaryAction}</div>}
+          meta={<>
+            {worker.primary_skill && (
+              <span className="inline-flex items-center gap-1.5 font-medium text-fg">
+                <IconChip icon={skillIcon} tone={skillTone} size="sm" className="h-6 w-6 rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5" />
+                {worker.primary_skill}
               </span>
-              <span className="inline-flex items-center gap-2">
-                <BadgeCheck className="h-4 w-4 text-emerald-600" />
-                <strong className="font-semibold text-slate-900">{reviewCount}</strong> public review{reviewCount !== 1 ? 's' : ''}
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                <strong className="font-semibold text-slate-900">{averageRating}</strong> overall rating
-              </span>
+            )}
+            {worker.district && (
+              <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4 text-fg-subtle" aria-hidden="true" />{worker.district}{worker.area ? `, ${worker.area}` : ''}</span>
+            )}
+          </>}
+          stats={[
+            { label: 'Rating', value: rating ? rating.toFixed(1) : 'New', icon: rating ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" /> : null },
+            { label: 'Jobs done', value: worker.total_jobs_done || 0 },
+            { label: 'Reviews', value: reviewCount },
+            { label: 'Starting from', value: price || 'On request' },
+          ]}
+        >
+          {worker.bio && <p className="mt-4 max-w-3xl whitespace-pre-line text-[15px] leading-7 text-fg-muted">{worker.bio}</p>}
+          {otherSkills.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs font-medium text-fg-subtle">Also does</span>
+              {otherSkills.map(skill => (
+                <span key={skill.id} className="rounded-full border border-line bg-subtle px-2.5 py-1 text-xs font-medium text-fg-muted">{skill.category_name || skill.name}</span>
+              ))}
             </div>
+          )}
+        </ProfileHero>
 
-            {worker.bio && (
-              <p className="max-w-3xl text-[15px] leading-8 text-slate-600">
-                {worker.bio}
-              </p>
-            )}
-
-            {worker.skills?.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {worker.skills.map(skill => (
-                  <span
-                    key={skill.id}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      skill.is_primary ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {skill.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-        stats={(
-          <>
-            <ProfileStatPanel label="Overall Rating" value={averageRating} hint="Based on completed jobs and customer feedback" accent="sky" />
-            <ProfileStatPanel label="Completed Jobs" value={worker.total_jobs_done || 0} hint="Work successfully finished on the platform" accent="emerald" />
-            <ProfileStatPanel label="Public Reviews" value={reviewCount} hint="Visible social proof for new customers" accent="amber" />
-          </>
-        )}
-        asideTitle="Professional Snapshot"
-        asideContent={(
-          <>
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-end gap-4">
-                <span className="text-5xl font-bold leading-none text-slate-950">{averageRating}</span>
-                <div className="pb-1">
-                  <StarRating rating={worker.avg_rating || 0} />
-                  <p className="mt-2 text-sm text-slate-500">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5 dark:border-sky-900/50 dark:bg-slate-900">
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Starting Price</p>
-              <p className="mt-3 text-2xl font-bold text-slate-950">{formatStartingPrice(worker.starting_price) || 'Ask for a quote'}</p>
-            </div>
-
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Trust Signals</p>
-              <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <div className="flex items-start gap-2">
-                  <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-sky-500" />
-                  <span>{worker.is_nic_verified ? 'Identity verified on Fixly' : 'Profile active on Fixly'}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                  <span>{worker.total_jobs_done || 0} completed job{worker.total_jobs_done === 1 ? '' : 's'}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <ArrowUpRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-500" />
-                  <span>{reviewCount} review-based rating footprint</span>
-                </div>
-              </div>
-            </div>
-
-            {user?.role === 'customer' && (
-              <Button variant="primary" className="w-full justify-center" onClick={onInvite}>
-                <Send className="h-4 w-4" /> Invite to job
-              </Button>
-            )}
-            {user && String(user.id) !== String(worker.id) && (
-              <div className="flex justify-center">
-                <ReportButton reportedUserId={worker.id} subject={worker.full_name} label="Report this worker" />
-              </div>
-            )}
-            {!user && (
-              <Link
-                to={`/auth?tab=register&role=customer&next=${encodeURIComponent(location.pathname)}`}
-                className="fixly-btn-primary w-full gap-2 text-sm"
-              >
-                <Send className="h-4 w-4" /> Sign up to invite {worker.full_name.split(' ')[0]}
-              </Link>
-            )}
-          </>
-        )}
-      />
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <ProfileSectionCard title="Portfolio" meta={`${worker.portfolio_photos?.length || 0} image${worker.portfolio_photos?.length === 1 ? '' : 's'}`}>
-          {worker.portfolio_photos?.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {worker.portfolio_photos.map(photo => (
-                <div key={photo.id} className="group overflow-hidden rounded-[1.5rem] bg-slate-100 dark:bg-slate-800">
-                  <img src={photo.path} alt="" className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                </div>
+        <ProfileSectionCard title="Portfolio" meta={pluralize(photos.length, 'photo')}>
+          {photos.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              {photos.map((photo, index) => (
+                <a key={photo.id} href={photo.path} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-control border border-line bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                  <img src={photo.path} alt={`Portfolio photo ${index + 1}`} className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                </a>
               ))}
             </div>
           ) : (
-            <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
-              <Camera className="mx-auto mb-3 h-5 w-5 text-slate-300" />
-              No portfolio photos yet.
-            </div>
+            <ProfileEmpty icon={Camera}>{isOwnProfile ? <>No portfolio photos yet. <Link to="/profile/edit" className="font-semibold text-brand-text hover:underline">Add some</Link> to win more jobs.</> : 'No portfolio photos yet.'}</ProfileEmpty>
           )}
         </ProfileSectionCard>
 
-        <ProfileSectionCard title="Customer Reviews" meta={`${reviewCount} total`}>
+        <ProfileSectionCard title="Reviews" meta={reviewCount > 0 ? `${rating.toFixed(1)} average · ${pluralize(reviewCount, 'review')}` : null} bodyClassName={reviewCount > 0 ? 'p-0' : undefined}>
           {reviewCount === 0 ? (
-            <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
-              No reviews yet.
-            </div>
+            <ProfileEmpty icon={MessageSquare}>No reviews yet.</ProfileEmpty>
           ) : (
-            <div className="space-y-4">
-              {reviews.map(review => (
-                <Card key={review.id} className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-5 shadow-none">
-                  <div className="flex items-start gap-3">
+            <>
+              <ul className="divide-y divide-line">
+                {reviews.map(review => (
+                  <li key={review.id} className="flex items-start gap-3 px-4 py-4 sm:px-5">
                     <Avatar name={review.customer_name} src={review.customer_photo} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-900">{review.customer_name}</p>
-                          {review.job_title && <p className="mt-1 text-xs text-slate-400">Job: {review.job_title}</p>}
-                        </div>
-                        <span className="text-xs text-slate-400">{formatRelativeTime(review.created_at)}</span>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                        <p className="text-sm font-semibold text-fg">{review.customer_name}</p>
+                        <span className="text-xs text-fg-subtle">{formatRelativeTime(review.created_at)}</span>
                       </div>
-                      <div className="mt-3 flex items-center gap-3">
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
                         <StarRating rating={review.rating} />
-                        <span className="text-sm font-medium text-slate-500">{Number(review.rating || 0).toFixed(1)}</span>
+                        {review.job_title && <span className="truncate text-xs text-fg-subtle">· {review.job_title}</span>}
                       </div>
-                      {review.feedback && (
-                        <p className="mt-4 text-sm leading-7 text-slate-600">{review.feedback}</p>
-                      )}
+                      {review.feedback && <p className="mt-2 text-sm leading-6 text-fg-muted">{review.feedback}</p>}
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </li>
+                ))}
+              </ul>
               {reviewsQuery.hasNextPage && (
-                <div className="flex justify-center pt-2">
-                  <Button variant="outline" onClick={() => reviewsQuery.fetchNextPage()} loading={reviewsQuery.isFetchingNextPage}>
-                    Show more reviews
-                  </Button>
+                <div className="flex justify-center border-t border-line p-3">
+                  <Button variant="secondary" size="sm" onClick={() => reviewsQuery.fetchNextPage()} loading={reviewsQuery.isFetchingNextPage}>Show more reviews</Button>
                 </div>
               )}
-            </div>
+            </>
           )}
         </ProfileSectionCard>
       </div>
-    </>
+
+      <aside className="space-y-5">
+        {!isOwnProfile && (
+          <Card className="p-4 sm:p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Starting from</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight text-fg">{price || 'Quote on request'}</p>
+            <p className="mt-1 text-[13px] text-fg-muted">Final price is agreed with {firstName} after they see the job.</p>
+            {primaryAction && <div className="mt-4 hidden lg:block [&>*]:w-full">{primaryAction}</div>}
+          </Card>
+        )}
+        <Card className="p-4 sm:p-5">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Why customers trust {firstName}</p>
+          <ul className="space-y-3 text-sm">
+            <li className="flex items-start gap-2.5">
+              <ShieldCheck className={worker.is_nic_verified ? 'mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400' : 'mt-0.5 h-4 w-4 shrink-0 text-fg-subtle'} aria-hidden="true" />
+              <span className="text-fg-muted">{worker.is_nic_verified ? 'National ID checked by Fixly' : 'ID not verified yet'}</span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              <span className="text-fg-muted">{pluralize(worker.total_jobs_done || 0, 'job')} completed on Fixly</span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+              <span className="text-fg-muted">{rating > 0 ? `Rated ${rating.toFixed(1)} out of 5${reviewCount > 0 ? ` by ${pluralize(reviewCount, 'customer')}` : ''}` : 'No ratings yet'}</span>
+            </li>
+          </ul>
+          {user && !isOwnProfile && (
+            <div className="mt-4 border-t border-line pt-3">
+              <ReportButton reportedUserId={worker.id} subject={worker.full_name} label="Report this worker" />
+            </div>
+          )}
+        </Card>
+      </aside>
+    </div>
   )
 }
