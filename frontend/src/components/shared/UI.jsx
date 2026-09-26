@@ -10,7 +10,7 @@ import { EmptyState as DsEmptyState } from "../ui/EmptyState";
 import { TONES, avatarTone } from "../../lib/tones";
 import { JOB_STATUS, RESPONSE_STATUS } from "../../lib/jobs";
 
-const BUTTON_VARIANTS = { primary: "primary", secondary: "secondary", outline: "secondary", ghost: "ghost", danger: "danger", success: "success" };
+const BUTTON_VARIANTS = { primary: "primary", secondary: "secondary", outline: "secondary", ghost: "ghost", danger: "danger", "danger-ghost": "danger-ghost", success: "success" };
 
 export function Button({ children, variant = "primary", size = "md", className, loading, disabled, type = "button", ...props }) {
   return (
