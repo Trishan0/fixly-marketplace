@@ -15,11 +15,11 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
       <main id="main-content">
         <header className="border-b border-slate-100 py-12 dark:border-slate-800 sm:py-16">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 dark:bg-sky-950/45 dark:text-sky-300">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-card bg-sky-50 text-sky-700 dark:bg-sky-950/45 dark:text-sky-300">
               <Icon className="h-5 w-5" aria-hidden="true" />
             </div>
             <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">{eyebrow}</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
             <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">{intro}</p>
             <p className="mt-4 text-sm text-slate-500">Last updated {LAST_UPDATED}</p>
           </div>
@@ -43,7 +43,7 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
                 <div className="mt-3 space-y-3 text-[15px] leading-7 text-slate-600 dark:text-slate-300">{section.body}</div>
               </section>
             ))}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            <section className="rounded-card border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
               Questions about this page? <Link to="/contact" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">Contact the Fixly team</Link> and we will reply by email.
             </section>
           </article>

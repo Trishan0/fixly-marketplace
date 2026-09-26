@@ -128,7 +128,7 @@ function ProposalForm({ job, existing }) {
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{intro}</p>
         </div>
 
-        <div className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+        <div className="flex items-start justify-between gap-4 rounded-card border border-slate-200 p-3 dark:border-slate-700">
           <div>
             <p id="inspection-label" className="text-sm font-medium text-slate-800 dark:text-slate-100">Inspection needed before pricing</p>
             <p className="text-xs text-slate-500">Turn on if you need to see the job before you can give a price.</p>

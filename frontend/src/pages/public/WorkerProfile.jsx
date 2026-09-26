@@ -242,7 +242,7 @@ function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, average
           <>
             <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-end gap-4">
-                <span className="text-5xl font-black leading-none text-slate-950">{averageRating}</span>
+                <span className="text-5xl font-bold leading-none text-slate-950">{averageRating}</span>
                 <div className="pb-1">
                   <StarRating rating={worker.avg_rating || 0} />
                   <p className="mt-2 text-sm text-slate-500">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</p>
@@ -252,7 +252,7 @@ function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, average
 
             <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5 dark:border-sky-900/50 dark:bg-slate-900">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Starting Price</p>
-              <p className="mt-3 text-2xl font-black text-slate-950">{formatStartingPrice(worker.starting_price) || 'Ask for a quote'}</p>
+              <p className="mt-3 text-2xl font-bold text-slate-950">{formatStartingPrice(worker.starting_price) || 'Ask for a quote'}</p>
             </div>
 
             <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">

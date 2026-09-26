@@ -28,3 +28,11 @@ export const JOB_STATUS = {
   reviewed: { label: 'Completed', tone: 'emerald' },
   cancelled: { label: 'Cancelled', tone: 'slate' },
 }
+
+// Proposals and invites share these statuses.
+export const RESPONSE_STATUS = {
+  pending: { label: 'Pending', tone: 'amber' },
+  accepted: { label: 'Accepted', tone: 'emerald' },
+  declined: { label: 'Declined', tone: 'rose' },
+  withdrawn: { label: 'Withdrawn', tone: 'slate' },
+}

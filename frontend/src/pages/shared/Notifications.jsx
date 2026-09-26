@@ -75,7 +75,7 @@ export default function Notifications() {
                       )}
                       onClick={() => open(n)}
                     >
-                      <span className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl', TONE_CLASSES[tone])}>
+                      <span className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-card', TONE_CLASSES[tone])}>
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <span className="min-w-0 flex-1">

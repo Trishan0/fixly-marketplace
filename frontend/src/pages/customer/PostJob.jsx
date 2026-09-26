@@ -281,7 +281,7 @@ function PostJobForm({ user }) {
           <button type="button" onClick={() => navigate(-1)} className="mb-3 flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
             <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
           </button>
-          <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Post a job</h1>
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Post a job</h1>
           <p ref={headingRef} tabIndex={-1} className="text-sm text-slate-600 outline-none dark:text-slate-300" aria-live="polite">
             Step {step + 1} of {STEPS.length}: {STEPS[step]}
             {hasContent(form) && <span className="text-slate-500"> · Draft saved</span>}
@@ -295,7 +295,7 @@ function PostJobForm({ user }) {
         </div>
 
         {draftRestored && (
-          <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between" role="status">
+          <div className="mb-4 flex flex-col gap-2 rounded-card border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between" role="status">
             <span>We restored the job you started earlier. Photos need adding again.</span>
             <div className="flex gap-2">
               <Button size="sm" variant="ghost" onClick={startOver}>Start over</Button>
@@ -305,7 +305,7 @@ function PostJobForm({ user }) {
         )}
 
         {inviteWorker && (
-          <div className="mb-4 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100" role="status">
+          <div className="mb-4 rounded-card border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100" role="status">
             <Send className="mr-1.5 inline h-4 w-4" aria-hidden="true" />
             When you post this job, we’ll invite <strong>{inviteWorker.full_name}</strong> to it.
           </div>
@@ -436,7 +436,7 @@ function PostJobForm({ user }) {
 
               <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
                 <h2 className="mb-3 text-base font-bold text-slate-900">Check your job</h2>
-                <dl className="divide-y divide-slate-100 rounded-2xl bg-slate-50 px-4 text-sm dark:divide-slate-800 dark:bg-slate-900/70">
+                <dl className="divide-y divide-slate-100 rounded-card bg-slate-50 px-4 text-sm dark:divide-slate-800 dark:bg-slate-900/70">
                   <ReviewRow label="Title" value={form.title} onEdit={() => goTo(0)} />
                   <ReviewRow label="Type of work" value={category?.name} onEdit={() => goTo(0)} />
                   <ReviewRow label="When" value={urgency?.label} onEdit={() => goTo(0)} />

@@ -90,7 +90,7 @@ function HeroVisual({ user }) {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">{roleLabel}</p>
             <h3 className="mt-2 text-xl font-bold text-slate-950">Fixly at a glance</h3>
           </div>
-          <div className="rounded-2xl bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
+          <div className="rounded-card bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
             <ShieldCheck className="h-5 w-5" />
           </div>
         </div>
@@ -108,7 +108,7 @@ function HeroVisual({ user }) {
                       : 'Reach the right worker without messy back-and-forth.'}
                 </p>
               </div>
-              <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
+              <div className="rounded-card bg-white p-3 shadow-sm dark:bg-slate-900">
                 <Briefcase className="h-5 w-5 text-sky-600 dark:text-sky-300" />
               </div>
             </div>
@@ -117,7 +117,7 @@ function HeroVisual({ user }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/80 p-4 dark:border-sky-900/50 dark:bg-sky-950/30">
               <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white p-2.5 shadow-sm dark:bg-slate-900">
+                <div className="rounded-card bg-white p-2.5 shadow-sm dark:bg-slate-900">
                   <BellRing className="h-4 w-4 text-sky-600 dark:text-sky-300" />
                 </div>
                 <div>
@@ -129,7 +129,7 @@ function HeroVisual({ user }) {
 
             <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/80 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/25">
               <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-white p-2.5 shadow-sm dark:bg-slate-900">
+                <div className="rounded-card bg-white p-2.5 shadow-sm dark:bg-slate-900">
                   <Banknote className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
                 </div>
                 <div>
@@ -197,7 +197,7 @@ export default function Landing() {
                 <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300 sm:text-xs sm:tracking-[0.18em]">{hero.eyebrow}</span>
               </div>
 
-              <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-5xl md:text-6xl">
+              <h1 className="mt-5 max-w-3xl text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-5xl md:text-6xl">
                 {hero.title}
               </h1>
               <p className="mt-4 max-w-2xl text-xl font-bold leading-snug text-sky-600 dark:text-sky-300 sm:text-2xl md:text-3xl">
@@ -208,10 +208,10 @@ export default function Landing() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link to={hero.primary.to} className="fixly-btn-primary w-full rounded-2xl px-8 py-3.5 text-base sm:w-auto">
+                <Link to={hero.primary.to} className="fixly-btn-primary w-full rounded-card px-8 py-3.5 text-base sm:w-auto">
                   {hero.primary.label}
                 </Link>
-                <Link to={hero.secondary.to} className="fixly-btn-secondary w-full rounded-2xl px-8 py-3.5 text-base sm:w-auto">
+                <Link to={hero.secondary.to} className="fixly-btn-secondary w-full rounded-card px-8 py-3.5 text-base sm:w-auto">
                   {hero.secondary.label}
                 </Link>
                 <Link to={hero.tertiary.to} className="inline-flex min-h-12 items-center justify-center gap-1 px-2 py-3 text-base font-semibold text-sky-700 transition hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200 sm:justify-start">
@@ -227,7 +227,7 @@ export default function Landing() {
               >
                 {statItems.map(([v, l]) => (
                   <div key={l}>
-                    <p className="text-xl font-black text-slate-950 sm:text-2xl">{v}</p>
+                    <p className="text-xl font-bold text-slate-950 sm:text-2xl">{v}</p>
                     <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-sm">{l}</p>
                   </div>
                 ))}
@@ -246,7 +246,7 @@ export default function Landing() {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           {categories.map(({ icon: Icon, name, color }) => (
             <Link key={name} to={`/workers?category=${name}`} className="fixly-card group flex min-h-32 flex-col items-center justify-center gap-3 p-4 transition-shadow hover:shadow-md sm:p-6">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color}`}>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-card ${color}`}>
                 <Icon className="h-6 w-6" />
               </div>
               <span className="text-sm font-semibold text-slate-800 transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-300">{name}</span>
@@ -262,7 +262,7 @@ export default function Landing() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {features.map(({ icon: Icon, title, desc }) => (
               <div key={title} className="fixly-card p-5 sm:p-6">
-                <div className="mb-4 inline-flex rounded-2xl bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
+                <div className="mb-4 inline-flex rounded-card bg-sky-50 p-3 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 font-bold text-slate-900">{title}</h3>
@@ -282,10 +282,10 @@ export default function Landing() {
             <h2 className="mb-4 text-3xl font-bold">Ready to get started?</h2>
             <p className="mb-8 text-sky-100">Post a job in minutes, or create a profile that helps local customers find you.</p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
-              <Link to="/auth?tab=register" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-8 py-3 font-bold text-sky-600 transition-all hover:bg-sky-50 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900">
+              <Link to="/auth?tab=register" className="inline-flex min-h-12 items-center justify-center rounded-card bg-white px-8 py-3 font-bold text-sky-600 transition-all hover:bg-sky-50 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900">
                 Create Account
               </Link>
-              <Link to="/workers" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-sky-700 px-8 py-3 font-bold text-white transition-all hover:bg-sky-800 dark:bg-sky-800 dark:hover:bg-sky-900">
+              <Link to="/workers" className="inline-flex min-h-12 items-center justify-center rounded-card bg-sky-700 px-8 py-3 font-bold text-white transition-all hover:bg-sky-800 dark:bg-sky-800 dark:hover:bg-sky-900">
                 Browse Workers
               </Link>
             </div>

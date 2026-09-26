@@ -35,7 +35,7 @@ function SimpleDashboard() {
       <div className="fixly-page max-w-3xl space-y-6">
         <div className="fixly-glow-panel p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Worker Dashboard</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-900">Hello, {user?.full_name?.split(' ')[0]}!</h1>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">Hello, {user?.full_name?.split(' ')[0]}!</h1>
           <p className="mt-2 text-lg text-slate-500">Pick your next move and keep your workday flowing.</p>
           <Link to="/settings" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-sky-600 dark:text-sky-300">
             Open settings and switch dashboard mode <ArrowRight className="h-4 w-4" />
@@ -119,18 +119,18 @@ function StandardDashboard() {
         <div className="fixly-glow-panel grid gap-6 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Worker Overview</p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:mt-3 sm:text-4xl">Welcome back, {user?.full_name?.split(' ')[0]}.</h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:mt-3 sm:text-4xl">Welcome back, {user?.full_name?.split(' ')[0]}.</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:mt-3 sm:text-base sm:leading-8">Keep proposals, active jobs, and earnings moving from one focused workspace.</p>
           </div>
           <div className="hidden gap-3 lg:grid lg:grid-cols-2">
             <div className="fixly-elevated p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Pending Invites</p>
-              <p className="mt-2 text-3xl font-black text-slate-900">{pendingInvites.length}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">{pendingInvites.length}</p>
               <p className="mt-1 text-sm text-slate-500">Jobs customers want you on</p>
             </div>
             <div className="fixly-elevated p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Live Work</p>
-              <p className="mt-2 text-3xl font-black text-slate-900">{activeJobs.length}</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">{activeJobs.length}</p>
               <p className="mt-1 text-sm text-slate-500">Assigned or in progress</p>
             </div>
           </div>

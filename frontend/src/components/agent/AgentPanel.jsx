@@ -78,7 +78,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
   return (
     <div className={cn(
-      'rounded-2xl border-2 transition-all duration-200 overflow-hidden',
+      'rounded-card border-2 transition-all duration-200 overflow-hidden',
       selected
         ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/20 shadow-md shadow-sky-100 dark:shadow-sky-900/20'
         : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-sky-200 dark:hover:border-sky-700'
@@ -88,7 +88,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
         <div className="flex items-start gap-3">
           {/* Rank badge */}
           <div className={cn(
-            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5',
+            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5',
             rec.rank === 1 ? 'bg-amber-400 text-amber-900' :
             rec.rank === 2 ? 'bg-slate-300 text-slate-700' :
             rec.rank === 3 ? 'bg-orange-300 text-orange-800' :
@@ -119,7 +119,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
 
           {/* Score */}
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-black text-slate-800 dark:text-white">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-slate-400">%</span></div>
+            <div className="text-lg font-bold text-slate-800 dark:text-white">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-slate-400">%</span></div>
             <div className="text-xs text-slate-400">match</div>
           </div>
         </div>
@@ -190,7 +190,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
 
   return (
     <div className={cn(
-      'rounded-2xl border-2 transition-all duration-200 overflow-hidden',
+      'rounded-card border-2 transition-all duration-200 overflow-hidden',
       selected
         ? 'border-violet-500 bg-violet-50/60 dark:bg-violet-950/20 shadow-md shadow-violet-100 dark:shadow-violet-900/20'
         : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 hover:border-violet-200 dark:hover:border-violet-700'
@@ -199,7 +199,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className={cn(
-            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5',
+            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5',
             rec.rank === 1 ? 'bg-amber-400 text-amber-900' :
             rec.rank === 2 ? 'bg-slate-300 text-slate-700' :
             rec.rank === 3 ? 'bg-orange-300 text-orange-800' :
@@ -220,7 +220,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
           </div>
 
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-black text-slate-800 dark:text-white">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-slate-400">%</span></div>
+            <div className="text-lg font-bold text-slate-800 dark:text-white">{Math.round(rec.score * 100)}<span className="text-xs font-medium text-slate-400">%</span></div>
             <div className="text-xs text-slate-400">fit</div>
           </div>
         </div>
@@ -451,7 +451,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
 
         {/* Success state */}
         {confirmDone && (
-          <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-5 text-center">
+          <div className="rounded-card bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-5 text-center">
             <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
             <h3 className="font-bold text-emerald-800 dark:text-emerald-300 mb-1">Done!</h3>
             <p className="text-sm text-emerald-700 dark:text-emerald-400">
@@ -468,7 +468,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         {!runId && !confirmDone && (
           <div className="text-center py-8">
             <div className={cn(
-              'w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center',
+              'w-16 h-16 rounded-card mx-auto mb-4 flex items-center justify-center',
               isMatch ? 'bg-sky-100 dark:bg-sky-900/30' : 'bg-violet-100 dark:bg-violet-900/30'
             )}>
               {isMatch ? <UserCheck className="w-8 h-8 text-sky-500" /> : <TrendingUp className="w-8 h-8 text-violet-500" />}
@@ -504,7 +504,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         {isRunInProgress && !confirmDone && (
           <div className="text-center py-8">
             <div className={cn(
-              'w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center animate-pulse',
+              'w-16 h-16 rounded-card mx-auto mb-4 flex items-center justify-center animate-pulse',
               isMatch ? 'bg-sky-100 dark:bg-sky-900/30' : 'bg-violet-100 dark:bg-violet-900/30'
             )}>
               <Bot className={cn('w-8 h-8', isMatch ? 'text-sky-500' : 'text-violet-500')} />

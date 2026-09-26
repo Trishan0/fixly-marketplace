@@ -341,7 +341,7 @@ export function SettingsPage() {
             <div className="grid grid-cols-2 gap-3">
               {[['standard', '🖥️ Standard', 'Full-featured dashboard with all details'], ['simplified', '📱 Simplified', 'Large buttons, fewer options, easier to use']].map(([v, l, d]) => (
                 <button key={v} type="button" onClick={() => setMode.mutate(v)} aria-pressed={user?.dashboard_mode === v}
-                  className={cn('min-h-28 rounded-2xl border p-3 text-left transition-all sm:p-4', user?.dashboard_mode === v ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'border-slate-200 hover:border-sky-200 dark:border-slate-700')}>
+                  className={cn('min-h-28 rounded-card border p-3 text-left transition-all sm:p-4', user?.dashboard_mode === v ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'border-slate-200 hover:border-sky-200 dark:border-slate-700')}>
                   <p className="font-semibold text-sm">{l}</p>
                   <p className="text-xs text-slate-500 mt-1">{d}</p>
                 </button>

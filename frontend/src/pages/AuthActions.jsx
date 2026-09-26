@@ -24,7 +24,7 @@ function AuthActionLayout({ icon: Icon, title, description, children }) {
         </Link>
 
         <Card className="p-5 sm:p-8">
-          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-card bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{title}</h1>
@@ -42,7 +42,7 @@ function Notice({ tone, children }) {
   return (
     <div
       role={success ? 'status' : 'alert'}
-      className={`flex items-start gap-3 rounded-2xl border p-4 text-sm leading-6 ${success
+      className={`flex items-start gap-3 rounded-card border p-4 text-sm leading-6 ${success
         ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200'
         : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300'}`}
     >

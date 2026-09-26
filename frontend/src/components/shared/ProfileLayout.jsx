@@ -30,14 +30,14 @@ export function ProfileActionsMenu({ className }) {
     <div className={cn('relative', className)} ref={ref}>
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
+        className="flex h-11 w-11 items-center justify-center rounded-card border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
         aria-label="Open profile actions"
       >
         <MoreHorizontal className="h-5 w-5" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-14 z-20 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-slate-700 dark:bg-slate-900">
+        <div className="absolute right-0 top-14 z-20 w-52 rounded-card border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-slate-700 dark:bg-slate-900">
           <Link
             to="/profile/edit"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -113,9 +113,9 @@ export function ProfileStatPanel({ label, value, hint, accent = 'sky' }) {
   }
 
   return (
-    <div className={cn('rounded-2xl border p-3 sm:rounded-[1.75rem] sm:p-5', accents[accent])}>
+    <div className={cn('rounded-card border p-3 sm:rounded-[1.75rem] sm:p-5', accents[accent])}>
       <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:text-[11px] sm:tracking-[0.24em]">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-950 sm:mt-3 sm:text-3xl">{value}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-950 sm:mt-3 sm:text-3xl">{value}</p>
       {hint && <p className="mt-2 hidden text-sm text-slate-500 sm:block">{hint}</p>}
     </div>
   )
@@ -143,7 +143,7 @@ export function ProfileHeroCard({ avatarName, avatarSrc, header, summary, stats,
           {children}
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none sm:rounded-[1.75rem] sm:p-5">
+        <div className="rounded-card border border-slate-100 bg-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none sm:rounded-[1.75rem] sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{asideTitle}</p>
           <div className="mt-4 space-y-4">{asideContent}</div>
         </div>

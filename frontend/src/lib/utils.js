@@ -63,10 +63,10 @@ export const STATUS_COLORS = {
 };
 
 export const URGENCY_LABELS = {
-  today: "🔥 Today",
-  tomorrow: "📅 Tomorrow",
-  this_week: "📆 This Week",
-  flexible: "🕐 Flexible",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  this_week: "This week",
+  flexible: "Flexible",
 };
 
 export const DISTRICTS = [

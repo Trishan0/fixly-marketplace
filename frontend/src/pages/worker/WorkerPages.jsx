@@ -186,7 +186,7 @@ export function OpenJobs() {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setAgentOpen(false)}
           />
-          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
+          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-overlay bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
             <AgentPanel
               mode="proposal"
               onClose={() => setAgentOpen(false)}

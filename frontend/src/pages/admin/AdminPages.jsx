@@ -231,7 +231,7 @@ export function AdminDashboard() {
                       Live moderation snapshot
                     </h3>
                   </div>
-                  <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-slate-900">
+                  <div className="rounded-card bg-white p-3 shadow-sm dark:bg-slate-900">
                     <AlertTriangle className="h-5 w-5 text-amber-500" />
                   </div>
                 </div>
@@ -362,7 +362,7 @@ export function AdminDashboard() {
                     <div className="flex items-start gap-3">
                       <div
                         className={cn(
-                          "flex h-11 w-11 items-center justify-center rounded-2xl border",
+                          "flex h-11 w-11 items-center justify-center rounded-card border",
                           accentClasses[accent],
                         )}
                       >

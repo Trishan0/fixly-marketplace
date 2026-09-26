@@ -508,7 +508,7 @@ export default function JobDetail() {
       </div>
 
       {job.description && (
-        <p className="mt-4 whitespace-pre-line rounded-2xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">{job.description}</p>
+        <p className="mt-4 whitespace-pre-line rounded-card bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">{job.description}</p>
       )}
       {job.address && (isOwner || isAssignedWorker) && (
         <p className="mt-3 flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-300"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{job.address}</p>
@@ -547,7 +547,7 @@ export default function JobDetail() {
   const alerts = (
     <>
       {job.is_active === false && isOwner && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="status">
+        <div className="flex items-start gap-3 rounded-card border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="status">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700 dark:text-red-300" aria-hidden="true" />
           <div className="text-sm text-red-800 dark:text-red-200">
             <p className="font-semibold">Fixly took this job down</p>
@@ -557,7 +557,7 @@ export default function JobDetail() {
         </div>
       )}
       {job.payment_disputed && (isOwner || isAssignedWorker) && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
+        <div className="flex items-start gap-3 rounded-card border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
           <div className="text-sm">
             <p className="font-semibold text-amber-900 dark:text-amber-200">{isOwner ? "The worker disputed this payment" : "You disputed this payment"}</p>
@@ -860,7 +860,7 @@ export default function JobDetail() {
       {agentOpen && (
         <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Find matching workers">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setAgentOpen(false)} />
-          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
+          <div className="relative mt-auto flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-overlay bg-white shadow-2xl animate-slide-in-right dark:bg-slate-900 sm:ml-auto sm:mt-0 sm:h-full sm:max-w-lg sm:rounded-none">
             <AgentPanel mode="match" jobId={id} onClose={() => { setAgentOpen(false); refetch(); }} />
           </div>
         </div>

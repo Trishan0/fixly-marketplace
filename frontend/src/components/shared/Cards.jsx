@@ -1,177 +1,135 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Briefcase, Shield, Clock, MessagesSquare } from 'lucide-react'
-import { Avatar, Badge, StarRating, Button } from './UI'
-import { formatCurrency, formatRelativeTime, formatStartingPrice, pluralize, URGENCY_LABELS } from '../../lib/utils'
+import { BadgeCheck, Briefcase, CalendarClock, MapPin, MessagesSquare, Star } from 'lucide-react'
+import { Avatar, Badge } from './UI'
+import { buttonClasses } from '../ui/buttonClasses'
+import { IconChip } from '../ui/IconChip'
+import { categoryStyle } from '../../lib/tones'
+import { cn, formatCurrency, formatStartingPrice, pluralize } from '../../lib/utils'
 
-export function WorkerCard({ worker, onInvite }) {
+function VerifiedBadge() {
   return (
-    <div className="fixly-card p-4 transition-shadow hover:shadow-md sm:p-5">
-      <div className="flex items-start gap-4">
-        <Avatar name={worker.full_name} src={worker.profile_photo} size="lg" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="min-w-0 font-semibold text-slate-900">{worker.full_name}</h3>
-            {worker.is_nic_verified && (
-              <span className="fixly-pill-sky">
-                <Shield className="h-3 w-3" /> Verified
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-sm font-medium text-sky-600 dark:text-sky-300">{worker.primary_skill}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            {worker.district && (
-              <span className="flex items-center gap-1 text-xs text-slate-500">
-                <MapPin className="h-3 w-3" />{worker.district}
-              </span>
-            )}
-            <StarRating rating={worker.avg_rating || 0} />
-            <span className="flex items-center gap-1 text-xs text-slate-500">
-              <Briefcase className="h-3 w-3" />{worker.total_jobs_done || 0} jobs
-            </span>
-          </div>
-          {worker.starting_price && (
-            <p className="mt-1 text-xs text-slate-500">From {formatStartingPrice(worker.starting_price)}</p>
-          )}
-        </div>
-      </div>
-      <div className={`mt-4 grid grid-cols-1 gap-2 border-t border-slate-50 pt-4 dark:border-slate-800 ${onInvite ? 'min-[360px]:grid-cols-2' : ''}`}>
-        <Link to={`/workers/${worker.id}`} className="flex-1">
-          <Button variant="outline" size="sm" className="w-full">View Profile</Button>
-        </Link>
-        {onInvite && (
-          <Button variant="primary" size="sm" onClick={() => onInvite(worker)} className="flex-1">
-            Invite to Job
-          </Button>
-        )}
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/15 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/20">
+      <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified
+    </span>
   )
 }
 
-export function JobCard({ job, role, onAction }) {
-  const isWorker = role === 'worker'
+function Rating({ value, count }) {
+  const rating = Number(value) || 0
+  if (!rating) return <span className="text-xs font-medium text-fg-subtle">New on Fixly</span>
   return (
-    <div className="fixly-card p-4 transition-shadow hover:shadow-md sm:p-5">
-      <div className="sm:flex sm:items-start sm:justify-between sm:gap-3">
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-fg">
+      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+      {rating.toFixed(1)}
+      {typeof count === 'number' && <span className="font-normal text-fg-subtle">({count})</span>}
+    </span>
+  )
+}
+
+export function WorkerCard({ worker, onInvite }) {
+  const { icon, tone } = categoryStyle(worker.primary_skill)
+  const price = formatStartingPrice(worker.starting_price)
+  return (
+    <article className="group relative flex flex-col rounded-card border border-line/80 bg-surface p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-card-hover sm:p-5">
+      <div className="flex items-start gap-3.5">
+        <Avatar name={worker.full_name} src={worker.profile_photo} size="lg" />
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <Badge status={job.status} />
-            {job.urgency && <span className="text-xs text-slate-500">{URGENCY_LABELS[job.urgency]}</span>}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="min-w-0 truncate text-[15px] font-semibold text-fg">
+              <Link to={`/workers/${worker.id}`} className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand">
+                {worker.full_name}
+              </Link>
+            </h3>
+            {worker.is_nic_verified && <VerifiedBadge />}
           </div>
-          <h3 className="line-clamp-2-mobile font-semibold leading-6 text-slate-900">{job.title}</h3>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            {job.category_name && <span className="fixly-pill-sky">{job.category_name}</span>}
-            {job.district && (
-              <span className="flex items-center gap-1 text-xs text-slate-500">
-                <MapPin className="h-3 w-3" />{job.district}
-              </span>
-            )}
-            {job.proposal_count !== undefined && (
-              <span className="flex items-center gap-1 text-xs text-slate-500">
-                <Briefcase className="h-3 w-3" />{pluralize(job.proposal_count, 'proposal')}
-              </span>
-            )}
-            {job.has_my_proposal && <span className="fixly-pill-emerald">Proposal sent</span>}
-          </div>
-          {job.fixed_budget && job.pricing_mode === 'fixed' && (
-            <p className="mt-2 text-sm font-semibold text-sky-700 dark:text-sky-300">Budget: {formatCurrency(job.fixed_budget)}</p>
-          )}
-          {job.pricing_mode === 'ask_quotes' && (
-            <p className="mt-1 text-xs font-medium text-violet-600 dark:text-violet-300">Open to quotes</p>
-          )}
-          {job.pricing_mode === 'inspection' && (
-            <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-300">Inspection required</p>
+          {worker.primary_skill && (
+            <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted">
+              <IconChip icon={icon} tone={tone} size="sm" className="h-6 w-6 rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5" />
+              {worker.primary_skill}
+            </p>
           )}
         </div>
-        <p className="mt-3 shrink-0 text-xs text-slate-400 sm:mt-0">
-          <Clock className="mr-1 inline h-3 w-3" />
-          {formatRelativeTime(job.created_at)}
-        </p>
       </div>
-
-      {job.assigned_worker_name && (
-        <div className="mt-3 flex items-center gap-2 border-t border-slate-50 pt-3 dark:border-slate-800">
-          <Avatar name={job.assigned_worker_name} src={job.assigned_worker_photo} size="sm" />
-          <p className="text-xs text-slate-500">Assigned to <span className="font-medium text-slate-700 dark:text-slate-200">{job.assigned_worker_name}</span></p>
-        </div>
-      )}
-
-      {!isWorker && job.status === 'proposals_received' && Number(job.proposal_count || 0) > 0 && (
-        <div className="mt-3 border-t border-slate-50 pt-3 dark:border-slate-800">
-          <p className="text-sm font-medium text-violet-700 dark:text-violet-300">Review proposals from workers now</p>
-        </div>
-      )}
-
-      {onAction && (
-        <div className="mt-3 border-t border-slate-50 pt-3 dark:border-slate-800">
-          {onAction(job)}
-        </div>
-      )}
-    </div>
+      {worker.bio && <p className="mt-3 line-clamp-2 text-[13px] leading-5 text-fg-muted">{worker.bio}</p>}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-fg-muted">
+        <Rating value={worker.avg_rating} />
+        <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{pluralize(worker.total_jobs_done || 0, 'job')} done</span>
+        {worker.district && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-fg-subtle" aria-hidden="true" />{worker.district}</span>}
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3">
+        <p className="text-[13px] text-fg-muted">{price ? <>From <span className="font-semibold text-fg">{price}</span></> : 'Quote on request'}</p>
+        {onInvite && (
+          <button type="button" onClick={() => onInvite(worker)} className={buttonClasses({ size: 'sm', className: 'relative z-10' })}>
+            Invite to job
+          </button>
+        )}
+      </div>
+    </article>
   )
 }
 
 export function ProposalCard({ proposal, isOwner, onAccept, onDecline, onWithdraw, messageTo }) {
+  const quote = proposal.proposed_price
+    ? <span className="text-xl font-bold tracking-tight text-fg">{formatCurrency(proposal.proposed_price)}</span>
+    : proposal.inspection_needed
+      ? <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">Quote after inspection</span>
+      : <span className="text-sm font-medium text-fg-muted">Accepted your invite — no quote yet</span>
   return (
-    <div className="fixly-card p-4 sm:p-5">
+    <article className={cn('rounded-card border bg-surface p-4 shadow-card sm:p-5', proposal.status === 'accepted' ? 'border-emerald-300 dark:border-emerald-500/40' : 'border-line/80')}>
       <div className="flex items-start gap-3">
         <Avatar name={proposal.worker_name} src={proposal.worker_photo} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="min-w-0 font-semibold text-slate-900">{proposal.worker_name}</span>
-            {proposal.is_nic_verified && (
-              <span className="fixly-pill-sky">
-                <Shield className="h-3 w-3" /> Verified
-              </span>
-            )}
-            <Badge status={proposal.status} className="sm:ml-auto" />
+            <Link to={`/workers/${proposal.worker_id}`} className="min-w-0 truncate font-semibold text-fg hover:text-brand-text">{proposal.worker_name}</Link>
+            {proposal.is_nic_verified && <VerifiedBadge />}
+            <Badge status={proposal.status} className="ml-auto" />
           </div>
-          <div className="mt-1 flex items-center gap-3">
-            <StarRating rating={proposal.avg_rating || 0} />
-            <span className="text-xs text-slate-500">{proposal.total_jobs_done || 0} jobs done</span>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
+            <Rating value={proposal.avg_rating} />
+            <span>{pluralize(proposal.total_jobs_done || 0, 'job')} done</span>
+            {proposal.primary_skill && <span>{proposal.primary_skill}</span>}
           </div>
-          {proposal.proposed_price ? (
-            <p className="mt-2 text-lg font-bold text-sky-700 dark:text-sky-300">{formatCurrency(proposal.proposed_price)}</p>
-          ) : proposal.price_range ? (
-            <p className="mt-2 text-sm text-slate-500">Range: {proposal.price_range}</p>
-          ) : proposal.inspection_needed ? (
-            <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">Will quote after inspecting the job</p>
-          ) : (
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Accepted your invite — hasn’t sent a quote yet</p>
-          )}
-          {proposal.availability && (
-            <p className="mt-1 text-xs text-slate-500">Available: {proposal.availability}</p>
-          )}
-          {proposal.message && proposal.message !== 'Accepted via invite' && (
-            <p className="mt-3 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">{proposal.message}</p>
-          )}
         </div>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-2 rounded-control bg-subtle px-3.5 py-3">
+        <div>
+          <p className="text-[11px] font-medium text-fg-subtle">Quote</p>
+          {quote}
+        </div>
+        {proposal.availability && (
+          <p className="inline-flex items-center gap-1.5 text-[13px] text-fg-muted">
+            <CalendarClock className="h-4 w-4 text-fg-subtle" aria-hidden="true" /> {proposal.availability}
+          </p>
+        )}
+      </div>
+
+      {proposal.message && proposal.message !== 'Accepted via invite' && (
+        <p className="mt-3 whitespace-pre-line text-sm leading-6 text-fg-muted">{proposal.message}</p>
+      )}
+
       {isOwner && proposal.status !== 'withdrawn' && (
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800 sm:flex">
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
           {proposal.status === 'pending' && (
             <>
-              <Button variant="primary" size="sm" className="flex-1" onClick={() => onAccept(proposal.id)}>Hire</Button>
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => onDecline(proposal.id)}>Decline</Button>
+              <button type="button" onClick={() => onAccept(proposal.id)} className={buttonClasses({ size: 'sm' })}>Hire</button>
+              <button type="button" onClick={() => onDecline(proposal.id)} className={buttonClasses({ variant: 'secondary', size: 'sm' })}>Decline</button>
             </>
           )}
           {messageTo && (
-            <Link to={messageTo} className="fixly-btn-secondary min-h-11 gap-1.5 px-3 text-xs">
-              <MessagesSquare className="h-4 w-4" /> Message
+            <Link to={messageTo} className={buttonClasses({ variant: 'secondary', size: 'sm' })}>
+              <MessagesSquare className="h-4 w-4" aria-hidden="true" /> Message
             </Link>
           )}
-          <Link to={`/workers/${proposal.worker_id}`} className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
-            View profile
-          </Link>
+          <Link to={`/workers/${proposal.worker_id}`} className={buttonClasses({ variant: 'ghost', size: 'sm', className: 'ml-auto' })}>View profile</Link>
         </div>
       )}
       {proposal.status === 'pending' && !isOwner && onWithdraw && (
-        <div className="mt-4 border-t border-slate-50 pt-4 dark:border-slate-800">
-          <Button variant="outline" size="sm" onClick={() => onWithdraw(proposal.id)}>Withdraw</Button>
+        <div className="mt-4 border-t border-line pt-4">
+          <button type="button" onClick={() => onWithdraw(proposal.id)} className={buttonClasses({ variant: 'secondary', size: 'sm' })}>Withdraw</button>
         </div>
       )}
-    </div>
+    </article>
   )
 }

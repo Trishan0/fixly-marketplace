@@ -7,8 +7,9 @@ const VARIANTS = {
   'on-brand': 'bg-[#fff] text-[#0369a1] hover:bg-[#f0f9ff] shadow-sm',
   'on-brand-ghost': 'bg-white/10 text-white ring-1 ring-inset ring-white/25 hover:bg-white/20',
   ghost: 'text-fg-muted hover:bg-subtle hover:text-fg',
-  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-xs',
-  'danger-ghost': 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40',
+  danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-xs',
+  success: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs',
+  'danger-ghost': 'text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10',
 }
 
 // 36px on desktop; 44px on touch screens so targets stay easy to hit.

@@ -85,7 +85,7 @@ function AuthStory({ tab }) {
         <ShieldCheck className="h-4 w-4 text-sky-500" />
         <span className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">Trusted local services</span>
       </div>
-      <h2 className="mt-7 text-4xl font-black leading-tight tracking-tight text-slate-950">
+      <h2 className="mt-7 text-4xl font-bold leading-tight tracking-tight text-slate-950">
         {tab === 'login' ? 'Welcome back. Your next task is waiting.' : 'One account. A simpler way to get work done.'}
       </h2>
       <p className="mt-4 text-base leading-7 text-slate-500">
@@ -98,7 +98,7 @@ function AuthStory({ tab }) {
           [ShieldCheck, 'Worker verification and transparent profiles'],
           [Sparkles, 'Smart matching without losing control'],
         ].map(([Icon, text]) => (
-          <div key={text} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
+          <div key={text} className="flex items-center gap-3 rounded-card border border-slate-100 bg-white/70 p-4 dark:border-slate-800 dark:bg-slate-900/60">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300">
               <Icon className="h-5 w-5" />
             </span>
@@ -230,7 +230,7 @@ export default function Auth() {
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-auto w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_24px_70px_rgba(2,6,23,0.38)]"
+          className="mx-auto w-full max-w-xl overflow-hidden rounded-card border border-slate-200/80 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.10)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_24px_70px_rgba(2,6,23,0.38)]"
           aria-labelledby="auth-title"
         >
           <div className="grid grid-cols-2 border-b border-slate-100 p-1.5 dark:border-slate-800" role="tablist" aria-label="Authentication options">
@@ -245,7 +245,7 @@ export default function Auth() {
                 aria-selected={tab === value}
                 onClick={() => changeTab(value)}
                 className={cn(
-                  'min-h-11 rounded-2xl px-3 text-sm font-bold transition-colors',
+                  'min-h-11 rounded-card px-3 text-sm font-bold transition-colors',
                   tab === value
                     ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300'
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white',
@@ -261,7 +261,7 @@ export default function Auth() {
               <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-300 lg:hidden">
                 <ShieldCheck className="h-4 w-4" /> Trusted local services
               </div>
-              <h1 id="auth-title" className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+              <h1 id="auth-title" className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
                 {tab === 'login' ? 'Welcome back' : registerStep === 0 ? 'Create your account' : 'Complete your profile'}
               </h1>
               <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -274,7 +274,7 @@ export default function Auth() {
             </div>
 
             {error && (
-              <div role="alert" aria-live="polite" className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+              <div role="alert" aria-live="polite" className="mb-5 rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
                 {error}
               </div>
             )}
@@ -290,7 +290,7 @@ export default function Auth() {
                   Sign in <ArrowRight className="h-4 w-4" />
                 </Button>
 
-                {ENABLE_DEMO_ACCOUNTS && <details className="group rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+                {ENABLE_DEMO_ACCOUNTS && <details className="group rounded-card border border-slate-200 p-3 dark:border-slate-700">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold text-slate-600 dark:text-slate-300">
                     Use a demo account
                     <span className="text-xs font-medium text-slate-400 group-open:hidden">Show</span>
@@ -323,7 +323,7 @@ export default function Auth() {
                           ['customer', User, 'Hire workers'],
                           ['worker', HardHat, 'Find work'],
                         ].map(([value, Icon, label]) => (
-                          <button key={value} type="button" onClick={() => changeRole(value)} className={cn('flex min-h-20 flex-col items-start justify-center rounded-2xl border p-3 text-left transition-colors', role === value ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300' : 'border-slate-200 text-slate-600 hover:border-sky-300 dark:border-slate-700 dark:text-slate-300')} aria-pressed={role === value}>
+                          <button key={value} type="button" onClick={() => changeRole(value)} className={cn('flex min-h-20 flex-col items-start justify-center rounded-card border p-3 text-left transition-colors', role === value ? 'border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300' : 'border-slate-200 text-slate-600 hover:border-sky-300 dark:border-slate-700 dark:text-slate-300')} aria-pressed={role === value}>
                             <Icon className="mb-2 h-5 w-5" />
                             <span className="text-sm font-bold">{label}</span>
                           </button>
@@ -356,7 +356,7 @@ export default function Auth() {
                               ['standard', 'Standard', 'Full tools and insights'],
                               ['simplified', 'Simplified', 'Larger, focused actions'],
                             ].map(([value, label, description]) => (
-                              <button key={value} type="button" onClick={() => setForm((current) => ({ ...current, dashboard_mode: value }))} className={cn('min-h-20 rounded-2xl border p-3 text-left transition-colors', form.dashboard_mode === value ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/50' : 'border-slate-200 dark:border-slate-700')} aria-pressed={form.dashboard_mode === value}>
+                              <button key={value} type="button" onClick={() => setForm((current) => ({ ...current, dashboard_mode: value }))} className={cn('min-h-20 rounded-card border p-3 text-left transition-colors', form.dashboard_mode === value ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/50' : 'border-slate-200 dark:border-slate-700')} aria-pressed={form.dashboard_mode === value}>
                                 <span className="block text-sm font-bold text-slate-800 dark:text-slate-100">{label}</span>
                                 <span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span>
                               </button>
@@ -367,7 +367,7 @@ export default function Auth() {
                     )}
 
                     <div className="space-y-1.5">
-                      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-3 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-card border border-slate-200 p-3 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:text-slate-300">
                         <input
                           type="checkbox"
                           checked={acceptedTerms}

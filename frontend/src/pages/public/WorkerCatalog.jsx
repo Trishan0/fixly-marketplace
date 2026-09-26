@@ -74,7 +74,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
 
       {/* Advanced filters */}
       {showFilters && (
-        <div id="worker-filters" className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/60">
+        <div id="worker-filters" className="rounded-card bg-slate-50 p-4 dark:bg-slate-900/60">
           <div className="mb-3 flex items-center justify-between sm:hidden">
             <p className="font-bold text-slate-900">Filter workers</p>
             <button type="button" onClick={() => setShowFilters(false)} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500" aria-label="Close filters"><X className="h-5 w-5" /></button>
@@ -133,7 +133,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
       <div className="fixly-page max-w-7xl">
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Local professionals</p>
-          <h1 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">Find the right worker</h1>
+          <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Find the right worker</h1>
           <p className="mt-1 text-sm leading-6 text-slate-500">
             {typeof total === 'number' ? `${total.toLocaleString('en-LK')} skilled ${total === 1 ? 'professional' : 'professionals'} across Sri Lanka` : 'Skilled professionals across Sri Lanka'}
           </p>
