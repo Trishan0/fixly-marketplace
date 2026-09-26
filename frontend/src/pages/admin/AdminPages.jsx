@@ -15,20 +15,18 @@ import {
   ArrowRight,
   Clock3,
   Bot,
+  Scale,
 } from "lucide-react";
 import { AppShell } from "../../components/layout/AppShell";
 import {
   StatCard,
   Card,
   Button,
-  Badge,
   PageHeader,
   Spinner,
   Input,
-  Select,
   Modal,
   Avatar,
-  EmptyState,
 } from "../../components/shared/UI";
 import { useToast } from "../../hooks/useToast";
 import { formatDate, cn } from "../../lib/utils";
@@ -124,6 +122,20 @@ export function AdminDashboard() {
       title: "Verify Workers",
       desc: `${pendingWorkers.length} worker${pendingWorkers.length === 1 ? "" : "s"} currently waiting for NIC review.`,
       accent: "emerald",
+    },
+    {
+      to: "/admin/disputes",
+      icon: Scale,
+      title: "Payment Disputes",
+      desc: `${stats?.open_disputes ?? 0} disputed payment${stats?.open_disputes === 1 ? "" : "s"} waiting to be closed.`,
+      accent: "amber",
+    },
+    {
+      to: "/admin/jobs",
+      icon: Briefcase,
+      title: "Moderate Jobs",
+      desc: "Search every job and take down scams or rule-breaking posts.",
+      accent: "sky",
     },
     {
       to: "/admin/reports",
@@ -923,164 +935,6 @@ export function AdminWorkers() {
         tone="danger"
         reason={{ label: "What’s wrong with the photo?", placeholder: "Anything else the worker should know", required: true, options: NIC_REJECTION_REASONS }}
       />
-    </AppShell>
-  );
-}
-
-// Admin Reports
-export function AdminReports() {
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const [selected, setSelected] = useState(null);
-  const [resolution, setResolution] = useState({
-    status: "dismissed",
-    resolution_note: "",
-  });
-
-  const { data: reports = [], isLoading } = useQuery({
-    queryKey: ["admin-reports"],
-    queryFn: () => api.get("/admin/reports").then((r) => r.data),
-  });
-
-  usePageTitle("Reports");
-  const resolve = useMutation({
-    mutationFn: ({ id }) => api.put(`/admin/reports/${id}/resolve`, resolution),
-    onSuccess: () => {
-      toast({ title: "Report resolved!", variant: "success" });
-      qc.invalidateQueries({ queryKey: ["admin-reports"] });
-      setSelected(null);
-    },
-  });
-
-  return (
-    <AppShell>
-      <div className="fixly-page max-w-6xl space-y-5">
-        <PageHeader
-          title="Reports Queue"
-          description={`${reports.filter((r) => r.status === "open").length} open reports`}
-        />
-
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : reports.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="No reports"
-            description="No reports have been filed"
-          />
-        ) : (
-          <Card>
-            <div className="divide-y divide-slate-50">
-              {reports.map((r) => (
-                <div key={r.id} className="flex flex-wrap items-start gap-3 p-4 sm:flex-nowrap sm:gap-4 sm:p-5">
-                  <div
-                    className={cn(
-                      "w-2 h-2 rounded-full mt-2 flex-shrink-0",
-                      r.status === "open" ? "bg-red-400" : "bg-slate-300",
-                    )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-slate-900 text-sm capitalize">
-                        {r.report_type?.replace(/_/g, " ")}
-                      </span>
-                      <Badge status={r.status} />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      By: {r.reporter_name} → {r.reported_user_name || "N/A"}
-                      {r.job_title && ` • Job: ${r.job_title}`}
-                    </p>
-                    {r.description && (
-                      <p className="text-sm text-slate-600 mt-1 truncate">
-                        {r.description}
-                      </p>
-                    )}
-                    {r.resolution_note && (
-                      <p className="text-xs text-slate-400 mt-1 italic">
-                        Resolution: {r.resolution_note}
-                      </p>
-                    )}
-                  </div>
-                  {r.status === "open" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-5 basis-full sm:ml-0 sm:basis-auto"
-                      onClick={() => setSelected(r)}
-                    >
-                      Resolve
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-      </div>
-
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title="Resolve Report"
-      >
-        {selected && (
-          <div className="space-y-4">
-            <div className="bg-slate-50 rounded-2xl p-4 text-sm">
-              <p className="font-medium">
-                {selected.report_type?.replace(/_/g, " ")}
-              </p>
-              <p className="text-slate-600 mt-1">{selected.description}</p>
-            </div>
-            <Select
-              label="Action"
-              value={resolution.status}
-              onChange={(e) =>
-                setResolution((r) => ({ ...r, status: e.target.value }))
-              }
-            >
-              <option value="dismissed">Dismiss</option>
-              <option value="warned">Warn User</option>
-              <option value="actioned">Action Taken</option>
-            </Select>
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">
-                Resolution Note
-              </label>
-              <textarea
-                className="fixly-input resize-none"
-                rows={3}
-                value={resolution.resolution_note}
-                onChange={(e) =>
-                  setResolution((r) => ({
-                    ...r,
-                    resolution_note: e.target.value,
-                  }))
-                }
-                placeholder="Describe what action was taken..."
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="secondary"
-                onClick={() => setSelected(null)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => resolve.mutate({ id: selected.id })}
-                loading={resolve.isPending}
-                className="flex-1"
-              >
-                Resolve Report
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </AppShell>
   );
 }

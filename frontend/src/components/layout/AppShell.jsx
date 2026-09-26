@@ -26,6 +26,7 @@ import {
   Plus,
   MoreHorizontal,
   MessagesSquare,
+  Scale,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { cn, getInitials } from "../../lib/utils";
@@ -64,7 +65,9 @@ const adminNav = [
   { href: "/admin", icon: BarChart3, label: "Dashboard" },
   { href: "/admin/users", icon: Users, label: "Users" },
   { href: "/admin/workers", icon: Shield, label: "Workers" },
+  { href: "/admin/jobs", icon: Briefcase, label: "Jobs" },
   { href: "/admin/reports", icon: FileText, label: "Reports" },
+  { href: "/admin/disputes", icon: Scale, label: "Disputes" },
   { href: "/admin/categories", icon: Tag, label: "Categories" },
 ];
 
@@ -551,7 +554,8 @@ export function AppShell({ children }) {
     if (location.pathname.startsWith("/notifications")) return "Notifications";
     if (location.pathname.startsWith("/messages")) return "Messages";
 
-    const activeItem = navItems.find((item) => {
+    // Prefer the most specific match so "/admin/jobs" isn't labelled by "/admin".
+    const activeItem = [...navItems].sort((a, b) => b.href.length - a.href.length).find((item) => {
       if (item.href === "/profile") {
         return (
           location.pathname === "/profile" ||

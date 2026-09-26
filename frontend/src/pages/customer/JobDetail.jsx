@@ -40,6 +40,7 @@ import {
 } from "../../lib/utils";
 import api from "../../lib/api";
 import { threadPath } from "../../lib/messages";
+import { ReportButton } from "../../components/shared/ReportDialog";
 import { errorMessage, errorStatus } from "../../lib/errors";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -481,6 +482,17 @@ export default function JobDetail() {
           </Card>
         )}
 
+        {job.is_active === false && isOwner && (
+          <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30" role="status">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700 dark:text-red-300" aria-hidden="true" />
+            <div className="text-sm text-red-800 dark:text-red-200">
+              <p className="font-semibold">Fixly took this job down</p>
+              {job.flag_reason && <p className="mt-1">Reason: {job.flag_reason}</p>}
+              <p className="mt-1">Workers can’t see it or send proposals. If you think this is a mistake, <Link to="/contact" className="font-semibold underline underline-offset-2">contact us</Link>.</p>
+            </div>
+          </div>
+        )}
+
         {job.payment_disputed && (isOwner || isAssignedWorker) && (
           <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
@@ -535,6 +547,7 @@ export default function JobDetail() {
                 <Link to={`/customers/${job.customer_id}`} className="fixly-btn-secondary min-h-11 px-4 text-sm">
                   View profile
                 </Link>
+                <ReportButton jobId={job.id} reportedUserId={job.customer_id} subject={job.customer_name} />
               </div>
             </div>
             {isAssignedWorker && job.customer_phone && (
@@ -576,6 +589,7 @@ export default function JobDetail() {
                 <Link to={`/workers/${job.assigned_worker_id}`} className="fixly-btn-secondary min-h-11 px-4 text-sm">
                   View profile
                 </Link>
+                {isOwner && <ReportButton jobId={job.id} reportedUserId={job.assigned_worker_id} subject={job.assigned_worker_name} />}
               </div>
             </div>
           </Card>

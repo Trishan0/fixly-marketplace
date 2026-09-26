@@ -113,7 +113,7 @@ function countAdminJobs({ status, category, district }) {
 
 /** @param {string | null} status @param {string | null} type */
 function listAdminReports(status, type) {
-  return rows(sql`SELECT r.id,r.reporter_id,r.reported_user_id,r.job_id,r.report_type,r.description,r.status,r.resolution_note,r.created_at,r.updated_at,u1.full_name AS reporter_name,u2.full_name AS reported_user_name,j.title AS job_title FROM reports r LEFT JOIN users u1 ON u1.id=r.reporter_id LEFT JOIN users u2 ON u2.id=r.reported_user_id LEFT JOIN jobs j ON j.id=r.job_id WHERE (${status}::text IS NULL OR r.status=${status}) AND (${type}::text IS NULL OR r.report_type=${type}) ORDER BY r.created_at DESC LIMIT 100`);
+  return rows(sql`SELECT r.id,r.reporter_id,r.reported_user_id,r.job_id,r.report_type,r.description,r.status,r.resolution_note,r.created_at,r.updated_at,u1.full_name AS reporter_name,u1.role AS reporter_role,u2.full_name AS reported_user_name,u2.role AS reported_user_role,u2.is_suspended AS reported_user_suspended,j.title AS job_title,j.is_active AS job_is_active FROM reports r LEFT JOIN users u1 ON u1.id=r.reporter_id LEFT JOIN users u2 ON u2.id=r.reported_user_id LEFT JOIN jobs j ON j.id=r.job_id WHERE (${status}::text IS NULL OR r.status=${status}) AND (${type}::text IS NULL OR r.report_type=${type}) ORDER BY r.created_at DESC LIMIT 100`);
 }
 
 function listCategoriesAdmin() {

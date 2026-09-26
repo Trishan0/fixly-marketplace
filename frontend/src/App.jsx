@@ -43,7 +43,9 @@ const Messages = lazy(() => import('./pages/shared/Messages'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminDashboard })))
 const AdminUsers = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminUsers })))
 const AdminWorkers = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminWorkers })))
-const AdminReports = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminReports })))
+const AdminReports = lazy(() => import('./pages/admin/AdminModeration').then(m => ({ default: m.AdminReports })))
+const AdminDisputes = lazy(() => import('./pages/admin/AdminModeration').then(m => ({ default: m.AdminDisputes })))
+const AdminJobs = lazy(() => import('./pages/admin/AdminModeration').then(m => ({ default: m.AdminJobs })))
 const AdminCategories = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminCategories })))
 
 function DashboardRedirect() {
@@ -134,6 +136,8 @@ function AppRoutes() {
           <Route path="/admin/users" element={<RoleRoute role="admin"><AdminUsers /></RoleRoute>} />
           <Route path="/admin/workers" element={<RoleRoute role="admin"><AdminWorkers /></RoleRoute>} />
           <Route path="/admin/reports" element={<RoleRoute role="admin"><AdminReports /></RoleRoute>} />
+          <Route path="/admin/disputes" element={<RoleRoute role="admin"><AdminDisputes /></RoleRoute>} />
+          <Route path="/admin/jobs" element={<RoleRoute role="admin"><AdminJobs /></RoleRoute>} />
           <Route path="/admin/categories" element={<RoleRoute role="admin"><AdminCategories /></RoleRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

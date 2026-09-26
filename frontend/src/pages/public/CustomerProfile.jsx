@@ -16,6 +16,7 @@ import {
 import { formatDate, formatRelativeTime, pluralize } from '../../lib/utils'
 import api from '../../lib/api'
 import { usePageTitle } from '../../hooks/usePageTitle'
+import { ReportButton } from '../../components/shared/ReportDialog'
 import { AppShell } from '../../components/layout/AppShell'
 import { PublicFooter } from '../../components/shared/PublicFooter'
 import { useAuth } from '../../context/AuthContext'
@@ -62,6 +63,11 @@ export default function CustomerProfile() {
             subtitle={isOwnProfile ? 'This is the profile workers see before sending proposals or accepting your jobs.' : 'Customer profile inside your Fixly workspace.'}
           />
           <CustomerProfileBody customer={customer} recentJobs={recentJobs} completionRate={completionRate} />
+          {!isOwnProfile && (
+            <div className="mt-4 flex justify-end">
+              <ReportButton reportedUserId={customer.id} subject={customer.full_name} label="Report this customer" />
+            </div>
+          )}
         </div>
       ) : (
         <>

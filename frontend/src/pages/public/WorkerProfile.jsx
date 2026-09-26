@@ -20,6 +20,7 @@ import api from '../../lib/api'
 import { errorMessage, errorStatus } from '../../lib/errors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { ErrorFallback } from '../../components/shared/ErrorBoundary'
+import { ReportButton } from '../../components/shared/ReportDialog'
 import { AppShell } from '../../components/layout/AppShell'
 import { PublicFooter } from '../../components/shared/PublicFooter'
 
@@ -275,6 +276,11 @@ function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, average
               <Button variant="primary" className="w-full justify-center" onClick={onInvite}>
                 <Send className="h-4 w-4" /> Invite to job
               </Button>
+            )}
+            {user && String(user.id) !== String(worker.id) && (
+              <div className="flex justify-center">
+                <ReportButton reportedUserId={worker.id} subject={worker.full_name} label="Report this worker" />
+              </div>
             )}
             {!user && (
               <Link

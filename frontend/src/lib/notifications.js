@@ -22,6 +22,9 @@ export const NOTIFICATION_STYLES = {
   report_updated: { icon: Flag, tone: 'slate' },
   nic_verified: { icon: BadgeCheck, tone: 'emerald' },
   nic_rejected: { icon: ShieldAlert, tone: 'amber' },
+  job_flagged: { icon: ShieldAlert, tone: 'rose' },
+  job_restored: { icon: CheckCircle2, tone: 'emerald' },
+  dispute_resolved: { icon: Banknote, tone: 'slate' },
 }
 
 export const DEFAULT_NOTIFICATION_STYLE = { icon: Bell, tone: 'slate' }
