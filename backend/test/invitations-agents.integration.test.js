@@ -188,8 +188,15 @@ describe('Phase 5 invitations and agent confirmation invariants', () => {
 
   test('marks a failed agent run as terminal instead of leaving it active', async () => {
     const customer = await createUser(testPool, { email: 'agent-failure-customer@fixly-test.local', fullName: 'No Worker Profile', role: 'customer' });
+    const originalGeminiKey = process.env.GEMINI_API_KEY;
+    process.env.GEMINI_API_KEY = originalGeminiKey || 'test-gemini-key';
 
-    await expect(createProposalRun(customer.id)).rejects.toThrow('Worker profile not found');
+    try {
+      await expect(createProposalRun(customer.id)).rejects.toThrow('Worker profile not found');
+    } finally {
+      if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = originalGeminiKey;
+    }
 
     const run = await testPool.query(
       "SELECT status FROM agent_runs WHERE user_id = $1 AND agent_type = 'proposal'",
