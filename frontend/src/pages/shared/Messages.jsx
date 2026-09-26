@@ -9,7 +9,7 @@ import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
 import { usePageTitle } from '../../hooks/usePageTitle'
-import { errorMessage, errorStatus } from '../../lib/errors'
+import { errorMessage, errorStatus, loadFailureHint } from '../../lib/errors'
 import { cn, formatRelativeTime } from '../../lib/utils'
 import api from '../../lib/api'
 import { threadPath } from '../../lib/messages'
@@ -151,7 +151,7 @@ function Thread({ jobId, workerId }) {
     return (
       <ErrorFallback
         title={status === 403 || status === 404 ? 'You can’t open this conversation' : 'We couldn’t load this conversation'}
-        description={status === 403 || status === 404 ? errorMessage(error) : 'Check your connection and try again.'}
+        description={status === 403 || status === 404 ? errorMessage(error) : loadFailureHint(error)}
         onRetry={status === 403 || status === 404 ? undefined : () => refetch()}
       />
     )
@@ -243,7 +243,7 @@ export default function Messages() {
   const hasThread = Boolean(jobId && workerId)
   usePageTitle(hasThread ? null : 'Messages')
 
-  const { data: conversations = [], isLoading, isError, refetch } = useQuery({
+  const { data: conversations = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['conversations'],
     queryFn: () => api.get('/messages/conversations').then(r => r.data),
     refetchInterval: LIST_POLL_MS,
@@ -269,7 +269,7 @@ export default function Messages() {
             {isLoading ? (
               <div className="flex justify-center py-10"><Spinner /></div>
             ) : isError ? (
-              <ErrorFallback title="We couldn’t load your messages" description="Check your connection and try again." onRetry={() => refetch()} />
+              <ErrorFallback title="We couldn’t load your messages" error={error} onRetry={() => refetch()} />
             ) : (
               <ConversationList conversations={conversations} activeKey={hasThread ? `${jobId}:${workerId}` : null} userId={user.id} />
             )}

@@ -9,6 +9,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "build": "tsc -p tsconfig.build.json",
+    "vercel-build": "node scripts/vercel-build.js",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:persistence": "tsc -p tsconfig.persistence.json",
     "test": "vitest run --config vitest.config.mjs",

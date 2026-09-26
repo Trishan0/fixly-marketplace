@@ -31,7 +31,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   usePageTitle(embedded ? null : 'Browse workers')
 
   const {
-    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,
+    data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: ['workers', { category, district, verified, search: debouncedSearch }],
     queryFn: ({ pageParam }) => api.get('/workers', {
@@ -92,7 +92,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-56 w-full rounded-card" />)}</div>
       ) : isError ? (
-        <ErrorFallback title="We couldn’t load workers" description="Check your connection and try again." onRetry={() => refetch()} />
+        <ErrorFallback title="We couldn’t load workers" error={error} onRetry={() => refetch()} />
       ) : workers.length === 0 ? (
         <Card><EmptyState icon={Wrench} title="No workers found" description="Try a different skill, district or search term." /></Card>
       ) : (

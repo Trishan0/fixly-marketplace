@@ -11,3 +11,12 @@ export function errorMessage(error, fallback = 'Something went wrong. Please try
 export function errorStatus(error) {
   return error?.response?.status
 }
+
+/**
+ * The second line of a "couldn't load" message. Only blames the connection
+ * when the request never reached Fixly; a server error is our problem.
+ */
+export function loadFailureHint(error) {
+  if (error?.code === 'ECONNABORTED' || (error?.request && !error?.response)) return 'Check your connection and try again.'
+  return 'Something went wrong on our side. Please try again in a moment.'
+}

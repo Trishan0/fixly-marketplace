@@ -8,7 +8,7 @@ import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { useToast } from '../../hooks/useToast'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { formatCurrency, URGENCY_LABELS } from '../../lib/utils'
-import { errorMessage, errorStatus } from '../../lib/errors'
+import { errorMessage, errorStatus, loadFailureHint } from '../../lib/errors'
 import api from '../../lib/api'
 
 const PRICE_PATTERN = /^\d+(\.\d{1,2})?$/
@@ -227,7 +227,7 @@ export default function SendProposal() {
     body = (
       <ErrorFallback
         title={status === 404 ? 'This job doesn’t exist' : status === 403 ? 'You can’t apply to this job' : 'We couldn’t load this job'}
-        description={status === 403 || status === 404 ? 'It may have been removed or given to someone else.' : 'Check your connection and try again.'}
+        description={status === 403 || status === 404 ? 'It may have been removed or given to someone else.' : loadFailureHint(jobError)}
         onRetry={status === 403 || status === 404 ? undefined : () => refetch()}
       />
     )

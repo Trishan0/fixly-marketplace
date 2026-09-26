@@ -8,7 +8,7 @@ import { OwnProfileBar, ProfileEmpty, ProfileHero, ProfileSectionCard, PublicPag
 import { formatDate, formatRelativeTime, pluralize } from '../../lib/utils'
 import { categoryStyle } from '../../lib/tones'
 import api from '../../lib/api'
-import { errorStatus } from '../../lib/errors'
+import { errorStatus, loadFailureHint } from '../../lib/errors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { ReportButton } from '../../components/shared/ReportDialog'
@@ -45,7 +45,7 @@ export default function CustomerProfile() {
     return wrap(
       <ErrorFallback
         title={notFound ? 'This customer profile isn’t available' : 'We couldn’t load this profile'}
-        description={notFound ? 'The account may have been closed.' : 'Check your connection and try again.'}
+        description={notFound ? 'The account may have been closed.' : loadFailureHint(error)}
         onRetry={notFound ? undefined : () => refetch()}
       />,
     )

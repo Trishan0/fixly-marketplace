@@ -10,7 +10,7 @@ import { useToast } from '../../hooks/useToast'
 import { formatRelativeTime, formatStartingPrice, pluralize } from '../../lib/utils'
 import { categoryStyle } from '../../lib/tones'
 import api from '../../lib/api'
-import { errorMessage, errorStatus } from '../../lib/errors'
+import { errorMessage, errorStatus, loadFailureHint } from '../../lib/errors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { ReportButton } from '../../components/shared/ReportDialog'
@@ -79,7 +79,7 @@ export default function WorkerProfile() {
     return wrap(
       <ErrorFallback
         title={notFound ? 'This worker profile isn’t available' : 'We couldn’t load this profile'}
-        description={notFound ? 'The worker may have closed their account. Browse other workers nearby.' : 'Check your connection and try again.'}
+        description={notFound ? 'The worker may have closed their account. Browse other workers nearby.' : loadFailureHint(error)}
         onRetry={notFound ? undefined : () => refetch()}
       />,
     )

@@ -26,7 +26,7 @@ export default function Earnings() {
   const [disputing, setDisputing] = useState(null)
   usePageTitle('Earnings')
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['earnings'],
     queryFn: () => api.get('/payments/my').then(r => r.data),
   })
@@ -75,7 +75,7 @@ export default function Earnings() {
         </div>
 
         {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
-          isError ? <ErrorFallback title="We couldn’t load your earnings" description="Check your connection and try again." onRetry={() => refetch()} /> :
+          isError ? <ErrorFallback title="We couldn’t load your earnings" error={error} onRetry={() => refetch()} /> :
           payments.length === 0 ? (
             <EmptyState icon={Banknote} title="No payments yet" description="When a customer records a payment for a finished job, it appears here for you to confirm." />
           ) : (
