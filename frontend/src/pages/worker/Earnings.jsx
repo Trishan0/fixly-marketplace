@@ -65,7 +65,7 @@ export default function Earnings() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-6xl space-y-5">
+      <div className="mx-auto w-full max-w-[1200px] space-y-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <PageHeader title="Earnings" description="Payments customers have recorded for your jobs" />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
@@ -80,7 +80,7 @@ export default function Earnings() {
             <EmptyState icon={Banknote} title="No payments yet" description="When a customer records a payment for a finished job, it appears here for you to confirm." />
           ) : (
             <Card>
-              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              <ul className="divide-y divide-line">
                 {payments.map(p => {
                   const confirming = confirm.isPending && confirm.variables?.id === p.id
                   return (
@@ -89,9 +89,9 @@ export default function Earnings() {
                         <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <Link to={`/jobs/${p.job_id}`} className="line-clamp-2-mobile font-semibold text-slate-900 hover:text-sky-700 dark:hover:text-sky-300">{p.job_title}</Link>
-                        <p className="text-xs leading-5 text-slate-500">{p.customer_name} · {formatDate(p.created_at)} · {METHOD_LABELS[p.method] || p.method}</p>
-                        {p.note && <p className="mt-0.5 text-xs italic text-slate-500">“{p.note}”</p>}
+                        <Link to={`/jobs/${p.job_id}`} className="line-clamp-2-mobile font-semibold text-fg hover:text-brand-text">{p.job_title}</Link>
+                        <p className="text-xs leading-5 text-fg-subtle">{p.customer_name} · {formatDate(p.created_at)} · {METHOD_LABELS[p.method] || p.method}</p>
+                        {p.note && <p className="mt-0.5 text-xs italic text-fg-subtle">“{p.note}”</p>}
                         {p.disputed && p.dispute_reason && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Your reason: {p.dispute_reason}</p>}
                       </div>
                       <div className="flex flex-wrap items-center justify-between gap-2 sm:block sm:flex-shrink-0 sm:text-right">

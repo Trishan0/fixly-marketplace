@@ -82,7 +82,7 @@ export default function PostJob() {
   if (!isEmailVerified(user)) {
     return (
       <AppShell>
-        <div className="fixly-page max-w-3xl py-10">
+        <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
           <EmailVerificationNotice variant="gate" blockedAction="post a job" />
         </div>
       </AppShell>
@@ -276,26 +276,32 @@ function PostJobForm({ user }) {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-3xl pb-28 sm:pb-6">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6 pb-28 sm:px-6 sm:pb-8 lg:py-8">
         <div className="mb-5 sm:mb-6">
-          <button type="button" onClick={() => navigate(-1)} className="mb-3 flex min-h-11 items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white">
+          <button type="button" onClick={() => navigate(-1)} className="mb-3 flex min-h-11 items-center gap-1 text-sm font-semibold -ml-1 text-fg-muted hover:text-fg">
             <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
           </button>
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Post a job</h1>
-          <p ref={headingRef} tabIndex={-1} className="text-sm text-slate-600 outline-none dark:text-slate-300" aria-live="polite">
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-fg">Post a job</h1>
+          <p ref={headingRef} tabIndex={-1} className="mt-1 text-sm text-fg-muted outline-none" aria-live="polite">
             Step {step + 1} of {STEPS.length}: {STEPS[step]}
-            {hasContent(form) && <span className="text-slate-500"> · Draft saved</span>}
+            {hasContent(form) && <span className="text-fg-subtle"> · Draft saved</span>}
           </p>
         </div>
 
-        <div className="mb-5 flex items-center gap-2" aria-hidden="true">
+        <ol className="mb-5 flex items-center gap-2 sm:gap-3" aria-hidden="true">
           {STEPS.map((label, index) => (
-            <div key={label} className={cn("h-1.5 flex-1 rounded-full transition-all duration-300", index <= step ? "bg-sky-600" : "bg-slate-200 dark:bg-slate-700")} />
+            <li key={label} className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors", index < step ? "bg-brand text-brand-on" : index === step ? "bg-brand text-brand-on ring-4 ring-brand-subtle" : "border border-line-strong bg-surface text-fg-subtle")}>
+                {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
+              </span>
+              <span className={cn("hidden truncate text-sm sm:block", index === step ? "font-semibold text-fg" : "text-fg-muted")}>{label}</span>
+              {index < STEPS.length - 1 && <span className={cn("h-0.5 min-w-4 flex-1 rounded-full", index < step ? "bg-brand" : "bg-line")} />}
+            </li>
           ))}
-        </div>
+        </ol>
 
         {draftRestored && (
-          <div className="mb-4 flex flex-col gap-2 rounded-card border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between" role="status">
+          <div className="mb-4 flex flex-col gap-2 rounded-card border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-100 sm:flex-row sm:items-center sm:justify-between" role="status">
             <span>We restored the job you started earlier. Photos need adding again.</span>
             <div className="flex gap-2">
               <Button size="sm" variant="ghost" onClick={startOver}>Start over</Button>
@@ -305,7 +311,7 @@ function PostJobForm({ user }) {
         )}
 
         {inviteWorker && (
-          <div className="mb-4 rounded-card border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100" role="status">
+          <div className="mb-4 rounded-card border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900 dark:border-violet-500/25 dark:bg-violet-500/10 dark:text-violet-100" role="status">
             <Send className="mr-1.5 inline h-4 w-4" aria-hidden="true" />
             When you post this job, we’ll invite <strong>{inviteWorker.full_name}</strong> to it.
           </div>
@@ -328,7 +334,7 @@ function PostJobForm({ user }) {
                 {topCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
               <fieldset>
-                <legend className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">When do you need it?</legend>
+                <legend className="mb-2 block text-sm font-medium text-fg">When do you need it?</legend>
                 <div className="grid grid-cols-2 gap-2">
                   {URGENCIES.map(({ value, label, desc, icon: Icon }) => (
                     <button
@@ -336,10 +342,10 @@ function PostJobForm({ user }) {
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, urgency: value }))}
                       aria-pressed={form.urgency === value}
-                      className={cn("min-h-20 rounded-xl border p-3 text-left transition-all", form.urgency === value ? "border-sky-500 bg-sky-50 dark:bg-sky-950/40" : "border-slate-200 hover:border-sky-200 dark:border-slate-700")}
+                      className={cn("min-h-20 rounded-control border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand", form.urgency === value ? "border-brand bg-brand-subtle ring-1 ring-brand" : "border-line bg-surface hover:border-line-strong hover:bg-subtle")}
                     >
-                      <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900"><Icon className="h-4 w-4 text-sky-600 dark:text-sky-300" aria-hidden="true" />{label}</p>
-                      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{desc}</p>
+                      <p className="flex items-center gap-1.5 text-sm font-semibold text-fg"><Icon className="h-4 w-4 text-brand-text" aria-hidden="true" />{label}</p>
+                      <p className="mt-0.5 text-xs text-fg-muted">{desc}</p>
                     </button>
                   ))}
                 </div>
@@ -355,8 +361,8 @@ function PostJobForm({ user }) {
                   maxLength={4000}
                   error={errors.description}
                 />
-                <p className="text-right text-xs text-slate-500">{form.description.length}/4000</p>
-                <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="text-right text-xs text-fg-subtle">{form.description.length}/4000</p>
+                <div className="rounded-control border border-amber-200/70 bg-amber-50 p-3.5 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
                   <p className="flex items-center gap-1.5 font-semibold"><Lightbulb className="h-4 w-4" aria-hidden="true" />{hints ? `Helpful details for ${category.name.toLowerCase()} jobs` : "What makes a good description"}</p>
                   <ul className="mt-1 list-disc space-y-0.5 pl-5 text-amber-800 dark:text-amber-200">
                     {(hints || ["What the problem is and where", "Sizes, quantities or brands if you know them", "Whether you’ll supply materials"]).map((hint) => <li key={hint}>{hint}</li>)}
@@ -376,34 +382,34 @@ function PostJobForm({ user }) {
               <Input label="Town or area" placeholder="e.g. Nugegoda" maxLength={100} value={form.town} onChange={set("town")} />
               <div>
                 <Input label="Address or landmark (optional)" placeholder="e.g. Near Nugegoda Market, Temple Road" value={form.address} onChange={set("address")} />
-                <p className="mt-1.5 text-xs text-slate-500">Only the worker you hire can see this.</p>
+                <p className="mt-1.5 text-xs text-fg-subtle">Only the worker you hire can see this.</p>
               </div>
               <div>
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Photos (optional)</p>
-                    <p className="mt-1 text-xs text-slate-500">Photos help workers quote accurately. JPEG, PNG, WebP or iPhone photos.</p>
+                    <p className="text-sm font-medium text-fg">Photos (optional)</p>
+                    <p className="mt-1 text-xs text-fg-subtle">Photos help workers quote accurately. JPEG, PNG, WebP or iPhone photos.</p>
                   </div>
-                  <span className="shrink-0 text-xs font-semibold text-slate-500">{photos.length}/{MAX_PHOTOS}</span>
+                  <span className="shrink-0 text-xs font-semibold text-fg-subtle">{photos.length}/{MAX_PHOTOS}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {photos.map((photo, index) => (
-                    <div key={photo.preview} className="relative aspect-square overflow-hidden rounded-xl">
+                    <div key={photo.preview} className="relative aspect-square overflow-hidden rounded-control border border-line">
                       <img src={photo.preview} className="h-full w-full object-cover" alt={`Photo ${index + 1} of ${photos.length}`} />
-                      <button type="button" onClick={() => removePhoto(index)} className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white" aria-label={`Remove photo ${index + 1}`}>
+                      <button type="button" onClick={() => removePhoto(index)} className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/60 text-[#fff]" aria-label={`Remove photo ${index + 1}`}>
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
                   {photos.length < MAX_PHOTOS && (
-                    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 transition-all hover:border-sky-400 focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700">
-                      {preparingPhotos ? <Spinner /> : <Upload className="mb-1 h-5 w-5 text-slate-500" aria-hidden="true" />}
-                      <span className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">{preparingPhotos ? "Preparing…" : "Add photos"}</span>
+                    <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-control border-2 border-dashed border-line-strong bg-subtle/50 transition-all hover:border-brand hover:bg-brand-subtle focus-within:ring-2 focus-within:ring-brand">
+                      {preparingPhotos ? <Spinner /> : <Upload className="mb-1 h-5 w-5 text-fg-subtle" aria-hidden="true" />}
+                      <span className="mt-1 text-xs font-semibold text-fg-muted">{preparingPhotos ? "Preparing…" : "Add photos"}</span>
                       <input type="file" accept={IMAGE_ACCEPT} multiple onChange={handlePhotos} className="sr-only" disabled={preparingPhotos} />
                     </label>
                   )}
                 </div>
-                {photoError && <p role="alert" className="mt-2 text-sm text-red-600">{photoError}</p>}
+                {photoError && <p role="alert" className="mt-2 text-sm font-medium text-rose-600 dark:text-rose-400">{photoError}</p>}
               </div>
             </div>
           )}
@@ -411,7 +417,7 @@ function PostJobForm({ user }) {
           {step === 2 && (
             <div className="space-y-5">
               <fieldset>
-                <legend className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">How should workers price it?</legend>
+                <legend className="mb-2 text-sm font-medium text-fg">How should workers price it?</legend>
                 <div className="space-y-2">
                   {PRICING_MODES.map(({ value, label, desc, icon: Icon }) => (
                     <button
@@ -419,12 +425,12 @@ function PostJobForm({ user }) {
                       type="button"
                       onClick={() => { setForm((f) => ({ ...f, pricing_mode: value })); setErrors((e) => ({ ...e, fixed_budget: "" })); }}
                       aria-pressed={form.pricing_mode === value}
-                      className={cn("flex min-h-16 w-full items-start gap-3 rounded-xl border p-4 text-left transition-all", form.pricing_mode === value ? "border-sky-500 bg-sky-50 dark:bg-sky-950/40" : "border-slate-200 hover:border-sky-200 dark:border-slate-700")}
+                      className={cn("flex min-h-16 w-full items-start gap-3 rounded-control border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand", form.pricing_mode === value ? "border-brand bg-brand-subtle ring-1 ring-brand" : "border-line bg-surface hover:border-line-strong hover:bg-subtle")}
                     >
-                      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300" aria-hidden="true" />
+                      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-brand-text" aria-hidden="true" />
                       <span>
-                        <span className="block text-sm font-semibold text-slate-900">{label}</span>
-                        <span className="block text-xs text-slate-600 dark:text-slate-400">{desc}</span>
+                        <span className="block text-sm font-semibold text-fg">{label}</span>
+                        <span className="block text-xs text-fg-muted">{desc}</span>
                       </span>
                     </button>
                   ))}
@@ -434,9 +440,9 @@ function PostJobForm({ user }) {
                 <Input id="job-fixed_budget" label="Your budget (LKR)" inputMode="decimal" placeholder="5000" value={form.fixed_budget} onChange={set("fixed_budget")} error={errors.fixed_budget} />
               )}
 
-              <div className="border-t border-slate-100 pt-5 dark:border-slate-800">
-                <h2 className="mb-3 text-base font-bold text-slate-900">Check your job</h2>
-                <dl className="divide-y divide-slate-100 rounded-card bg-slate-50 px-4 text-sm dark:divide-slate-800 dark:bg-slate-900/70">
+              <div className="border-t border-line pt-5">
+                <h2 className="mb-3 text-base font-bold text-fg">Check your job</h2>
+                <dl className="divide-y divide-line rounded-control border border-line bg-subtle px-4 text-sm">
                   <ReviewRow label="Title" value={form.title} onEdit={() => goTo(0)} />
                   <ReviewRow label="Type of work" value={category?.name} onEdit={() => goTo(0)} />
                   <ReviewRow label="When" value={urgency?.label} onEdit={() => goTo(0)} />
@@ -445,7 +451,7 @@ function PostJobForm({ user }) {
                   <ReviewRow label="Photos" value={photos.length ? `${photos.length} photo${photos.length === 1 ? "" : "s"}` : "None"} onEdit={() => goTo(1)} />
                   <ReviewRow label="Pricing" value={form.pricing_mode === "fixed" && form.fixed_budget && PRICE_PATTERN.test(form.fixed_budget) ? `${pricing?.label}: ${formatCurrency(form.fixed_budget)}` : pricing?.label} />
                 </dl>
-                <p className="mt-3 text-xs text-slate-500">
+                <p className="mt-3 text-xs text-fg-subtle">
                   Your job will be visible to workers on Fixly. By posting you agree to our <Link to="/terms" className="font-semibold underline underline-offset-2">Terms</Link>.
                 </p>
               </div>
@@ -453,7 +459,7 @@ function PostJobForm({ user }) {
           )}
         </Card>
 
-        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex gap-3 border-t border-line bg-surface/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
           {step > 0 && (
             <Button variant="secondary" onClick={() => goTo(step - 1)} className="flex-1">
               <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back
@@ -473,10 +479,10 @@ function PostJobForm({ user }) {
 function ReviewRow({ label, value, onEdit }) {
   return (
     <div className="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-3 py-2.5">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="break-words font-medium text-slate-800 dark:text-slate-200">{value || "—"}</dd>
+      <dt className="text-fg-subtle">{label}</dt>
+      <dd className="break-words font-medium text-fg">{value || "—"}</dd>
       {onEdit ? (
-        <button type="button" onClick={onEdit} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-white hover:text-sky-700 dark:hover:bg-slate-800 dark:hover:text-sky-300" aria-label={`Edit ${label.toLowerCase()}`}>
+        <button type="button" onClick={onEdit} className="flex h-11 w-11 items-center justify-center rounded-control text-fg-subtle hover:bg-surface hover:text-brand-text" aria-label={`Edit ${label.toLowerCase()}`}>
           <Pencil className="h-4 w-4" />
         </button>
       ) : <span className="w-11" />}

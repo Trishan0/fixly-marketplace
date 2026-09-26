@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Lock, MessageSquare, Send } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Avatar, Button, EmptyState, Spinner } from '../../components/shared/UI'
+import { buttonClasses } from '../../components/ui/buttonClasses'
 import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
@@ -42,7 +43,7 @@ function ConversationList({ conversations, activeKey, userId }) {
     )
   }
   return (
-    <ul className="divide-y divide-slate-100 dark:divide-slate-800" aria-label="Conversations">
+    <ul className="divide-y divide-line" aria-label="Conversations">
       {conversations.map(conversation => {
         const key = `${conversation.job_id}:${conversation.worker_id}`
         const unread = conversation.unread_count > 0
@@ -53,23 +54,23 @@ function ConversationList({ conversations, activeKey, userId }) {
               to={threadPath(conversation.job_id, conversation.worker_id)}
               aria-current={activeKey === key ? 'true' : undefined}
               className={cn(
-                'flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60',
-                activeKey === key && 'bg-sky-50 dark:bg-sky-950/30',
+                'relative flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-subtle',
+                activeKey === key && 'bg-brand-subtle before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full before:bg-brand hover:bg-brand-subtle',
               )}
             >
               <Avatar name={conversation.other_name} src={conversation.other_photo} size="md" />
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className={cn('truncate text-sm', unread ? 'font-bold text-slate-900' : 'font-semibold text-slate-800 dark:text-slate-100')}>{conversation.other_name}</span>
-                  <span className="shrink-0 text-xs text-slate-500">{formatRelativeTime(conversation.last_message_at)}</span>
+                  <span className={cn('truncate text-sm', unread ? 'font-bold text-fg' : 'font-semibold text-fg')}>{conversation.other_name}</span>
+                  <span className="shrink-0 text-xs text-fg-subtle">{formatRelativeTime(conversation.last_message_at)}</span>
                 </span>
-                <span className="block truncate text-xs font-medium text-sky-700 dark:text-sky-300">{conversation.job_title}</span>
+                <span className="block truncate text-xs font-medium text-brand-text">{conversation.job_title}</span>
                 <span className="mt-0.5 flex items-center gap-2">
-                  <span className={cn('min-w-0 flex-1 truncate text-sm', unread ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500')}>
+                  <span className={cn('min-w-0 flex-1 truncate text-sm', unread ? 'text-fg' : 'text-fg-subtle')}>
                     {fromMe && 'You: '}{conversation.last_message}
                   </span>
                   {unread && (
-                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-sky-600 px-1.5 text-[11px] font-bold text-white">
+                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-brand-on">
                       <span className="sr-only">Unread: </span>{conversation.unread_count}
                     </span>
                   )}
@@ -158,38 +159,38 @@ function Thread({ jobId, workerId }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-        <Link to="/messages" className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden" aria-label="Back to conversations">
+      <header className="flex items-center gap-3 border-b border-line px-4 py-3">
+        <Link to="/messages" className="flex h-11 w-11 items-center justify-center -ml-2 rounded-control text-fg-muted hover:bg-subtle lg:hidden" aria-label="Back to conversations">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <Avatar name={other.full_name} src={other.profile_photo} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-slate-900">{other.full_name}</p>
-          <Link to={`/jobs/${thread.job.id}`} className="block truncate text-xs font-medium text-sky-700 hover:underline dark:text-sky-300">{thread.job.title}</Link>
+          <p className="truncate text-[15px] font-semibold text-fg">{other.full_name}</p>
+          <Link to={`/jobs/${thread.job.id}`} className="block truncate text-xs font-medium text-brand-text hover:underline">{thread.job.title}</Link>
         </div>
         {user.role === 'customer' && (
-          <Link to={`/workers/${thread.worker.id}`} className="hidden text-sm font-semibold text-sky-700 hover:underline dark:text-sky-300 sm:block">View profile</Link>
+          <Link to={`/workers/${thread.worker.id}`} className={buttonClasses({ variant: 'secondary', size: 'sm', className: 'hidden sm:inline-flex' })}>View profile</Link>
         )}
       </header>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4" aria-live="polite" aria-label={`Messages with ${other.full_name}`}>
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-canvas/60 px-4 py-4" aria-live="polite" aria-label={`Messages with ${other.full_name}`}>
         {messages.length === 0 && (
-          <p className="mx-auto max-w-sm py-10 text-center text-sm text-slate-500">
-            Say hello and agree the details — time, access, materials and price. Keep payments and personal details safe; see our <Link to="/safety" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">safety tips</Link>.
+          <p className="mx-auto max-w-sm py-10 text-center text-sm text-fg-muted">
+            Say hello and agree the details — time, access, materials and price. Keep payments and personal details safe; see our <Link to="/safety" className="font-semibold text-brand-text underline underline-offset-2">safety tips</Link>.
           </p>
         )}
         {messages.map((message, index) => {
           const mine = message.sender_id === user.id
           return (
             <React.Fragment key={message.id}>
-              {dayBreaks[index] && <p className="py-2 text-center text-xs font-semibold text-slate-500">{dayBreaks[index]}</p>}
+              {dayBreaks[index] && <p className="py-2 text-center"><span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-fg-subtle">{dayBreaks[index]}</span></p>}
               <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
                 <div className={cn(
                   'max-w-[85%] rounded-card px-3.5 py-2 text-sm leading-6 sm:max-w-[70%]',
-                  mine ? 'rounded-br-md bg-sky-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
+                  mine ? 'rounded-br-md bg-gradient-to-br from-sky-500 to-sky-600 text-[#fff] shadow-xs' : 'rounded-bl-md border border-line bg-surface text-fg shadow-xs',
                 )}>
                   <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                  <p className={cn('mt-0.5 text-right text-[11px]', mine ? 'text-sky-100' : 'text-slate-500')}>
+                  <p className={cn('mt-0.5 text-right text-[11px]', mine ? 'text-sky-100' : 'text-fg-subtle')}>
                     <span className="sr-only">{mine ? 'You, ' : `${other.full_name}, `}</span>
                     {timeLabel(message.created_at)}{mine && message.read_at ? ' · Seen' : ''}
                   </p>
@@ -201,7 +202,7 @@ function Thread({ jobId, workerId }) {
       </div>
 
       {thread.can_send ? (
-        <form onSubmit={submit} className="border-t border-slate-100 p-3 dark:border-slate-800">
+        <form onSubmit={submit} className="border-t border-line bg-surface p-3">
           <div className="flex items-end gap-2">
             <label htmlFor="message-input" className="sr-only">Message {other.full_name}</label>
             <textarea
@@ -221,13 +222,13 @@ function Thread({ jobId, workerId }) {
               {!send.isPending && <Send className="h-4 w-4" />}
             </Button>
           </div>
-          <p className="mt-1.5 flex justify-between text-[11px] text-slate-500">
+          <p className="mt-1.5 flex justify-between text-[11px] text-fg-subtle">
             <span className="hidden sm:inline">Enter to send · Shift + Enter for a new line</span>
             {draft.length > MAX_LENGTH - 200 && <span>{MAX_LENGTH - draft.length} characters left</span>}
           </p>
         </form>
       ) : (
-        <p className="flex items-center gap-2 border-t border-slate-100 px-4 py-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
+        <p className="flex items-center gap-2 border-t border-line bg-subtle px-4 py-4 text-sm text-fg-muted">
           <Lock className="h-4 w-4 shrink-0" aria-hidden="true" /> {thread.blocked_reason}
         </p>
       )}
@@ -257,13 +258,13 @@ export default function Messages() {
 
   return (
     <AppShell>
-      <div className="fixly-page max-w-6xl lg:py-6">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         {/* Fills the space between the top bar and the mobile bottom nav / page padding. */}
-        <div className="fixly-card flex h-[calc(100dvh-10.5rem)] min-h-[26rem] overflow-hidden lg:h-[calc(100dvh-56px-4rem)]">
-          <aside className={cn('w-full shrink-0 overflow-y-auto border-slate-100 dark:border-slate-800 lg:block lg:w-80 lg:border-r', hasThread && 'hidden')}>
-            <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-              <h1 className="text-lg font-bold text-slate-900">Messages</h1>
-              <p className="text-xs text-slate-500">Conversations about your jobs</p>
+        <div className="flex h-[calc(100dvh-9.5rem)] min-h-[26rem] overflow-hidden rounded-card border border-line/80 bg-surface shadow-card lg:h-[calc(100dvh-56px-3rem)]">
+          <aside className={cn('w-full shrink-0 overflow-y-auto border-line lg:block lg:w-80 lg:border-r', hasThread && 'hidden')}>
+            <div className="sticky top-0 z-10 border-b border-line bg-surface px-4 py-4">
+              <h1 className="text-lg font-bold tracking-tight text-fg">Messages</h1>
+              <p className="text-xs text-fg-subtle">Conversations about your jobs</p>
             </div>
             {isLoading ? (
               <div className="flex justify-center py-10"><Spinner /></div>

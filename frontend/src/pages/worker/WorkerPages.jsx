@@ -16,7 +16,7 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useCategories } from '../../hooks/useCategories'
 import { cn, formatCurrency, formatRelativeTime, pluralize, DISTRICTS, URGENCY_LABELS } from '../../lib/utils'
-import { jobPriceLabel } from '../../lib/jobs'
+import { jobPriceLabel, urgencyTone } from '../../lib/jobs'
 import { categoryStyle } from '../../lib/tones'
 import { threadPath } from '../../lib/messages'
 import { errorMessage } from '../../lib/errors'
@@ -26,10 +26,6 @@ const FEED_PAGE_SIZE = 20
 
 function Meta({ children }) {
   return <span className="inline-flex items-center gap-1">{children}</span>
-}
-
-function urgencyTone(urgency) {
-  return urgency === 'today' ? 'rose' : urgency === 'tomorrow' ? 'amber' : 'slate'
 }
 
 function FeedCard({ job }) {

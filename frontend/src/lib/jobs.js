@@ -36,3 +36,8 @@ export const RESPONSE_STATUS = {
   declined: { label: 'Declined', tone: 'rose' },
   withdrawn: { label: 'Withdrawn', tone: 'slate' },
 }
+
+/** Colour for how soon a job is needed: today is urgent, tomorrow is soon. */
+export function urgencyTone(urgency) {
+  return urgency === 'today' ? 'rose' : urgency === 'tomorrow' ? 'amber' : 'slate'
+}
