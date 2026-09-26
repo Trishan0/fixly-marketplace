@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { cn } from '../../lib/utils'
 
 /**
- * Underline tabs that filter the content below. Arrow keys move between
+ * Segmented tabs that filter the content below. Arrow keys move between
  * tabs (roving tabindex), as expected for a tablist.
  */
 export function Tabs({ tabs, value, onChange, label, className }) {
@@ -16,7 +16,7 @@ export function Tabs({ tabs, value, onChange, label, className }) {
     onChange(tabs[next].value)
   }
   return (
-    <div role="tablist" aria-label={label} className={cn('-mb-px flex gap-5 overflow-x-auto border-b border-line', className)}>
+    <div role="tablist" aria-label={label} className={cn('inline-flex max-w-full gap-1 overflow-x-auto rounded-control bg-subtle p-1 ring-1 ring-inset ring-line/60', className)}>
       {tabs.map((tab, index) => {
         const selected = tab.value === value
         return (
@@ -30,13 +30,13 @@ export function Tabs({ tabs, value, onChange, label, className }) {
             onClick={() => onChange(tab.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={cn(
-              'flex h-10 shrink-0 items-center gap-2 border-b-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:text-fg [@media(pointer:coarse)]:h-11',
-              selected ? 'border-brand text-fg' : 'border-transparent text-fg-muted hover:text-fg',
+              'flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand [@media(pointer:coarse)]:h-10',
+              selected ? 'bg-surface text-fg shadow-card' : 'text-fg-muted hover:text-fg',
             )}
           >
             {tab.label}
             {typeof tab.count === 'number' && (
-              <span className={cn('rounded-full px-1.5 text-xs tabular-nums', selected ? 'bg-brand-subtle text-brand-text' : 'bg-subtle text-fg-muted')}>
+              <span className={cn('min-w-[20px] rounded-full px-1.5 text-center text-xs font-semibold tabular-nums', selected ? 'bg-brand text-brand-on' : 'bg-line/70 text-fg-muted')}>
                 {tab.count}
               </span>
             )}

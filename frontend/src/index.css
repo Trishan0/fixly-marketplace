@@ -42,19 +42,19 @@
     --surface-elevated: 0 0% 100%;
     --hero-spotlight: 199 89% 96%;
 
-    /* Design system tokens (new components use only these). */
-    --ds-canvas: 220 20% 97%;
+    /* Design system tokens, built from the logo: sky #0EA5E9 -> #0369A1 on ink #0F172A. */
+    --ds-canvas: 214 45% 97%;
     --ds-surface: 0 0% 100%;
-    --ds-subtle: 220 16% 95.5%;
-    --ds-line: 220 13% 90%;
-    --ds-line-strong: 220 12% 82%;
-    --ds-fg: 222 26% 12%;
-    --ds-fg-muted: 220 10% 38%;
-    --ds-fg-subtle: 220 8% 52%;
-    --ds-brand: 201 90% 36%;
-    --ds-brand-hover: 201 92% 30%;
-    --ds-brand-subtle: 204 90% 96%;
-    --ds-brand-text: 201 92% 30%;
+    --ds-subtle: 214 36% 95.5%;
+    --ds-line: 214 30% 90%;
+    --ds-line-strong: 214 24% 82%;
+    --ds-fg: 222 47% 11%;
+    --ds-fg-muted: 215 19% 35%;
+    --ds-fg-subtle: 215 16% 47%;
+    --ds-brand: 200 98% 39%;
+    --ds-brand-hover: 201 96% 32%;
+    --ds-brand-subtle: 204 100% 97%;
+    --ds-brand-text: 201 96% 32%;
     --ds-on-brand: 0 0% 100%;
   }
 
@@ -86,19 +86,19 @@
     --surface-elevated: 222 38% 12%;
     --hero-spotlight: 199 58% 16%;
 
-    --ds-canvas: 222 24% 7%;
-    --ds-surface: 222 20% 10%;
-    --ds-subtle: 222 16% 14%;
-    --ds-line: 222 14% 18%;
-    --ds-line-strong: 222 11% 26%;
-    --ds-fg: 210 20% 94%;
-    --ds-fg-muted: 216 12% 70%;
-    --ds-fg-subtle: 216 10% 56%;
-    --ds-brand: 199 85% 56%;
-    --ds-brand-hover: 199 88% 64%;
-    --ds-brand-subtle: 201 55% 15%;
-    --ds-brand-text: 199 90% 72%;
-    --ds-on-brand: 222 30% 8%;
+    --ds-canvas: 224 45% 6%;
+    --ds-surface: 222 40% 9.5%;
+    --ds-subtle: 221 32% 13.5%;
+    --ds-line: 219 26% 18%;
+    --ds-line-strong: 217 20% 27%;
+    --ds-fg: 210 40% 96%;
+    --ds-fg-muted: 214 22% 74%;
+    --ds-fg-subtle: 215 16% 60%;
+    --ds-brand: 199 89% 48%;
+    --ds-brand-hover: 198 93% 60%;
+    --ds-brand-subtle: 201 70% 14%;
+    --ds-brand-text: 199 95% 70%;
+    --ds-on-brand: 222 47% 8%;
   }
 
   * {

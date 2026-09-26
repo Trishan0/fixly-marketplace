@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Briefcase, ChevronRight, Plus, Search, X } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Button, Card, EmptyState, JobStatusBadge, Page, PageHeader, RowLink, Skeleton, Table, Tabs, Td, Th } from '../../components/ui'
+import { Button, Card, EmptyState, IconChip, JobStatusBadge, Page, PageHeader, PersonAvatar, RowLink, Skeleton, Table, Tabs, Td, Th } from '../../components/ui'
+import { categoryStyle } from '../../lib/tones'
 import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { usePageTitle } from '../../hooks/usePageTitle'
@@ -25,7 +26,7 @@ function Meta({ job }) {
     <>
       {[job.category_name, job.town || job.district].filter(Boolean).join(' · ')}
       {Number(job.pending_proposal_count) > 0 && (
-        <span className="font-medium text-brand-text"> · {pluralize(job.pending_proposal_count, 'new proposal')}</span>
+        <span className="font-semibold text-indigo-600 dark:text-indigo-300"> · {pluralize(job.pending_proposal_count, 'new proposal')}</span>
       )}
     </>
   )
@@ -67,26 +68,25 @@ export default function MyJobs() {
         />
 
         <Card>
-          <div className="flex flex-col gap-3 px-4 pt-2 sm:flex-row sm:items-end sm:justify-between sm:px-5">
+          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <Tabs
               label="Filter jobs"
               value={tab}
               onChange={setTab}
               tabs={TABS.map(t => ({ value: t.value, label: t.label, count: summary?.[t.countKey] }))}
-              className="border-b-0"
             />
-            <div className="relative pb-3 sm:w-64 sm:pb-2">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-fg-subtle" aria-hidden="true" />
+            <div className="relative sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
               <input
                 type="search"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search jobs"
                 aria-label="Search jobs"
-                className="h-9 w-full rounded-control border border-line bg-surface pl-8 pr-8 text-sm text-fg placeholder:text-fg-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 [@media(pointer:coarse)]:h-11"
+                className="h-10 w-full rounded-control border border-line bg-surface pl-9 pr-8 text-sm text-fg shadow-xs placeholder:text-fg-subtle focus:border-brand focus:outline-none focus:ring-4 focus:ring-sky-500/15 [@media(pointer:coarse)]:h-11"
               />
               {search && (
-                <button type="button" onClick={() => setSearch('')} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded text-fg-subtle hover:text-fg" aria-label="Clear search">
+                <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-fg-subtle hover:text-fg" aria-label="Clear search">
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -126,17 +126,29 @@ export default function MyJobs() {
                     {jobs.map(job => (
                       <RowLink key={job.id}>
                         <Td className="max-w-0">
-                          <Link
-                            to={`/jobs/${job.id}`}
-                            className="block truncate font-medium text-fg after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-brand"
-                          >
-                            {job.title}
-                          </Link>
-                          <span className="block truncate text-[13px] text-fg-muted"><Meta job={job} /></span>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <IconChip {...categoryStyle(job.category_name)} size="sm" />
+                            <div className="min-w-0">
+                              <Link
+                                to={`/jobs/${job.id}`}
+                                className="block truncate font-semibold text-fg after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-brand"
+                              >
+                                {job.title}
+                              </Link>
+                              <span className="block truncate text-[13px] text-fg-muted"><Meta job={job} /></span>
+                            </div>
+                          </div>
                         </Td>
                         <Td><JobStatusBadge status={job.status} /></Td>
-                        <Td className="whitespace-nowrap text-fg-muted">{job.assigned_worker_name || '—'}</Td>
-                        <Td align="right" className="whitespace-nowrap text-fg-muted">{jobPriceLabel(job)}</Td>
+                        <Td className="whitespace-nowrap">
+                          {job.assigned_worker_name ? (
+                            <span className="flex items-center gap-2">
+                              <PersonAvatar name={job.assigned_worker_name} src={job.assigned_worker_photo} size="xs" />
+                              <span className="text-fg">{job.assigned_worker_name}</span>
+                            </span>
+                          ) : <span className="text-fg-subtle">Not hired yet</span>}
+                        </Td>
+                        <Td align="right" className="whitespace-nowrap font-medium">{jobPriceLabel(job)}</Td>
                         <Td align="right" className="whitespace-nowrap text-fg-muted" title={new Date(job.created_at).toLocaleString('en-LK')}>{shortDate(job.created_at)}</Td>
                       </RowLink>
                     ))}
@@ -147,11 +159,12 @@ export default function MyJobs() {
               <ul className="divide-y divide-line md:hidden">
                 {jobs.map(job => (
                   <li key={job.id}>
-                    <Link to={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-subtle/60">
+                    <Link to={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-3.5 hover:bg-brand-subtle/50">
+                      <IconChip {...categoryStyle(job.category_name)} size="sm" />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-start justify-between gap-2">
-                          <span className="truncate text-sm font-medium text-fg">{job.title}</span>
-                          <span className="shrink-0 text-[13px] text-fg-muted">{jobPriceLabel(job)}</span>
+                          <span className="truncate text-sm font-semibold text-fg">{job.title}</span>
+                          <span className="shrink-0 text-[13px] font-medium text-fg">{jobPriceLabel(job)}</span>
                         </span>
                         <span className="mt-0.5 block truncate text-[13px] text-fg-muted"><Meta job={job} /></span>
                         <span className="mt-1.5 flex items-center gap-2 text-xs text-fg-subtle">

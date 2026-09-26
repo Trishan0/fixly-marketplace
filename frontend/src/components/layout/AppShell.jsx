@@ -122,7 +122,7 @@ function CountBadge({ count, className }) {
 
 function UserAvatar({ user, size = "h-8 w-8" }) {
   return (
-    <span className={cn("flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-subtle text-xs font-semibold text-brand-text", size)}>
+    <span className={cn("flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-sky-600 text-xs font-semibold text-white", size)}>
       {user?.profile_photo ? <img src={user.profile_photo} alt="" className="h-full w-full object-cover" /> : getInitials(user?.full_name)}
     </span>
   );
@@ -141,12 +141,13 @@ function SidebarNav({ items, active, collapsed, onNavigate }) {
               aria-current={isActive ? "page" : undefined}
               title={collapsed ? label : undefined}
               className={cn(
-                "group flex h-9 items-center gap-2.5 rounded-control px-2.5 text-sm font-medium transition-colors [@media(pointer:coarse)]:h-11",
+                "group relative flex h-10 items-center gap-3 rounded-control px-3 text-sm transition-colors [@media(pointer:coarse)]:h-11",
                 collapsed && "justify-center px-0",
-                isActive ? "bg-subtle text-fg" : "text-fg-muted hover:bg-subtle hover:text-fg",
+                isActive ? "bg-brand-subtle font-semibold text-brand-text" : "font-medium text-fg-muted hover:bg-subtle hover:text-fg",
               )}
             >
-              <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-brand" : "text-fg-subtle group-hover:text-fg-muted")} aria-hidden="true" />
+              {isActive && !collapsed && <span className="absolute -left-3 top-2 bottom-2 w-1 rounded-r-full bg-brand" aria-hidden="true" />}
+              <Icon className={cn("h-[18px] w-[18px] shrink-0", isActive ? "text-brand" : "text-fg-subtle group-hover:text-fg-muted")} aria-hidden="true" />
               {!collapsed && <span className="flex-1 truncate">{label}</span>}
               {badge > 0 && (collapsed
                 ? <span className="absolute ml-5 -mt-5 h-2 w-2 rounded-full bg-brand" aria-label={`${badge} unread`} />
@@ -159,15 +160,22 @@ function SidebarNav({ items, active, collapsed, onNavigate }) {
   );
 }
 
+// A short prompt for the most valuable action for each role.
+const SIDEBAR_PROMPTS = {
+  customer: { title: "Need something fixed?", text: "Post a job and get quotes from local pros.", to: "/jobs/new", action: "Post a job" },
+  worker: { title: "Looking for work?", text: "New jobs near you are waiting.", to: "/jobs/feed", action: "Browse jobs" },
+};
+
 function Sidebar({ items, active, collapsed = false, onClose }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const drawer = Boolean(onClose);
+  const prompt = SIDEBAR_PROMPTS[user?.role];
   return (
     <div className={cn("flex h-full flex-col border-r border-line bg-surface", collapsed ? "w-16" : "w-60")}>
       <div className={cn("flex h-14 shrink-0 items-center border-b border-line", collapsed ? "justify-center px-2" : "justify-between px-4")}>
         <Link to="/dashboard" onClick={onClose} aria-label="Fixly dashboard" className="flex items-center rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-          {collapsed ? <BrandLogo compact className="h-7 w-7" /> : <BrandLogo className="h-7 w-[6.6rem]" />}
+          {collapsed ? <BrandLogo compact className="h-8 w-8" /> : <BrandLogo className="h-9 w-[8.2rem]" />}
         </Link>
         {drawer && (
           <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-control text-fg-muted hover:bg-subtle hover:text-fg" aria-label="Close navigation">
@@ -176,9 +184,20 @@ function Sidebar({ items, active, collapsed = false, onClose }) {
         )}
       </div>
 
-      <nav className={cn("flex-1 overflow-y-auto py-3", collapsed ? "px-2" : "px-3")} aria-label="Main">
+      <nav className={cn("flex-1 overflow-y-auto py-4", collapsed ? "px-2" : "px-3")} aria-label="Main">
+        {!collapsed && <p className="mb-2 px-3 text-xs font-medium text-fg-subtle">Menu</p>}
         <SidebarNav items={items} active={active} collapsed={collapsed} onNavigate={onClose} />
       </nav>
+
+      {prompt && !collapsed && (
+        <div className="mx-3 mb-3 overflow-hidden rounded-card bg-gradient-to-br from-sky-500 to-sky-700 p-4 text-white shadow-brand">
+          <p className="text-sm font-semibold">{prompt.title}</p>
+          <p className="mt-1 text-[13px] leading-5 text-sky-50/90">{prompt.text}</p>
+          <Link to={prompt.to} onClick={onClose} className="mt-3 inline-flex h-8 items-center rounded-lg bg-[#fff] px-3 text-[13px] font-semibold text-[#0369a1] transition-colors hover:bg-[#f0f9ff]">
+            {prompt.action}
+          </Link>
+        </div>
+      )}
 
       <div className={cn("border-t border-line py-3", collapsed ? "px-2" : "px-3")}>
         <Link
@@ -190,6 +209,15 @@ function Sidebar({ items, active, collapsed = false, onClose }) {
           <LifeBuoy className="h-4 w-4 text-fg-subtle" aria-hidden="true" />
           {!collapsed && "Help & safety"}
         </Link>
+        {!collapsed && (
+          <Link to="/profile/edit" onClick={onClose} className="mt-1 flex items-center gap-3 rounded-control px-2 py-2 hover:bg-subtle">
+            <UserAvatar user={user} size="h-9 w-9" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-fg">{user?.full_name}</span>
+              <span className="block text-xs capitalize text-fg-subtle">{user?.role}</span>
+            </span>
+          </Link>
+        )}
         {drawer && (
           <button
             type="button"
@@ -399,7 +427,7 @@ export function AppShell({ children }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 sm:px-4">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur sm:px-4">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -417,7 +445,7 @@ export function AppShell({ children }) {
             {collapsed ? <PanelLeftOpen className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
           </button>
           <div className="mx-1 hidden h-5 w-px bg-line lg:block" aria-hidden="true" />
-          <p className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{section}</p>
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">{section}</p>
 
           <div className="flex items-center gap-1">
             {canMessage && <IconLink to="/messages" icon={MessagesSquare} label="Messages" count={unreadMessages} />}

@@ -15,14 +15,16 @@ export function shortDate(value) {
   return date.toLocaleDateString('en-LK', { day: 'numeric', month: 'short', year: sameYear ? undefined : 'numeric' })
 }
 
-// What each job status means to the customer, in plain words.
+// What each job status means to the customer, in plain words, with a
+// colour from the shared palette: blue family while the job is moving,
+// amber when it needs the customer, green when it's done.
 export const JOB_STATUS = {
-  posted: { label: 'Open', tone: 'neutral' },
-  proposals_received: { label: 'Reviewing proposals', tone: 'info' },
-  assigned: { label: 'Hired', tone: 'info' },
-  in_progress: { label: 'In progress', tone: 'info' },
-  completed: { label: 'Awaiting payment', tone: 'warning' },
-  payment_recorded: { label: 'Paid', tone: 'success' },
-  reviewed: { label: 'Completed', tone: 'success' },
-  cancelled: { label: 'Cancelled', tone: 'neutral' },
+  posted: { label: 'Open', tone: 'sky' },
+  proposals_received: { label: 'Reviewing proposals', tone: 'indigo' },
+  assigned: { label: 'Hired', tone: 'violet' },
+  in_progress: { label: 'In progress', tone: 'teal' },
+  completed: { label: 'Awaiting payment', tone: 'amber' },
+  payment_recorded: { label: 'Paid', tone: 'emerald' },
+  reviewed: { label: 'Completed', tone: 'emerald' },
+  cancelled: { label: 'Cancelled', tone: 'slate' },
 }
