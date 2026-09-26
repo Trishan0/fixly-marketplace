@@ -13,25 +13,25 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
     <div className="fixly-page-shell min-h-[100dvh] overflow-x-hidden">
       <PublicNavbar />
       <main id="main-content">
-        <header className="border-b border-slate-100 py-12 dark:border-slate-800 sm:py-16">
+        <header className="border-b border-line py-12 sm:py-16">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-card bg-sky-50 text-sky-700 dark:bg-sky-950/45 dark:text-sky-300">
               <Icon className="h-5 w-5" aria-hidden="true" />
             </div>
-            <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">{eyebrow}</p>
+            <p className="text-sm font-semibold text-brand-text">{eyebrow}</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
-            <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">{intro}</p>
-            <p className="mt-4 text-sm text-slate-500">Last updated {LAST_UPDATED}</p>
+            <p className="mt-4 text-base leading-7 text-fg-muted">{intro}</p>
+            <p className="mt-4 text-sm text-fg-subtle">Last updated {LAST_UPDATED}</p>
           </div>
         </header>
 
         <div className="mx-auto grid max-w-5xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
           <nav aria-label="On this page" className="hidden lg:block">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">On this page</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">On this page</p>
             <ol className="sticky top-24 mt-3 space-y-2 text-sm">
               {sections.map(section => (
                 <li key={section.id}>
-                  <a href={`#${section.id}`} className="text-slate-600 hover:text-sky-700 dark:text-slate-300 dark:hover:text-sky-300">{section.title}</a>
+                  <a href={`#${section.id}`} className="text-fg-muted hover:text-sky-700 dark:hover:text-sky-300">{section.title}</a>
                 </li>
               ))}
             </ol>
@@ -40,10 +40,10 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
             {sections.map(section => (
               <section key={section.id} id={section.id} className="scroll-mt-24">
                 <h2 className="text-xl font-bold text-slate-950">{section.title}</h2>
-                <div className="mt-3 space-y-3 text-[15px] leading-7 text-slate-600 dark:text-slate-300">{section.body}</div>
+                <div className="mt-3 space-y-3 text-[15px] leading-7 text-fg-muted">{section.body}</div>
               </section>
             ))}
-            <section className="rounded-card border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            <section className="rounded-card border border-line bg-surface p-5 text-sm leading-6 text-fg-muted">
               Questions about this page? <Link to="/contact" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">Contact the Fixly team</Link> and we will reply by email.
             </section>
           </article>

@@ -27,8 +27,8 @@ function AuthActionLayout({ icon: Icon, title, description, children }) {
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-card bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">{title}</h1>
-          {description && <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{description}</p>}
+          <h1 className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">{title}</h1>
+          {description && <p className="mt-3 text-sm leading-7 text-fg-muted">{description}</p>}
           <div className="mt-6">{children}</div>
         </Card>
       </main>
@@ -94,8 +94,8 @@ export function ForgotPasswordPage() {
           {error && <Notice tone="error">{error}</Notice>}
           <Input label="Email address" type="email" autoComplete="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} required />
           <Button type="submit" className="w-full" loading={loading}>Send reset link</Button>
-          <p className="text-center text-sm text-slate-500">
-            Remembered it? <Link to="/auth" className="font-semibold text-sky-700 dark:text-sky-300">Sign in</Link>
+          <p className="text-center text-sm text-fg-subtle">
+            Remembered it? <Link to="/auth" className="font-semibold text-brand-text">Sign in</Link>
           </p>
         </form>
       )}
@@ -193,7 +193,7 @@ export function VerifyEmailPage() {
   return (
     <AuthActionLayout icon={MailCheck} title={status === 'success' ? 'Email verified' : status === 'error' ? 'We couldn’t verify your email' : 'Verifying your email'}>
       {status === 'loading' && (
-        <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300" role="status">
+        <div className="flex items-center gap-3 text-sm text-fg-muted" role="status">
           <Spinner /> Checking your link…
         </div>
       )}
