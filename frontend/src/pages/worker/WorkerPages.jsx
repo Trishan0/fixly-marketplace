@@ -1,13 +1,23 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play, Bot, SlidersHorizontal } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import { Search, MapPin, Briefcase, MessageSquare, MessagesSquare, CheckCircle, Play, Bot, SlidersHorizontal } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, Badge, PageHeader, Spinner, EmptyState } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
-import { formatCurrency, formatRelativeTime, URGENCY_LABELS, DISTRICTS, cn } from '../../lib/utils'
+import { formatCurrency, formatRelativeTime, pluralize, URGENCY_LABELS, DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
+import { threadPath } from '../../lib/messages'
+import { useAuth } from '../../context/AuthContext'
+import { errorMessage } from '../../lib/errors'
+import { usePageTitle } from '../../hooks/usePageTitle'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { LoadMore } from '../../components/shared/LoadMore'
+import { ErrorFallback } from '../../components/shared/ErrorBoundary'
+import { useJobStatusAction } from '../../components/worker/useJobStatusAction'
 import AgentPanel from '../../components/agent/AgentPanel'
+
+const FEED_PAGE_SIZE = 20
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
 
@@ -18,18 +28,34 @@ export function OpenJobs() {
   const [tab, setTab] = useState('open')
   const [agentOpen, setAgentOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const { data: feed = [], isLoading } = useQuery({
-    queryKey: ['job-feed', category, district],
-    queryFn: () => api.get(`/jobs/feed?category=${category}&district=${district}`).then(r => r.data),
+  const debouncedSearch = useDebouncedValue(search.trim())
+  usePageTitle('Open jobs')
+  const proposalFilter = { open: 'open', sent: 'sent', rejected: 'declined' }[tab]
+  const {
+    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['job-feed', { category, district, search: debouncedSearch, proposal: proposalFilter }],
+    queryFn: ({ pageParam }) => api.get('/jobs/feed', {
+      params: {
+        category: category || undefined,
+        district: district || undefined,
+        search: debouncedSearch || undefined,
+        proposal: proposalFilter,
+        page: pageParam,
+        limit: FEED_PAGE_SIZE,
+      },
+    }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => (lastPage.length === FEED_PAGE_SIZE ? pages.length + 1 : undefined),
   })
-
-  const filtered = feed.filter(j => {
-    if (search && !j.title.toLowerCase().includes(search.toLowerCase())) return false
-    if (tab === 'open') return !j.has_my_proposal
-    if (tab === 'sent') return j.has_my_proposal && j.my_proposal_status === 'pending'
-    if (tab === 'rejected') return j.my_proposal_status === 'declined'
-    return true
-  })
+  const filtered = data?.pages.flat() || []
+  const emptyCopy = {
+    open: debouncedSearch || category || district
+      ? { title: 'No matching jobs', description: 'Try a different search, category or district.' }
+      : { title: 'No new jobs right now', description: 'New jobs appear here as customers post them. Check back soon.' },
+    sent: { title: 'No proposals waiting', description: 'Jobs you’ve sent a proposal for will show here until the customer decides.' },
+    rejected: { title: 'No declined proposals', description: 'If a customer chooses someone else, the job will show here.' },
+  }[tab]
 
   return (
     <AppShell>
@@ -94,9 +120,12 @@ export function OpenJobs() {
 
           {isLoading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
+          ) : isError ? (
+            <ErrorFallback title="We couldn’t load jobs" description="Check your connection and try again." onRetry={() => refetch()} />
           ) : filtered.length === 0 ? (
-            <EmptyState icon={Briefcase} title="No jobs found" description="Try adjusting your filters" />
+            <EmptyState icon={Briefcase} title={emptyCopy.title} description={emptyCopy.description} />
           ) : (
+            <>
             <div className="grid gap-5 md:grid-cols-2">
               {filtered.map(job => (
                 <Card key={job.id} className="p-4 transition-shadow hover:shadow-md dark:border-slate-800 sm:p-6">
@@ -112,7 +141,7 @@ export function OpenJobs() {
                       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                         {job.customer_name && <span>Posted by {job.customer_name}</span>}
                         {job.district && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{job.district}</span>}
-                        <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{job.proposal_count} proposals</span>
+                        <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{pluralize(job.proposal_count, 'proposal')}</span>
                       </div>
                     </div>
                     <span className="mt-2 block shrink-0 text-xs text-slate-400 sm:mt-0">{formatRelativeTime(job.created_at)}</span>
@@ -138,6 +167,14 @@ export function OpenJobs() {
                 </Card>
               ))}
             </div>
+            <LoadMore
+              shown={filtered.length}
+              noun={filtered.length === 1 ? 'job' : 'jobs'}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onLoadMore={() => fetchNextPage()}
+            />
+            </>
           )}
         </div>
       </div>
@@ -163,21 +200,32 @@ export function OpenJobs() {
 
 export function Invites() {
   const { toast } = useToast()
+  const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const { data: invites = [], isLoading } = useQuery({
+  usePageTitle('Invites')
+  const { data: invites = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['invites'],
     queryFn: () => api.get('/invites/received').then(r => r.data),
   })
 
   const respond = useMutation({
     mutationFn: ({ id, action }) => api.put(`/invites/${id}/${action}`),
+    meta: { track: 'invite_responded', trackProps: ({ action }) => ({ action }) },
     onSuccess: (_, vars) => {
-      toast({ title: vars.action === 'accept' ? 'Invite accepted!' : 'Invite declined', variant: vars.action === 'accept' ? 'success' : 'default' })
-      qc.invalidateQueries(['invites'])
+      qc.invalidateQueries({ queryKey: ['invites'] })
+      qc.invalidateQueries({ queryKey: ['job-feed'] })
+      qc.invalidateQueries({ queryKey: ['my-proposals'] })
+      if (vars.action === 'accept') {
+        toast({ title: 'Invite accepted', description: 'Now add your price and availability so the customer can hire you.', variant: 'success' })
+        navigate(`/jobs/${vars.jobId}/propose`)
+      } else {
+        toast({ title: 'Invite declined', description: 'We’ve let the customer know.' })
+      }
     },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+    onError: (e) => toast({ title: 'Couldn’t respond to the invite', description: errorMessage(e), variant: 'error' }),
   })
+  const pendingAction = (invite) => (respond.isPending && respond.variables?.id === invite.id ? respond.variables.action : null)
 
   const pending = invites.filter(i => i.status === 'pending')
   const past = invites.filter(i => i.status !== 'pending')
@@ -189,6 +237,7 @@ export function Invites() {
           <PageHeader title="Job Invites" description="Customers have personally invited you to their jobs" />
 
           {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
+            isError ? <ErrorFallback title="We couldn’t load your invites" description="Check your connection and try again." onRetry={() => refetch()} /> :
             invites.length === 0 ? (
               <EmptyState icon={MessageSquare} title="No invites yet" description="When customers invite you to jobs, they'll appear here" />
             ) : (
@@ -198,7 +247,7 @@ export function Invites() {
                     <h2 className="mb-3 text-sm font-semibold text-slate-700">Pending ({pending.length})</h2>
                     <div className="space-y-4">
                       {pending.map(inv => (
-                        <InviteCard key={inv.id} invite={inv} onRespond={(action) => respond.mutate({ id: inv.id, action })} loading={respond.isPending} />
+                        <InviteCard key={inv.id} invite={inv} onRespond={(action) => respond.mutate({ id: inv.id, jobId: inv.job_id, action })} pendingAction={pendingAction(inv)} />
                       ))}
                     </div>
                   </div>
@@ -219,7 +268,8 @@ export function Invites() {
   )
 }
 
-function InviteCard({ invite, onRespond, loading, past }) {
+function InviteCard({ invite, onRespond, pendingAction, past }) {
+  const { user } = useAuth()
   return (
     <Card className={cn('p-4 sm:p-6', past && 'opacity-60')}>
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -238,11 +288,16 @@ function InviteCard({ invite, onRespond, loading, past }) {
       <p className="mb-3 text-xs text-slate-400">From: {invite.customer_name} • {formatRelativeTime(invite.created_at)}</p>
       {!past && invite.status === 'pending' && (
         <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Button variant="primary" size="sm" className="flex-1" onClick={() => onRespond('accept')} loading={loading}>Accept</Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => onRespond('decline')}>Decline</Button>
-          <Link to={`/jobs/${invite.job_id}`} className="col-span-2 sm:col-span-1">
-            <Button variant="ghost" size="sm" className="w-full">View Job</Button>
+          <Button variant="primary" size="sm" className="flex-1" onClick={() => onRespond('accept')} loading={pendingAction === 'accept'} disabled={Boolean(pendingAction)}>Accept</Button>
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => onRespond('decline')} loading={pendingAction === 'decline'} disabled={Boolean(pendingAction)}>Decline</Button>
+          <Link to={`/jobs/${invite.job_id}`} className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            View job
           </Link>
+          {user && (
+            <Link to={threadPath(invite.job_id, user.id)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950/40">
+              <MessagesSquare className="h-4 w-4" /> Ask a question
+            </Link>
+          )}
         </div>
       )}
     </Card>
@@ -251,18 +306,12 @@ function InviteCard({ invite, onRespond, loading, past }) {
 
 export function AssignedJobs() {
   const [tab, setTab] = useState('active')
-  const { toast } = useToast()
-  const qc = useQueryClient()
+  const statusAction = useJobStatusAction()
+  usePageTitle('My work')
 
-  const { data: jobs = [], isLoading } = useQuery({
+  const { data: jobs = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['assigned-jobs'],
     queryFn: () => api.get('/jobs/assigned').then(r => r.data),
-  })
-
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }) => api.put(`/jobs/${id}/status`, { status }),
-    onSuccess: () => { toast({ title: 'Updated!', variant: 'success' }); qc.invalidateQueries(['assigned-jobs']) },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
   })
 
   const filteredJobs = jobs.filter(job => {
@@ -276,7 +325,8 @@ export function AssignedJobs() {
     <AppShell>
       <div className="fixly-app-page">
         <div className="fixly-page max-w-6xl space-y-6">
-          <PageHeader title="My Work" description="Jobs assigned to you" />
+          {statusAction.dialog}
+          <PageHeader title="My work" description="Jobs you’ve been hired for" />
           <div className="fixly-tab-strip" role="tablist" aria-label="Filter assigned work">
             {[
               ['active', 'Active'],
@@ -291,6 +341,7 @@ export function AssignedJobs() {
           </div>
 
           {isLoading ? <div className="flex justify-center py-12"><Spinner /></div> :
+            isError ? <ErrorFallback title="We couldn’t load your work" description="Check your connection and try again." onRetry={() => refetch()} /> :
             filteredJobs.length === 0 ? (
               <EmptyState icon={Briefcase} title="No assigned jobs" description="Accept proposals or invites to get started" />
             ) : (
@@ -308,12 +359,12 @@ export function AssignedJobs() {
                     {job.final_price && <p className="mb-3 text-sm font-bold text-emerald-600 dark:text-emerald-300">Payment: {formatCurrency(job.final_price)}</p>}
                     <div className="grid grid-cols-2 gap-2 sm:flex">
                       {job.status === 'assigned' && (
-                        <Button variant="primary" size="sm" className="flex-1" onClick={() => updateStatus.mutate({ id: job.id, status: 'in_progress' })} loading={updateStatus.isPending}>
+                        <Button variant="primary" size="sm" className="flex-1" onClick={() => statusAction.start(job)} loading={statusAction.isPending(job)}>
                           <Play className="h-3.5 w-3.5" /> Start
                         </Button>
                       )}
                       {job.status === 'in_progress' && (
-                        <Button variant="success" size="sm" className="flex-1" onClick={() => updateStatus.mutate({ id: job.id, status: 'completed' })} loading={updateStatus.isPending}>
+                        <Button variant="success" size="sm" className="flex-1" onClick={() => statusAction.requestComplete(job)} loading={statusAction.isPending(job)}>
                           <CheckCircle className="h-3.5 w-3.5" /> Complete
                         </Button>
                       )}

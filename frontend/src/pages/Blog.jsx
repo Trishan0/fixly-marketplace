@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BadgeCheck, Briefcase, Lightbulb, MapPin, Star } from 'lucide-react'
 import { PublicNavbar } from '../components/shared/PublicNavbar'
 import { PublicFooter } from '../components/shared/PublicFooter'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const articles = [
   { icon: Lightbulb, tag: 'Hiring guide', title: 'How to write a job post that gets better proposals', description: 'A few specific details help skilled workers understand the job, quote accurately, and respond sooner.', read: '4 min read' },
@@ -14,6 +15,7 @@ const articles = [
 ]
 
 export default function Blog() {
+  usePageTitle('Blog')
   return (
     <div className="fixly-page-shell min-h-[100dvh] overflow-x-hidden">
       <PublicNavbar />
@@ -28,12 +30,12 @@ export default function Blog() {
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {articles.map(({ icon: Icon, tag, title, description, read }) => (
-              <article key={title} className="group flex min-h-64 flex-col rounded-3xl border border-slate-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-900">
+              <article key={title} className="flex min-h-64 flex-col rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950/45 dark:text-sky-300"><Icon className="h-5 w-5" /></div>
                 <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-300">{tag}</p>
                 <h2 className="mt-2 text-lg font-black tracking-tight text-slate-950 dark:text-white">{title}</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
-                <div className="mt-auto flex items-center justify-between pt-6 text-sm font-bold text-sky-700 dark:text-sky-300"><span>{read}</span><span className="inline-flex items-center gap-1">Read guide <ArrowRight className="h-4 w-4" /></span></div>
+                <div className="mt-auto flex items-center justify-between pt-6 text-sm"><span className="font-semibold text-slate-600 dark:text-slate-300">{read}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">Coming soon</span></div>
               </article>
             ))}
           </div>

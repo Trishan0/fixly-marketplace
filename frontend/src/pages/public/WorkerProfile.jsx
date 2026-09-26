@@ -1,6 +1,6 @@
 import React from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useParams, Link, useLocation } from 'react-router-dom'
+import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query'
 import {
   MapPin, Briefcase, Shield, Send, Star, Camera, ArrowUpRight,
   BadgeCheck, Sparkles, CheckCircle2
@@ -15,10 +15,16 @@ import {
 } from '../../components/shared/ProfileLayout'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../hooks/useToast'
-import { formatRelativeTime } from '../../lib/utils'
+import { formatRelativeTime, formatStartingPrice } from '../../lib/utils'
 import api from '../../lib/api'
+import { errorMessage, errorStatus } from '../../lib/errors'
+import { usePageTitle } from '../../hooks/usePageTitle'
+import { ErrorFallback } from '../../components/shared/ErrorBoundary'
+import { ReportButton } from '../../components/shared/ReportDialog'
 import { AppShell } from '../../components/layout/AppShell'
 import { PublicFooter } from '../../components/shared/PublicFooter'
+
+const REVIEW_PAGE_SIZE = 10
 
 export default function WorkerProfile() {
   const { id } = useParams()
@@ -28,29 +34,37 @@ export default function WorkerProfile() {
   const [jobId, setJobId] = React.useState('')
   const [message, setMessage] = React.useState('')
 
-  const { data: worker, isLoading } = useQuery({
+  const { data: worker, isLoading, error, refetch } = useQuery({
     queryKey: ['worker', id],
     queryFn: () => api.get(`/workers/${id}`).then(r => r.data),
   })
+  usePageTitle(worker?.full_name || 'Worker profile')
 
-  const { data: reviews = [] } = useQuery({
+  const reviewsQuery = useInfiniteQuery({
     queryKey: ['worker-reviews', id],
-    queryFn: () => api.get(`/workers/${id}/reviews`).then(r => r.data),
+    queryFn: ({ pageParam }) => api.get(`/workers/${id}/reviews`, { params: { page: pageParam, limit: REVIEW_PAGE_SIZE } }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => (lastPage.length === REVIEW_PAGE_SIZE ? pages.length + 1 : undefined),
+    enabled: Boolean(worker),
   })
+  const reviews = reviewsQuery.data?.pages.flat() || []
 
   const { data: myJobs = [] } = useQuery({
-    queryKey: ['my-jobs-simple'],
-    queryFn: () => api.get('/jobs/my').then(r => r.data.filter(j => ['posted', 'proposals_received'].includes(j.status))),
+    queryKey: ['my-jobs', 'invitable'],
+    queryFn: () => api.get('/jobs/my', { params: { group: 'active', limit: 100 } }).then(r => r.data.filter(j => ['posted', 'proposals_received'].includes(j.status))),
     enabled: !!user && user.role === 'customer',
   })
 
   const sendInvite = useMutation({
     mutationFn: () => api.post(`/jobs/${jobId}/invites`, { worker_id: id, message }),
+    meta: { track: 'invite_sent', trackProps: () => ({ from: 'worker_profile' }) },
     onSuccess: () => {
       setInviteModal(false)
-      toast({ title: 'Invite sent!', variant: 'success' })
+      setJobId('')
+      setMessage('')
+      toast({ title: `Invite sent to ${worker.full_name}`, description: 'We’ll notify you when they respond.', variant: 'success' })
     },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+    onError: (e) => toast({ title: 'Invite not sent', description: errorMessage(e), variant: 'error' }),
   })
 
   if (isLoading) {
@@ -62,14 +76,19 @@ export default function WorkerProfile() {
   }
 
   if (!worker) {
+    const notFound = errorStatus(error) === 404
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <p className="text-slate-500">Worker not found</p>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <ErrorFallback
+          title={notFound ? 'This worker profile isn’t available' : 'We couldn’t load this profile'}
+          description={notFound ? 'The worker may have closed their account. Browse other workers nearby.' : 'Check your connection and try again.'}
+          onRetry={notFound ? undefined : () => refetch()}
+        />
       </div>
     )
   }
 
-  const reviewCount = reviews.length
+  const reviewCount = Number(worker.review_count ?? reviews.length)
   const averageRating = Number(worker.avg_rating || 0).toFixed(1)
   const isOwnProfile = !!user && user.role === 'worker' && String(user.id) === String(id)
   const useShell = !!user
@@ -83,13 +102,13 @@ export default function WorkerProfile() {
             title={isOwnProfile ? 'Public Profile' : worker.full_name}
             subtitle={isOwnProfile ? 'This is how customers see your profile across Fixly.' : 'Worker profile inside your Fixly workspace.'}
           />
-          <WorkerProfileBody worker={worker} reviews={reviews} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
+          <WorkerProfileBody worker={worker} reviews={reviews} reviewsQuery={reviewsQuery} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
         </div>
       ) : (
         <>
           <PublicPageChrome crumbLabel="Workers" crumbTo="/workers" currentLabel={worker.full_name} />
           <div className="fixly-page max-w-7xl">
-            <WorkerProfileBody worker={worker} reviews={reviews} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
+            <WorkerProfileBody worker={worker} reviews={reviews} reviewsQuery={reviewsQuery} reviewCount={reviewCount} averageRating={averageRating} user={user} onInvite={() => setInviteModal(true)} />
           </div>
         </>
       )}
@@ -99,8 +118,8 @@ export default function WorkerProfile() {
           {myJobs.length === 0 ? (
             <div className="py-4 text-center">
               <p className="mb-4 text-sm text-slate-500">You have no active jobs to invite this worker to.</p>
-              <Link to="/jobs/new" onClick={() => setInviteModal(false)}>
-                <Button variant="primary">Post a Job First</Button>
+              <Link to={`/jobs/new?invite=${worker.id}`} onClick={() => setInviteModal(false)} className="fixly-btn-primary text-sm">
+                Post a job and invite {worker.full_name.split(' ')[0]}
               </Link>
             </div>
           ) : (
@@ -140,7 +159,8 @@ export default function WorkerProfile() {
   return <div className="min-h-screen bg-slate-50 dark:bg-slate-950">{content}<PublicFooter /></div>
 }
 
-function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, onInvite }) {
+function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, averageRating, user, onInvite }) {
+  const location = useLocation()
   return (
     <>
       <ProfileHeroCard
@@ -232,7 +252,7 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
 
             <div className="rounded-[1.5rem] border border-sky-100 bg-white p-5 dark:border-sky-900/50 dark:bg-slate-900">
               <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Starting Price</p>
-              <p className="mt-3 text-2xl font-black text-slate-950">{worker.starting_price || 'Ask for quote'}</p>
+              <p className="mt-3 text-2xl font-black text-slate-950">{formatStartingPrice(worker.starting_price) || 'Ask for a quote'}</p>
             </div>
 
             <div className="rounded-[1.5rem] border border-slate-100 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
@@ -255,8 +275,21 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
 
             {user?.role === 'customer' && (
               <Button variant="primary" className="w-full justify-center" onClick={onInvite}>
-                <Send className="h-4 w-4" /> Invite to Job
+                <Send className="h-4 w-4" /> Invite to job
               </Button>
+            )}
+            {user && String(user.id) !== String(worker.id) && (
+              <div className="flex justify-center">
+                <ReportButton reportedUserId={worker.id} subject={worker.full_name} label="Report this worker" />
+              </div>
+            )}
+            {!user && (
+              <Link
+                to={`/auth?tab=register&role=customer&next=${encodeURIComponent(location.pathname)}`}
+                className="fixly-btn-primary w-full gap-2 text-sm"
+              >
+                <Send className="h-4 w-4" /> Sign up to invite {worker.full_name.split(' ')[0]}
+              </Link>
             )}
           </>
         )}
@@ -310,6 +343,13 @@ function WorkerProfileBody({ worker, reviews, reviewCount, averageRating, user, 
                   </div>
                 </Card>
               ))}
+              {reviewsQuery.hasNextPage && (
+                <div className="flex justify-center pt-2">
+                  <Button variant="outline" onClick={() => reviewsQuery.fetchNextPage()} loading={reviewsQuery.isFetchingNextPage}>
+                    Show more reviews
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </ProfileSectionCard>

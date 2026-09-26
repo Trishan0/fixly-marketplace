@@ -11,7 +11,8 @@ const password = z.string().min(8).max(72).regex(/[A-Za-z]/).regex(/\d/);
 const registration = z.object({ full_name: z.string().trim().min(2).max(255), email, password,
   phone: z.string().trim().max(20).optional().nullable(), role: z.enum(['customer', 'worker']),
   district: z.string().trim().max(100).optional().nullable(), area: z.string().trim().max(100).optional().nullable(),
-  primary_skill: z.string().trim().max(100).optional().nullable(), dashboard_mode: z.enum(['standard', 'simplified']).default('standard') });
+  primary_skill: z.string().trim().max(100).optional().nullable(), dashboard_mode: z.enum(['standard', 'simplified']).default('standard'),
+  accept_terms: z.literal(true, { errorMap: () => ({ message: 'Please accept the Terms of Service and Privacy Policy to continue' }) }) });
 const profile = z.object({ full_name: z.string().trim().min(2).max(255).optional(), phone: z.string().trim().max(20).nullable().optional(), district: z.string().trim().max(100).nullable().optional(), area: z.string().trim().max(100).nullable().optional(), bio: z.string().trim().max(10_000).nullable().optional(), starting_price: z.string().regex(/^\d+(?:\.\d{1,2})?$/).nullable().optional(), primary_skill: z.string().trim().max(100).nullable().optional() });
 function parse(schema, input) { const result = schema.safeParse(input); if (!result.success) throw badRequest(result.error.issues[0].message); return result.data; }
 function translate(error) { if (error instanceof MarketplaceError) throw error; if (classifyDatabaseError(error).code === 'CONFLICT') throw conflict('A conflicting identity record already exists'); throw error; }
@@ -30,6 +31,16 @@ async function addPortfolioPhoto(userId, path) { try { return await withTransact
 async function removePortfolioPhoto(userId, photoId) { try { return await withTransaction(async ({ tx }) => { const worker = await repository.workerProfileId(userId, tx); if (!worker) throw notFound('Worker profile not found'); const deleted = await repository.deletePortfolioPhoto(photoId, worker.id, tx); if (!deleted) throw notFound('Portfolio photo not found'); return deleted; }, { isolationLevel: 'serializable', maxRetries: 2 }); } catch (error) { translate(error); } }
 async function authenticate(input) { const data = parse(z.object({ email, password: z.string().min(1).max(200) }), input); const user = await repository.findAuthUserByEmail(data.email); if (!user || !(await bcrypt.compare(data.password, user.password_hash))) throw new MarketplaceError('Invalid credentials', { status: 401, code: 'INVALID_CREDENTIALS' }); if (user.is_suspended) throw new MarketplaceError('Account suspended', { status: 403, code: 'SUSPENDED' }); return user; }
 async function verifyEmail(token) { const result = await repository.verifyEmail(hashToken(token)); if (!result) throw badRequest('Invalid or expired verification token'); }
+async function resendVerification(userId) {
+  const state = await repository.findVerificationState(userId);
+  if (!state) throw notFound('User not found');
+  if (state.is_email_verified || state.force_verified) throw conflict('Your email is already verified');
+  if (state.is_suspended) throw new MarketplaceError('Account suspended', { status: 403, code: 'SUSPENDED' });
+  const rawToken = createRawToken();
+  const updated = await repository.setEmailVerifyToken(userId, hashToken(rawToken), expiresInHours(24));
+  if (!updated) throw conflict('Your email is already verified');
+  return { email: updated.email, rawToken };
+}
 async function requestPasswordReset(input) { const data = parse(z.object({ email }), input); const user = await repository.findResetEligibleUser(data.email); if (!user || user.is_suspended) return null; const rawToken = createRawToken(); await repository.setPasswordResetToken(data.email, hashToken(rawToken), expiresInHours(1)); return { email: data.email, rawToken }; }
 async function completePasswordReset(input) { const data = parse(z.object({ token: z.string().min(16).max(255), password }), input); const result = await repository.resetPassword(hashToken(data.token), await bcrypt.hash(data.password, 12)); if (!result) throw badRequest('Invalid or expired token'); }
-module.exports = { addPortfolioPhoto, authenticate, completePasswordReset, email, parse, password, register, removePortfolioPhoto, repository, requestPasswordReset, updateOwnProfile, verifyEmail };
+module.exports = { addPortfolioPhoto, authenticate, completePasswordReset, email, parse, password, register, removePortfolioPhoto, repository, requestPasswordReset, resendVerification, updateOwnProfile, verifyEmail };

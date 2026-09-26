@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { emitToast } from './toastBus'
 
 const TOKEN_KEY = 'fixly_token'
 const USER_KEY = 'fixly_user'
@@ -26,9 +27,9 @@ api.interceptors.response.use(
       localStorage.removeItem(USER_KEY)
       window.dispatchEvent(new CustomEvent('fixly:auth-expired'))
 
-      if (!window.location.pathname.startsWith('/auth')) {
-        window.location.assign('/auth')
-      }
+      // AuthContext clears the session on this event and the route guards
+      // redirect to sign-in with ?next= so the user returns to this page.
+      emitToast({ title: 'Your session has ended', description: 'Please sign in again to continue.', variant: 'warning' })
     }
 
     return Promise.reject(err)

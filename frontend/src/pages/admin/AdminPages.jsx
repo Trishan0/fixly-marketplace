@@ -15,24 +15,41 @@ import {
   ArrowRight,
   Clock3,
   Bot,
+  Scale,
 } from "lucide-react";
 import { AppShell } from "../../components/layout/AppShell";
 import {
   StatCard,
   Card,
   Button,
-  Badge,
   PageHeader,
   Spinner,
   Input,
-  Select,
   Modal,
   Avatar,
-  EmptyState,
 } from "../../components/shared/UI";
 import { useToast } from "../../hooks/useToast";
 import { formatDate, cn } from "../../lib/utils";
 import api from "../../lib/api";
+import { errorMessage } from "../../lib/errors";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+
+const SUSPEND_REASONS = [
+  { value: "abuse", label: "Abusive or threatening behaviour" },
+  { value: "fraud", label: "Fraud, scams or fake jobs" },
+  { value: "fake_reviews", label: "Fake reviews or rating manipulation" },
+  { value: "other", label: "Other" },
+];
+
+const NIC_REJECTION_REASONS = [
+  { value: "blurry", label: "Photo is blurry or too dark" },
+  { value: "cropped", label: "Part of the card is cut off or covered" },
+  { value: "name_mismatch", label: "Name doesn’t match the profile" },
+  { value: "not_nic", label: "Image isn’t a National Identity Card" },
+  { value: "other", label: "Other" },
+];
 
 function PrivateNicImage({ src, alt = "NIC" }) {
   const isPrivate = src?.includes('.private.blob.vercel-storage.com');
@@ -67,6 +84,7 @@ function PrivateNicImage({ src, alt = "NIC" }) {
 
 // Admin Dashboard
 export function AdminDashboard() {
+  usePageTitle("Admin overview");
   const { data: stats } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: () => api.get("/admin/stats").then((r) => r.data),
@@ -104,6 +122,20 @@ export function AdminDashboard() {
       title: "Verify Workers",
       desc: `${pendingWorkers.length} worker${pendingWorkers.length === 1 ? "" : "s"} currently waiting for NIC review.`,
       accent: "emerald",
+    },
+    {
+      to: "/admin/disputes",
+      icon: Scale,
+      title: "Payment Disputes",
+      desc: `${stats?.open_disputes ?? 0} disputed payment${stats?.open_disputes === 1 ? "" : "s"} waiting to be closed.`,
+      accent: "amber",
+    },
+    {
+      to: "/admin/jobs",
+      icon: Briefcase,
+      title: "Moderate Jobs",
+      desc: "Search every job and take down scams or rule-breaking posts.",
+      accent: "sky",
     },
     {
       to: "/admin/reports",
@@ -432,28 +464,44 @@ export function AdminUsers() {
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
+  const [suspendTarget, setSuspendTarget] = useState(null);
+  const debouncedSearch = useDebouncedValue(search.trim());
+  usePageTitle("Users");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-users", { search, role }],
+    queryKey: ["admin-users", { search: debouncedSearch, role }],
     queryFn: () =>
-      api.get("/admin/users", { params: { search, role } }).then((r) => r.data),
+      api.get("/admin/users", { params: { search: debouncedSearch || undefined, role: role || undefined } }).then((r) => r.data),
   });
+
+  const ACTION_MESSAGES = {
+    suspend: (data) => (data.suspended ? "User suspended" : "User reinstated"),
+    "force-verify": (data) => (data.force_verified ? "Email verification bypassed" : "Email bypass removed"),
+    "verify-nic": (data) => (data.verified ? "NIC verified" : "NIC badge removed"),
+  };
 
   const update = useMutation({
     mutationFn: ({ id, action, data }) =>
       api.put(`/admin/users/${id}/${action}`, data),
-    onSuccess: () => {
-      toast({ title: "Updated!", variant: "success" });
-      qc.invalidateQueries(["admin-users"]);
+    onSuccess: (_result, { action, data }) => {
+      toast({ title: ACTION_MESSAGES[action]?.(data) || "Updated", variant: "success" });
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      qc.invalidateQueries({ queryKey: ["admin-workers"] });
       setSelectedUser(null);
+      setSuspendTarget(null);
     },
     onError: (e) =>
       toast({
-        title: "Failed",
-        description: e.response?.data?.error,
+        title: "Action failed",
+        description: errorMessage(e),
         variant: "error",
       }),
   });
+  const toggleSuspension = (u) => {
+    if (u.is_suspended) update.mutate({ id: u.id, action: "suspend", data: { suspended: false } });
+    else setSuspendTarget(u);
+  };
+  const isUpdating = (u, action) => update.isPending && update.variables?.id === u.id && update.variables?.action === action;
 
   const users = data?.users || [];
 
@@ -509,8 +557,8 @@ export function AdminUsers() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
                   <Button size="sm" variant="outline" onClick={() => setSelectedUser(u)}>Manage</Button>
-                  <Button size="sm" variant={u.is_suspended ? "success" : "danger"} onClick={() => update.mutate({ id: u.id, action: "suspend", data: { suspended: !u.is_suspended } })}>
-                    {u.is_suspended ? "Unsuspend" : "Suspend"}
+                  <Button size="sm" variant={u.is_suspended ? "success" : "danger"} onClick={() => toggleSuspension(u)} loading={isUpdating(u, "suspend")}>
+                    {u.is_suspended ? "Reinstate" : "Suspend"}
                   </Button>
                 </div>
               </Card>
@@ -589,15 +637,10 @@ export function AdminUsers() {
                           <Button
                             size="sm"
                             variant={u.is_suspended ? "success" : "danger"}
-                            onClick={() =>
-                              update.mutate({
-                                id: u.id,
-                                action: "suspend",
-                                data: { suspended: !u.is_suspended },
-                              })
-                            }
+                            onClick={() => toggleSuspension(u)}
+                            loading={isUpdating(u, "suspend")}
                           >
-                            {u.is_suspended ? "Unsuspend" : "Suspend"}
+                            {u.is_suspended ? "Reinstate" : "Suspend"}
                           </Button>
                         </div>
                       </td>
@@ -681,6 +724,18 @@ export function AdminUsers() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(suspendTarget)}
+        onClose={() => setSuspendTarget(null)}
+        onConfirm={(reason) => update.mutate({ id: suspendTarget.id, action: "suspend", data: { suspended: true, reason } })}
+        loading={update.isPending}
+        title={`Suspend ${suspendTarget?.full_name || "this user"}?`}
+        description="They’ll be blocked from Fixly straight away, and a worker’s profile will be hidden from customers. You can reinstate them later. The reason is saved in the audit log."
+        confirmLabel="Suspend user"
+        tone="danger"
+        reason={{ label: "Why are you suspending this account?", placeholder: "Add details, e.g. report IDs or what happened.", required: true, options: SUSPEND_REASONS }}
+      />
     </AppShell>
   );
 }
@@ -695,13 +750,26 @@ export function AdminWorkers() {
     queryFn: () => api.get("/admin/workers").then((r) => r.data),
   });
 
+  const [rejecting, setRejecting] = useState(null);
+  usePageTitle("Workers");
+
   const verify = useMutation({
-    mutationFn: ({ id, verified }) =>
-      api.put(`/admin/users/${id}/verify-nic`, { verified }),
-    onSuccess: () => {
-      toast({ title: "Updated!", variant: "success" });
-      qc.invalidateQueries(["admin-workers"]);
+    mutationFn: ({ id }) => api.put(`/admin/users/${id}/verify-nic`, { verified: true }),
+    onSuccess: (_data, worker) => {
+      toast({ title: `${worker.full_name} is verified`, description: "We’ve notified them and added the badge to their profile.", variant: "success" });
+      qc.invalidateQueries({ queryKey: ["admin-workers"] });
     },
+    onError: (e) => toast({ title: "Couldn’t verify", description: errorMessage(e), variant: "error" }),
+  });
+
+  const reject = useMutation({
+    mutationFn: ({ worker, reason }) => api.put(`/admin/users/${worker.id}/reject-nic`, { reason }),
+    onSuccess: (_data, { worker }) => {
+      setRejecting(null);
+      toast({ title: "NIC rejected", description: `We’ve told ${worker.full_name} why and asked for a new photo.` });
+      qc.invalidateQueries({ queryKey: ["admin-workers"] });
+    },
+    onError: (e) => toast({ title: "Couldn’t reject", description: errorMessage(e), variant: "error" }),
   });
 
   const pending = workers.filter((w) => w.nic_image_path && !w.is_nic_verified);
@@ -743,9 +811,8 @@ export function AdminWorkers() {
                       variant="success"
                       size="sm"
                       className="flex-1"
-                      onClick={() =>
-                        verify.mutate({ id: w.id, verified: true })
-                      }
+                      onClick={() => verify.mutate(w)}
+                      loading={verify.isPending && verify.variables?.id === w.id}
                     >
                       <CheckCircle className="w-3.5 h-3.5" /> Verify
                     </Button>
@@ -753,9 +820,7 @@ export function AdminWorkers() {
                       variant="danger"
                       size="sm"
                       className="flex-1"
-                      onClick={() =>
-                        verify.mutate({ id: w.id, verified: false })
-                      }
+                      onClick={() => setRejecting(w)}
                     >
                       <XCircle className="w-3.5 h-3.5" /> Reject
                     </Button>
@@ -858,164 +923,18 @@ export function AdminWorkers() {
           )}
         </div>
       </div>
-    </AppShell>
-  );
-}
 
-// Admin Reports
-export function AdminReports() {
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const [selected, setSelected] = useState(null);
-  const [resolution, setResolution] = useState({
-    status: "dismissed",
-    resolution_note: "",
-  });
-
-  const { data: reports = [], isLoading } = useQuery({
-    queryKey: ["admin-reports"],
-    queryFn: () => api.get("/admin/reports").then((r) => r.data),
-  });
-
-  const resolve = useMutation({
-    mutationFn: ({ id }) => api.put(`/admin/reports/${id}/resolve`, resolution),
-    onSuccess: () => {
-      toast({ title: "Report resolved!", variant: "success" });
-      qc.invalidateQueries(["admin-reports"]);
-      setSelected(null);
-    },
-  });
-
-  return (
-    <AppShell>
-      <div className="fixly-page max-w-6xl space-y-5">
-        <PageHeader
-          title="Reports Queue"
-          description={`${reports.filter((r) => r.status === "open").length} open reports`}
-        />
-
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Spinner />
-          </div>
-        ) : reports.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="No reports"
-            description="No reports have been filed"
-          />
-        ) : (
-          <Card>
-            <div className="divide-y divide-slate-50">
-              {reports.map((r) => (
-                <div key={r.id} className="flex flex-wrap items-start gap-3 p-4 sm:flex-nowrap sm:gap-4 sm:p-5">
-                  <div
-                    className={cn(
-                      "w-2 h-2 rounded-full mt-2 flex-shrink-0",
-                      r.status === "open" ? "bg-red-400" : "bg-slate-300",
-                    )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-slate-900 text-sm capitalize">
-                        {r.report_type?.replace(/_/g, " ")}
-                      </span>
-                      <Badge status={r.status} />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      By: {r.reporter_name} → {r.reported_user_name || "N/A"}
-                      {r.job_title && ` • Job: ${r.job_title}`}
-                    </p>
-                    {r.description && (
-                      <p className="text-sm text-slate-600 mt-1 truncate">
-                        {r.description}
-                      </p>
-                    )}
-                    {r.resolution_note && (
-                      <p className="text-xs text-slate-400 mt-1 italic">
-                        Resolution: {r.resolution_note}
-                      </p>
-                    )}
-                  </div>
-                  {r.status === "open" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-5 basis-full sm:ml-0 sm:basis-auto"
-                      onClick={() => setSelected(r)}
-                    >
-                      Resolve
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-      </div>
-
-      <Modal
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        title="Resolve Report"
-      >
-        {selected && (
-          <div className="space-y-4">
-            <div className="bg-slate-50 rounded-2xl p-4 text-sm">
-              <p className="font-medium">
-                {selected.report_type?.replace(/_/g, " ")}
-              </p>
-              <p className="text-slate-600 mt-1">{selected.description}</p>
-            </div>
-            <Select
-              label="Action"
-              value={resolution.status}
-              onChange={(e) =>
-                setResolution((r) => ({ ...r, status: e.target.value }))
-              }
-            >
-              <option value="dismissed">Dismiss</option>
-              <option value="reviewing">Mark as Reviewing</option>
-              <option value="warned">Warn User</option>
-              <option value="actioned">Action Taken</option>
-            </Select>
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">
-                Resolution Note
-              </label>
-              <textarea
-                className="fixly-input resize-none"
-                rows={3}
-                value={resolution.resolution_note}
-                onChange={(e) =>
-                  setResolution((r) => ({
-                    ...r,
-                    resolution_note: e.target.value,
-                  }))
-                }
-                placeholder="Describe what action was taken..."
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="secondary"
-                onClick={() => setSelected(null)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => resolve.mutate({ id: selected.id })}
-                loading={resolve.isPending}
-                className="flex-1"
-              >
-                Resolve Report
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ConfirmDialog
+        open={Boolean(rejecting)}
+        onClose={() => setRejecting(null)}
+        onConfirm={(reason) => reject.mutate({ worker: rejecting, reason })}
+        loading={reject.isPending}
+        title={`Reject ${rejecting?.full_name || "this"}’s NIC?`}
+        description="The image will be deleted and the worker will see your reason and be asked to upload a new one."
+        confirmLabel="Reject NIC"
+        tone="danger"
+        reason={{ label: "What’s wrong with the photo?", placeholder: "Anything else the worker should know", required: true, options: NIC_REJECTION_REASONS }}
+      />
     </AppShell>
   );
 }
@@ -1032,11 +951,12 @@ export function AdminCategories() {
     queryFn: () => api.get("/admin/categories").then((r) => r.data),
   });
 
+  usePageTitle("Categories");
   const add = useMutation({
     mutationFn: () => api.post("/admin/categories", newCat),
     onSuccess: () => {
       toast({ title: "Category added!", variant: "success" });
-      qc.invalidateQueries(["admin-categories"]);
+      qc.invalidateQueries({ queryKey: ["admin-categories"] });
       setNewCat({ name: "", icon: "" });
       setAdding(false);
     },
@@ -1045,7 +965,7 @@ export function AdminCategories() {
   const toggle = useMutation({
     mutationFn: ({ id, is_active }) =>
       api.put(`/admin/categories/${id}`, { is_active }),
-    onSuccess: () => qc.invalidateQueries(["admin-categories"]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-categories"] }),
   });
 
   return (

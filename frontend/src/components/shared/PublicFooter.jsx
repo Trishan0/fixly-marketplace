@@ -16,6 +16,7 @@ export function PublicFooter() {
         ]} />
         <FooterColumn title="Discover" links={[
           ['/how-it-works', 'How it works'],
+          ['/safety', 'Safety tips'],
           ['/blog', 'Blog'],
           ['/contact', 'Contact us'],
         ]} />
@@ -28,7 +29,11 @@ export function PublicFooter() {
       <div className="border-t border-slate-800">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-6 md:px-12">
           <p>© {new Date().getFullYear()} Fixly. All rights reserved.</p>
-          <p>Built for better local work.</p>
+          <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link to="/terms" className="transition hover:text-white">Terms of Service</Link>
+            <Link to="/privacy" className="transition hover:text-white">Privacy Policy</Link>
+            <Link to="/safety" className="transition hover:text-white">Safety</Link>
+          </nav>
         </div>
       </div>
     </footer>

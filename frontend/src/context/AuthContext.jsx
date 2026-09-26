@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import api from '../lib/api'
+import { setMonitoringUser, track } from '../lib/monitoring'
 
 const AuthContext = createContext(null)
 
@@ -38,12 +39,14 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password })
     persistSession(data.token, data.user)
+    track('signed_in', { role: data.user.role })
     return data.user
   }
 
   const register = async (payload) => {
     const { data } = await api.post('/auth/register', payload)
     persistSession(data.token, data.user)
+    track('sign_up_completed', { role: data.user.role })
     return data.user
   }
 
@@ -57,6 +60,12 @@ export function AuthProvider({ children }) {
     setUser(data)
     return data
   }
+
+  useEffect(() => {
+    const onUnauthorized = () => clearSession()
+    window.addEventListener('fixly:auth-expired', onUnauthorized)
+    return () => window.removeEventListener('fixly:auth-expired', onUnauthorized)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -82,17 +91,16 @@ export function AuthProvider({ children }) {
         if (mounted) setLoading(false)
       })
 
-    const onUnauthorized = () => {
-      if (!mounted) return
-      clearSession()
-    }
-
-    window.addEventListener('fixly:auth-expired', onUnauthorized)
     return () => {
       mounted = false
-      window.removeEventListener('fixly:auth-expired', onUnauthorized)
     }
   }, [])
+
+  const userId = user?.id
+  const userRole = user?.role
+  useEffect(() => {
+    setMonitoringUser(userId ? { id: userId, role: userRole } : null)
+  }, [userId, userRole])
 
   const value = {
     user,

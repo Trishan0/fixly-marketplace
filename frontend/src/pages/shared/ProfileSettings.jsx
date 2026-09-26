@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
-import { Upload, Camera, Trash2, Save, Bot } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Upload, Camera, Trash2, Save, Bot, BadgeCheck, Clock, ShieldAlert } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, Input, Textarea, Select, PageHeader, Avatar, Toggle } from '../../components/shared/UI'
 import { useAuth } from '../../context/AuthContext'
@@ -10,8 +10,21 @@ import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { uploadSingleImage } from '../../lib/storage'
 import { ThemeModeSelector } from '../../components/shared/ThemeToggle'
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
+import { EmailVerificationNotice } from '../../components/shared/EmailVerificationNotice'
+import { errorMessage } from '../../lib/errors'
+import { usePageTitle } from '../../hooks/usePageTitle'
+
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp'
 
 const CATEGORIES = ['Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
+
+// Older profiles stored free text such as "LKR 2,000"; keep just the number.
+function startingPriceInput(value) {
+  if (!value) return ''
+  const numeric = Number(String(value).replace(/[^\d.]/g, ''))
+  return Number.isFinite(numeric) && numeric > 0 ? String(numeric) : ''
+}
 
 const profileForm = (user) => ({
   full_name: user?.full_name || '',
@@ -19,42 +32,78 @@ const profileForm = (user) => ({
   district: user?.district || '',
   area: user?.area || '',
   bio: user?.bio || '',
-  starting_price: user?.starting_price || '',
+  starting_price: startingPriceInput(user?.starting_price),
   primary_skill: user?.primary_skill || '',
 })
 
 export function ProfilePage() {
   const { user, refreshUser } = useAuth()
   const { toast } = useToast()
+  const qc = useQueryClient()
   const [form, setForm] = useState(() => profileForm(user))
+  const [removingPhoto, setRemovingPhoto] = useState(null)
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  usePageTitle('Edit profile')
+
+  // The full profile (portfolio, skills) comes from /profile/me; the session
+  // user from /auth/me only carries the basics.
+  const { data: profile } = useQuery({
+    queryKey: ['my-profile'],
+    queryFn: () => api.get('/profile/me').then(r => r.data),
+  })
+  const portfolioPhotos = profile?.portfolio_photos || []
+  const nicStatus = profile?.nic_status || user?.nic_status || 'none'
+  const nicRejectionReason = profile?.nic_rejection_reason || user?.nic_rejection_reason
+
+  useEffect(() => {
+    if (window.location.hash === '#identity') document.getElementById('identity')?.scrollIntoView({ block: 'center' })
+  }, [])
+
+  const refreshProfile = () => {
+    refreshUser().catch(() => {})
+    qc.invalidateQueries({ queryKey: ['my-profile'] })
+  }
+  const failed = (title) => (error) => toast({ title, description: errorMessage(error), variant: 'error' })
+
+  const startingPriceError = form.starting_price && !/^\d+(\.\d{1,2})?$/.test(form.starting_price)
+    ? 'Enter a number in rupees, for example 2500'
+    : ''
 
   const save = useMutation({
-    mutationFn: () => api.put('/profile/me', form),
-    onSuccess: () => { refreshUser(); toast({ title: 'Profile saved!', variant: 'success' }) },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+    mutationFn: () => api.put('/profile/me', { ...form, starting_price: form.starting_price || null }),
+    onSuccess: () => { refreshProfile(); toast({ title: 'Profile saved', variant: 'success' }) },
+    onError: failed('Profile not saved'),
   })
 
   const uploadPhoto = useMutation({
     mutationFn: (file) => uploadSingleImage({ file, kind: 'profile', endpoint: '/profile/photo', fieldName: 'photo' }),
-    onSuccess: () => { refreshUser(); toast({ title: 'Photo updated!', variant: 'success' }) },
+    onSuccess: () => { refreshProfile(); toast({ title: 'Profile photo updated', variant: 'success' }) },
+    onError: failed('Photo not uploaded'),
   })
 
   const uploadNic = useMutation({
     mutationFn: (file) => uploadSingleImage({ file, kind: 'nic', endpoint: '/profile/nic-upload', fieldName: 'nic_image' }),
-    onSuccess: () => { refreshUser(); toast({ title: 'NIC uploaded! Pending verification.', variant: 'success' }) },
+    onSuccess: () => { refreshProfile(); toast({ title: 'NIC submitted', description: 'We’ll review it and notify you, usually within 2 working days.', variant: 'success' }) },
+    onError: failed('NIC not uploaded'),
   })
 
   const uploadPortfolio = useMutation({
     mutationFn: (file) => uploadSingleImage({ file, kind: 'portfolio', endpoint: '/profile/portfolio', fieldName: 'photo' }),
-    onSuccess: () => { refreshUser(); toast({ title: 'Photo added!', variant: 'success' }) },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+    onSuccess: () => { refreshProfile(); toast({ title: 'Photo added to your portfolio', variant: 'success' }) },
+    onError: failed('Photo not added'),
   })
 
   const deletePortfolio = useMutation({
     mutationFn: (id) => api.delete(`/profile/portfolio/${id}`),
-    onSuccess: () => { refreshUser(); toast({ title: 'Photo removed' }) },
+    onSuccess: () => { setRemovingPhoto(null); refreshProfile(); toast({ title: 'Photo removed' }) },
+    onError: failed('Photo not removed'),
   })
+
+  const pickFile = (mutation) => (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) mutation.mutate(file)
+  }
 
   return (
     <AppShell>
@@ -70,10 +119,12 @@ export function ProfilePage() {
           <h3 className="font-semibold text-slate-800 mb-4">Profile Photo</h3>
           <div className="flex flex-wrap items-center gap-4">
             <Avatar name={user?.full_name} src={user?.profile_photo} size="xl" />
-            <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
-              <Camera className="w-4 h-4" /> Change Photo
-              <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadPhoto.mutate(e.target.files[0])} />
+            <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700 dark:text-slate-200">
+              {uploadPhoto.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Camera className="w-4 h-4" />}
+              {uploadPhoto.isPending ? 'Uploading…' : 'Change photo'}
+              <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadPhoto.isPending} onChange={pickFile(uploadPhoto)} />
             </label>
+            <p className="w-full text-xs text-slate-500 sm:w-auto">JPEG, PNG or WebP, up to 5 MB.</p>
           </div>
         </Card>
 
@@ -97,58 +148,85 @@ export function ProfilePage() {
               <option value="">Select skill</option>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </Select>
-            <Input label="Starting Price" value={form.starting_price} onChange={set('starting_price')} placeholder="e.g. LKR 2,000" />
+            <Input label="Starting price (LKR)" inputMode="decimal" value={form.starting_price} onChange={set('starting_price')} placeholder="e.g. 2500" error={startingPriceError} />
             <Textarea label="Bio" value={form.bio} onChange={set('bio')} placeholder="Describe your experience and expertise..." rows={4} />
           </Card>
         )}
 
         {/* NIC Verification */}
-        <Card className="p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-800 mb-2">Identity Verification</h3>
-          <p className="text-sm text-slate-500 mb-4">Upload your NIC to get a verified badge on your profile</p>
-          <div className="flex items-center gap-3">
-            {user?.is_nic_verified ? (
-              <span className="text-emerald-600 font-semibold text-sm flex items-center gap-1">✓ Verified</span>
-            ) : user?.nic_image_path ? (
-              <span className="text-amber-600 font-semibold text-sm">⏳ Under review</span>
-            ) : (
-              <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200">
-                <Upload className="w-4 h-4" /> Upload NIC
-                <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadNic.mutate(e.target.files[0])} />
+        {user?.role === 'worker' && (
+        <Card id="identity" className="scroll-mt-24 p-4 sm:p-6">
+          <h3 className="font-semibold text-slate-800 mb-2">Identity verification</h3>
+          <p className="text-sm text-slate-500 mb-4">
+            Upload a clear photo of your NIC to get a verified badge. Only Fixly reviewers see it; it is never shown on your profile.
+            {' '}See our <Link to="/privacy" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">Privacy Policy</Link>.
+          </p>
+          {nicStatus === 'verified' ? (
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"><BadgeCheck className="h-5 w-5" aria-hidden="true" /> Verified — the badge is on your profile</p>
+          ) : nicStatus === 'pending' ? (
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300"><Clock className="h-5 w-5" aria-hidden="true" /> Under review — we’ll notify you when it’s checked</p>
+          ) : (
+            <div className="space-y-3">
+              {nicStatus === 'rejected' && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200" role="status">
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <p><span className="font-semibold">We couldn’t verify your last photo.</span>{nicRejectionReason ? ` Reason: ${nicRejectionReason}.` : ''} Please upload a new, clear photo showing the whole card.</p>
+                </div>
+              )}
+              <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700 dark:text-slate-200">
+                {uploadNic.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Upload className="w-4 h-4" />}
+                {uploadNic.isPending ? 'Uploading…' : nicStatus === 'rejected' ? 'Upload a new photo' : 'Upload NIC'}
+                <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadNic.isPending} onChange={pickFile(uploadNic)} />
               </label>
-            )}
-          </div>
+            </div>
+          )}
         </Card>
+        )}
 
         {/* Portfolio (workers only) */}
         {user?.role === 'worker' && (
           <Card className="p-4 sm:p-6">
-            <h3 className="font-semibold text-slate-800 mb-4">Portfolio Photos (max 10)</h3>
+            <h3 className="font-semibold text-slate-800 mb-1">Portfolio photos</h3>
+            <p className="mb-4 text-sm text-slate-500">{portfolioPhotos.length} of 10 · Photos of your finished work help customers choose you.</p>
             <div className="grid grid-cols-3 gap-3 mb-4">
-              {(user?.portfolio_photos || []).map(p => (
+              {portfolioPhotos.map((p, index) => (
                 <div key={p.id} className="relative aspect-square">
-                  <img src={p.path} alt="" className="w-full h-full object-cover rounded-xl" />
-                  <button type="button" onClick={() => deletePortfolio.mutate(p.id)} aria-label="Remove portfolio photo"
+                  <img src={p.path} alt={`Portfolio photo ${index + 1}`} className="w-full h-full object-cover rounded-xl" />
+                  <button type="button" onClick={() => setRemovingPhoto(p)} aria-label={`Remove portfolio photo ${index + 1}`}
                     className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
-              {(user?.portfolio_photos?.length || 0) < 10 && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-400 flex flex-col items-center justify-center cursor-pointer">
-                  <Upload className="w-5 h-5 text-slate-400 mb-1" />
-                  <span className="text-xs text-slate-400">Add</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files[0] && uploadPortfolio.mutate(e.target.files[0])} />
+              {portfolioPhotos.length < 10 && (
+                <label className="aspect-square rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-400 focus-within:ring-2 focus-within:ring-sky-500 flex flex-col items-center justify-center cursor-pointer dark:border-slate-700">
+                  {uploadPortfolio.isPending ? <span className="mb-1 h-5 w-5 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" /> : <Upload className="w-5 h-5 text-slate-500 mb-1" />}
+                  <span className="text-xs font-semibold text-slate-500">{uploadPortfolio.isPending ? 'Uploading…' : 'Add photo'}</span>
+                  <input type="file" accept={IMAGE_ACCEPT} className="sr-only" disabled={uploadPortfolio.isPending} onChange={pickFile(uploadPortfolio)} />
                 </label>
               )}
             </div>
           </Card>
         )}
 
-        <Button variant="primary" size="lg" onClick={() => save.mutate()} loading={save.isPending} className="w-full">
-          <Save className="w-4 h-4" /> Save Profile
+        <Button variant="primary" size="lg" onClick={() => save.mutate()} loading={save.isPending} disabled={Boolean(startingPriceError)} className="w-full">
+          <Save className="w-4 h-4" /> Save profile details
         </Button>
+        <p className="-mt-2 text-center text-xs text-slate-500">Photos and your NIC save as soon as you upload them.</p>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(removingPhoto)}
+        onClose={() => setRemovingPhoto(null)}
+        onConfirm={() => deletePortfolio.mutate(removingPhoto.id)}
+        loading={deletePortfolio.isPending}
+        title="Remove this photo?"
+        description="It will be removed from your public portfolio."
+        confirmLabel="Remove photo"
+        tone="danger"
+      >
+        {removingPhoto && <img src={removingPhoto.path} alt="" className="h-40 w-full rounded-xl object-cover" />}
+      </ConfirmDialog>
     </AppShell>
   )
 }
@@ -156,10 +234,12 @@ export function ProfilePage() {
 export function SettingsPage() {
   const { user, refreshUser } = useAuth()
   const { toast } = useToast()
+  usePageTitle('Settings')
 
   const setMode = useMutation({
     mutationFn: (mode) => api.put('/profile/dashboard-mode', { mode }),
-    onSuccess: () => { refreshUser(); toast({ title: 'Dashboard mode updated!', variant: 'success' }) },
+    onSuccess: () => { refreshUser(); toast({ title: 'Dashboard mode updated', variant: 'success' }) },
+    onError: (e) => toast({ title: 'Couldn’t change dashboard mode', description: errorMessage(e), variant: 'error' }),
   })
 
   // Defaults to true (matches the backend default) until the profile has
@@ -174,13 +254,14 @@ export function SettingsPage() {
         variant: 'success',
       })
     },
-    onError: (e) => toast({ title: 'Failed to update', description: e.response?.data?.error, variant: 'error' }),
+    onError: (e) => toast({ title: 'Couldn’t update AI matching', description: errorMessage(e), variant: 'error' }),
   })
 
   return (
     <AppShell>
       <div className="fixly-page max-w-4xl space-y-5">
         <PageHeader title="Settings" />
+        {user?.role === 'customer' && <EmailVerificationNotice />}
 
         <Card className="p-4 sm:p-6">
           <h3 className="font-semibold text-slate-800 mb-1">Account</h3>

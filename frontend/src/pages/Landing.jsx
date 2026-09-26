@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
 import {
   ChevronRight, Droplets, Zap, Hammer, Sparkles, ShieldCheck,
   Briefcase, Star, ClipboardList, BellRing, Banknote, ArrowRight, Search
@@ -8,6 +9,8 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { PublicNavbar } from '../components/shared/PublicNavbar'
 import { PublicFooter } from '../components/shared/PublicFooter'
+import { usePageTitle } from '../hooks/usePageTitle'
+import api from '../lib/api'
 
 const categories = [
   { icon: Droplets, name: 'Plumbing', color: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300' },
@@ -17,7 +20,7 @@ const categories = [
 ]
 
 const features = [
-  { icon: Search, title: 'Find Skilled Workers', desc: 'Browse verified local professionals in your district' },
+  { icon: Search, title: 'Find Skilled Workers', desc: 'Browse local professionals in your district, with identity-verified badges' },
   { icon: ClipboardList, title: 'Get Competitive Quotes', desc: 'Workers send proposals and you choose the best fit' },
   { icon: Banknote, title: 'Pay Offline Safely', desc: 'Record cash or bank payments directly in the app' },
   { icon: Star, title: 'Leave Reviews', desc: 'Help your community find the best workers' },
@@ -152,9 +155,29 @@ function HeroVisual({ user }) {
   )
 }
 
+// Live marketplace numbers. Each figure only appears once it is meaningful,
+// so a young marketplace never shows placeholder or inflated claims.
+function marketplaceStats(stats) {
+  if (!stats) return []
+  const items = []
+  if (stats.workers > 0) items.push([stats.workers.toLocaleString('en-LK'), stats.workers === 1 ? 'Local worker' : 'Local workers'])
+  if (stats.verified_workers > 0) items.push([stats.verified_workers.toLocaleString('en-LK'), 'Identity verified'])
+  if (stats.districts > 1) items.push([String(stats.districts), 'Districts covered'])
+  if (stats.reviews >= 5 && stats.avg_rating) items.push([stats.avg_rating, `Average rating (${stats.reviews.toLocaleString('en-LK')} reviews)`])
+  return items.slice(0, 3)
+}
+
 export default function Landing() {
   const { user } = useAuth()
   const hero = getHeroContent(user)
+  usePageTitle(null)
+  const { data: stats } = useQuery({
+    queryKey: ['marketplace-stats'],
+    queryFn: () => api.get('/workers/stats').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+  const statItems = marketplaceStats(stats)
 
   return (
     <div className="fixly-page-shell min-h-[100dvh]">
@@ -196,19 +219,19 @@ export default function Landing() {
                 </Link>
               </div>
 
-              <motion.div
+              {statItems.length > 0 && <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.45 }}
                 className="mt-8 grid grid-cols-3 gap-3 border-t border-slate-200 pt-6 dark:border-slate-800 sm:flex sm:flex-wrap sm:gap-8 sm:pt-8"
               >
-                {[['500+', 'Verified Workers'], ['25', 'Districts Covered'], ['4.8', 'Average Rating']].map(([v, l]) => (
+                {statItems.map(([v, l]) => (
                   <div key={l}>
                     <p className="text-xl font-black text-slate-950 sm:text-2xl">{v}</p>
                     <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-sm">{l}</p>
                   </div>
                 ))}
-              </motion.div>
+              </motion.div>}
             </motion.div>
 
             <motion.div className="hidden sm:block" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.55, delay: 0.1 }}>
@@ -257,7 +280,7 @@ export default function Landing() {
         <section className="bg-sky-600 py-14 text-center text-white dark:bg-sky-700 md:py-20">
           <div className="mx-auto max-w-2xl px-4 sm:px-6">
             <h2 className="mb-4 text-3xl font-bold">Ready to get started?</h2>
-            <p className="mb-8 text-sky-100">Join thousands of homeowners and skilled workers across Sri Lanka.</p>
+            <p className="mb-8 text-sky-100">Post a job in minutes, or create a profile that helps local customers find you.</p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <Link to="/auth?tab=register" className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-8 py-3 font-bold text-sky-600 transition-all hover:bg-sky-50 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900">
                 Create Account

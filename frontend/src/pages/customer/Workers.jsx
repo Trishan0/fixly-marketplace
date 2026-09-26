@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AppShell } from '../../components/layout/AppShell'
 import { Modal, Select, Button, PageHeader } from '../../components/shared/UI'
@@ -6,6 +7,8 @@ import WorkerCatalog from '../public/WorkerCatalog'
 import { useToast } from '../../hooks/useToast'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../lib/api'
+import { errorMessage } from '../../lib/errors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 export default function WorkersPage() {
   const { user } = useAuth()
@@ -14,9 +17,10 @@ export default function WorkersPage() {
   const [jobId, setJobId] = useState('')
   const [message, setMessage] = useState('')
 
+  usePageTitle('Find workers')
   const { data: myJobs = [] } = useQuery({
-    queryKey: ['my-jobs-postable'],
-    queryFn: () => api.get('/jobs/my').then(r =>
+    queryKey: ['my-jobs', 'invitable'],
+    queryFn: () => api.get('/jobs/my', { params: { group: 'active', limit: 100 } }).then(r =>
       r.data.filter(j => ['posted', 'proposals_received'].includes(j.status))
     ),
     enabled: user?.role === 'customer',
@@ -24,13 +28,14 @@ export default function WorkersPage() {
 
   const sendInvite = useMutation({
     mutationFn: () => api.post(`/jobs/${jobId}/invites`, { worker_id: inviteWorker.id, message }),
+    meta: { track: 'invite_sent', trackProps: () => ({ from: 'worker_list' }) },
     onSuccess: () => {
       setInviteWorker(null)
       setJobId('')
       setMessage('')
-      toast({ title: `Invite sent to ${inviteWorker.full_name}!`, variant: 'success' })
+      toast({ title: `Invite sent to ${inviteWorker.full_name}`, description: 'We’ll notify you when they respond.', variant: 'success' })
     },
-    onError: (e) => toast({ title: 'Failed to send invite', description: e.response?.data?.error, variant: 'error' }),
+    onError: (e) => toast({ title: 'Invite not sent', description: errorMessage(e), variant: 'error' }),
   })
 
   return (
@@ -55,9 +60,7 @@ export default function WorkersPage() {
           {myJobs.length === 0 ? (
             <div className="text-center py-4">
               <p className="text-slate-500 text-sm mb-4">You have no active jobs to invite this worker to.</p>
-              <a href="/jobs/new">
-                <Button variant="primary">Post a Job First</Button>
-              </a>
+              <Link to={`/jobs/new?invite=${inviteWorker?.id}`} className="fixly-btn-primary text-sm">Post a job and invite {inviteWorker?.full_name?.split(' ')[0]}</Link>
             </div>
           ) : (
             <>

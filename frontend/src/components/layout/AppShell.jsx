@@ -25,6 +25,8 @@ import {
   ChevronDown,
   Plus,
   MoreHorizontal,
+  MessagesSquare,
+  Scale,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { cn, getInitials } from "../../lib/utils";
@@ -36,13 +38,16 @@ const customerNav = [
   { href: "/customer-dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/jobs", icon: Briefcase, label: "My Jobs" },
   { href: "/find-workers", icon: Users, label: "Find Workers" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
 ];
 
 const workerNav = [
   { href: "/worker-dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/jobs/feed", icon: Briefcase, label: "Open Jobs" },
   { href: "/invites", icon: MessageSquare, label: "Invites" },
+  { href: "/proposals", icon: FileText, label: "My Proposals" },
   { href: "/jobs/assigned", icon: Wrench, label: "My Work" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
   { href: "/earnings", icon: DollarSign, label: "Earnings" },
 ];
 
@@ -50,7 +55,9 @@ const workerNavSimplified = [
   { href: "/worker-dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/jobs/feed", icon: Briefcase, label: "New Jobs" },
   { href: "/invites", icon: MessageSquare, label: "Invites" },
+  { href: "/proposals", icon: FileText, label: "My Proposals" },
   { href: "/jobs/assigned", icon: Wrench, label: "My Jobs" },
+  { href: "/messages", icon: MessagesSquare, label: "Messages" },
   { href: "/earnings", icon: DollarSign, label: "Earnings" },
 ];
 
@@ -58,7 +65,9 @@ const adminNav = [
   { href: "/admin", icon: BarChart3, label: "Dashboard" },
   { href: "/admin/users", icon: Users, label: "Users" },
   { href: "/admin/workers", icon: Shield, label: "Workers" },
+  { href: "/admin/jobs", icon: Briefcase, label: "Jobs" },
   { href: "/admin/reports", icon: FileText, label: "Reports" },
+  { href: "/admin/disputes", icon: Scale, label: "Disputes" },
   { href: "/admin/categories", icon: Tag, label: "Categories" },
 ];
 
@@ -441,6 +450,30 @@ function SidebarContent({ navItems, onClose, collapsed = false, unread = 0 }) {
   );
 }
 
+function HeaderIconLink({ to, icon: Icon, label, count }) {
+  const location = useLocation();
+  const active = location.pathname.startsWith(to);
+  return (
+    <Link
+      to={to}
+      aria-label={count > 0 ? `${label}, ${count} unread` : label}
+      aria-current={active ? "page" : undefined}
+      title={label}
+      className={cn(
+        "relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white",
+        active && "border-sky-300 text-sky-700 dark:border-sky-700 dark:text-sky-300",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {count > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-950">
+          {count > 9 ? "9+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function AppShell({ children }) {
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -461,6 +494,15 @@ export function AppShell({ children }) {
     enabled: !!user,
   });
   const unread = notifData?.unread || 0;
+
+  const canMessage = user?.role === "customer" || user?.role === "worker";
+  const { data: messageData } = useQuery({
+    queryKey: ["messages-unread"],
+    queryFn: () => api.get("/messages/unread-count").then((r) => r.data),
+    refetchInterval: 30000,
+    enabled: canMessage,
+  });
+  const unreadMessages = messageData?.unread || 0;
 
   useEffect(() => {
     try {
@@ -491,8 +533,9 @@ export function AppShell({ children }) {
     baseNav = adminNav;
   }
 
-  // Inject unread badge on notifications link
-  const navItems = baseNav;
+  const navItems = baseNav.map((item) =>
+    item.href === "/messages" && unreadMessages > 0 ? { ...item, badge: unreadMessages } : item,
+  );
   let mobileNavItems = customerMobileNav;
   if (user?.role === "worker") mobileNavItems = workerMobileNav;
   if (user?.role === "admin") mobileNavItems = adminMobileNav;
@@ -505,10 +548,14 @@ export function AppShell({ children }) {
       location.pathname === `/customers/${user?.id}`
     )
       return "Profile";
+    if (location.pathname === "/jobs/new") return "Post a job";
+    if (/^\/jobs\/[^/]+\/propose$/.test(location.pathname)) return "Send a proposal";
     if (location.pathname.startsWith("/settings")) return "Settings";
     if (location.pathname.startsWith("/notifications")) return "Notifications";
+    if (location.pathname.startsWith("/messages")) return "Messages";
 
-    const activeItem = navItems.find((item) => {
+    // Prefer the most specific match so "/admin/jobs" isn't labelled by "/admin".
+    const activeItem = [...navItems].sort((a, b) => b.href.length - a.href.length).find((item) => {
       if (item.href === "/profile") {
         return (
           location.pathname === "/profile" ||
@@ -597,7 +644,11 @@ export function AppShell({ children }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {canMessage && (
+              <HeaderIconLink to="/messages" icon={MessagesSquare} label="Messages" count={unreadMessages} />
+            )}
+            <HeaderIconLink to="/notifications" icon={Bell} label="Notifications" count={unread} />
             <ThemeToggleIconButton />
             <AccountMenu unread={unread} />
           </div>
@@ -621,10 +672,24 @@ export function AppShell({ children }) {
               </span>
             </div>
           </div>
+          {canMessage && (
+            <Link
+              to="/messages"
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              aria-label={unreadMessages ? `Messages, ${unreadMessages} unread` : "Messages"}
+            >
+              <MessagesSquare className="h-5 w-5" />
+              {unreadMessages > 0 && (
+                <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold text-white">
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                </span>
+              )}
+            </Link>
+          )}
           <Link
             to="/notifications"
             className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-            aria-label={unread ? `${unread} unread notifications` : "Notifications"}
+            aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
           >
             <Bell className="h-5 w-5" />
             {unread > 0 && (

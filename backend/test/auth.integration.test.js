@@ -35,6 +35,7 @@ describe('authentication integration', () => {
         password: 'Testpass123',
         role: 'customer',
         district: 'Colombo',
+        accept_terms: true,
       })
       .expect(201);
 
@@ -68,6 +69,7 @@ describe('authentication integration', () => {
         password: 'Testpass123',
         role: 'worker',
         primary_skill: 'Plumbing',
+        accept_terms: true,
       })
       .expect(201);
 
@@ -78,12 +80,29 @@ describe('authentication integration', () => {
     expect(profile.rows).toEqual([{ primary_skill: 'Plumbing' }]);
   });
 
+  test('requires Terms and Privacy consent and records when it was given', async () => {
+    const payload = {
+      full_name: 'Consent Customer',
+      email: 'consent@fixly-test.local',
+      password: 'Testpass123',
+      role: 'customer',
+    };
+
+    const refused = await request(app).post('/api/auth/register').send(payload).expect(400);
+    expect(refused.body.error).toMatch(/Terms of Service/);
+
+    const registration = await request(app).post('/api/auth/register').send({ ...payload, accept_terms: true }).expect(201);
+    const stored = await testPool.query('SELECT terms_accepted_at FROM users WHERE id = $1', [registration.body.user.id]);
+    expect(stored.rows[0].terms_accepted_at).toBeInstanceOf(Date);
+  });
+
   test('rejects duplicate registration and invalid credentials', async () => {
     const payload = {
       full_name: 'Duplicate Customer',
       email: 'duplicate@fixly-test.local',
       password: 'Testpass123',
       role: 'customer',
+      accept_terms: true,
     };
 
     await request(app).post('/api/auth/register').send(payload).expect(201);
@@ -100,6 +119,7 @@ describe('authentication integration', () => {
       email: 'Case.Identity@fixly-test.local',
       password: 'Testpass123',
       role: 'customer',
+      accept_terms: true,
     };
     const registration = await request(app).post('/api/auth/register').send(payload).expect(201);
 

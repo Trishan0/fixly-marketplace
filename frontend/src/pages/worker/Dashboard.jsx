@@ -1,18 +1,18 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Briefcase, DollarSign, MessageSquare, CheckCircle, ArrowRight, Play, Sparkles, Activity } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Briefcase, Banknote, MessageSquare, CheckCircle, ArrowRight, Play, Sparkles, Activity } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { StatCard, Card, Badge, Button } from '../../components/shared/UI'
 import { useAuth } from '../../context/AuthContext'
-import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatRelativeTime, URGENCY_LABELS, cn } from '../../lib/utils'
 import api from '../../lib/api'
+import { usePageTitle } from '../../hooks/usePageTitle'
+import { useJobStatusAction } from '../../components/worker/useJobStatusAction'
 
 function SimpleDashboard() {
   const { user } = useAuth()
-  const { toast } = useToast()
-  const qc = useQueryClient()
+  const statusAction = useJobStatusAction()
 
   const { data: assigned = [] } = useQuery({
     queryKey: ['assigned-jobs'],
@@ -29,14 +29,9 @@ function SimpleDashboard() {
   const pendingInvites = invites.filter(i => i.status === 'pending')
   const activeJobs = assigned.filter(j => ['assigned', 'in_progress'].includes(j.status))
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }) => api.put(`/jobs/${id}/status`, { status }),
-    onSuccess: () => { toast({ title: 'Updated!', variant: 'success' }); qc.invalidateQueries(['assigned-jobs']) },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
-
   return (
     <div className="fixly-app-page">
+      {statusAction.dialog}
       <div className="fixly-page max-w-3xl space-y-6">
         <div className="fixly-glow-panel p-6">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Worker Dashboard</p>
@@ -52,7 +47,7 @@ function SimpleDashboard() {
             { to: '/jobs/feed', icon: Sparkles, label: 'Find Jobs', tone: 'fixly-tint-sky text-sky-700 dark:text-sky-300' },
             { to: '/invites', icon: MessageSquare, label: `Invites ${pendingInvites.length > 0 ? `(${pendingInvites.length})` : ''}`, tone: pendingInvites.length > 0 ? 'fixly-tint-amber text-amber-700 dark:text-amber-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
             { to: '/jobs/assigned', icon: Activity, label: 'My Jobs', tone: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' },
-            { to: '/earnings', icon: DollarSign, label: 'Earnings', tone: 'fixly-tint-emerald text-emerald-700 dark:text-emerald-300' },
+            { to: '/earnings', icon: Banknote, label: 'Earnings', tone: 'fixly-tint-emerald text-emerald-700 dark:text-emerald-300' },
           ].map(({ to, icon: Icon, label, tone }) => (
             <Link key={to} to={to}>
               <div className={cn('rounded-[1.75rem] border p-5 transition-transform hover:-translate-y-0.5', tone)}>
@@ -65,19 +60,19 @@ function SimpleDashboard() {
 
         {activeJobs.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-900">Today&apos;s Jobs</h2>
+            <h2 className="text-xl font-bold text-slate-900">Your active jobs</h2>
             {activeJobs.map(job => (
               <Card key={job.id} className="p-6">
                 <h3 className="mb-1 text-lg font-bold text-slate-900">{job.title}</h3>
                 <p className="mb-4 text-sm text-slate-500">{job.district} • <Badge status={job.status} /></p>
                 {job.status === 'assigned' && (
-                  <Button variant="primary" size="lg" className="w-full text-lg py-4" onClick={() => updateStatus.mutate({ id: job.id, status: 'in_progress' })} loading={updateStatus.isPending}>
-                    <Play className="h-5 w-5" /> Mark Started
+                  <Button variant="primary" size="lg" className="w-full text-lg py-4" onClick={() => statusAction.start(job)} loading={statusAction.isPending(job)}>
+                    <Play className="h-5 w-5" /> Mark as started
                   </Button>
                 )}
                 {job.status === 'in_progress' && (
-                  <Button variant="success" size="lg" className="w-full text-lg py-4" onClick={() => updateStatus.mutate({ id: job.id, status: 'completed' })} loading={updateStatus.isPending}>
-                    <CheckCircle className="h-5 w-5" /> Mark Done
+                  <Button variant="success" size="lg" className="w-full text-lg py-4" onClick={() => statusAction.requestComplete(job)} loading={statusAction.isPending(job)}>
+                    <CheckCircle className="h-5 w-5" /> Mark as complete
                   </Button>
                 )}
               </Card>
@@ -91,8 +86,7 @@ function SimpleDashboard() {
 
 function StandardDashboard() {
   const { user } = useAuth()
-  const { toast } = useToast()
-  const qc = useQueryClient()
+  const statusAction = useJobStatusAction()
 
   const { data: assigned = [] } = useQuery({
     queryKey: ['assigned-jobs'],
@@ -114,18 +108,13 @@ function StandardDashboard() {
     queryFn: () => api.get('/jobs/feed?limit=3').then(r => r.data),
   })
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }) => api.put(`/jobs/${id}/status`, { status }),
-    onSuccess: () => { toast({ title: 'Updated!', variant: 'success' }); qc.invalidateQueries(['assigned-jobs']) },
-    onError: (e) => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
-  })
-
   const activeJobs = assigned.filter(j => ['assigned', 'in_progress'].includes(j.status))
   const completedJobs = assigned.filter(j => ['completed', 'payment_recorded', 'reviewed'].includes(j.status))
   const pendingInvites = invites.filter(i => i.status === 'pending')
 
   return (
     <div className="fixly-app-page">
+      {statusAction.dialog}
       <div className="fixly-page max-w-7xl space-y-6">
         <div className="fixly-glow-panel grid gap-6 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
@@ -151,7 +140,7 @@ function StandardDashboard() {
           <StatCard icon={MessageSquare} label="Pending Invites" value={pendingInvites.length} color="amber" />
           <StatCard icon={Briefcase} label="Active Jobs" value={activeJobs.length} color="sky" />
           <StatCard icon={CheckCircle} label="Completed" value={completedJobs.length} color="emerald" />
-          <StatCard icon={DollarSign} label="Total Earned" value={formatCurrency(earnings?.total || 0)} color="violet" />
+          <StatCard icon={Banknote} label="Total Earned" value={formatCurrency(earnings?.total || 0)} color="violet" />
         </div>
 
         {activeJobs.length > 0 && (
@@ -172,12 +161,12 @@ function StandardDashboard() {
                   </div>
                   <div className="flex gap-2">
                     {job.status === 'assigned' && (
-                      <Button variant="primary" size="sm" className="flex-1" onClick={() => updateStatus.mutate({ id: job.id, status: 'in_progress' })} loading={updateStatus.isPending}>
+                      <Button variant="primary" size="sm" className="flex-1" onClick={() => statusAction.start(job)} loading={statusAction.isPending(job)}>
                         <Play className="h-3.5 w-3.5" /> Start
                       </Button>
                     )}
                     {job.status === 'in_progress' && (
-                      <Button variant="success" size="sm" className="flex-1" onClick={() => updateStatus.mutate({ id: job.id, status: 'completed' })} loading={updateStatus.isPending}>
+                      <Button variant="success" size="sm" className="flex-1" onClick={() => statusAction.requestComplete(job)} loading={statusAction.isPending(job)}>
                         <CheckCircle className="h-3.5 w-3.5" /> Complete
                       </Button>
                     )}
@@ -244,6 +233,7 @@ function StandardDashboard() {
 
 export default function WorkerDashboard() {
   const { user } = useAuth()
+  usePageTitle('Dashboard')
   return (
     <AppShell>
       {user?.dashboard_mode === 'simplified' ? <SimpleDashboard /> : <StandardDashboard />}

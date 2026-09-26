@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { PublicNavbar } from '../components/shared/PublicNavbar'
 import { PublicFooter } from '../components/shared/PublicFooter'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const journeys = {
   customer: {
@@ -105,6 +106,7 @@ function WorkflowPreview({ journey }) {
 }
 
 export default function HowItWorks() {
+  usePageTitle('How it works')
   const [role, setRole] = useState('customer')
   const journey = journeys[role]
 

@@ -344,6 +344,7 @@ describe('Phase 3 jobs and proposals invariants', () => {
     await request(app)
       .put(`/api/payments/${payment.rows[0].id}/dispute`)
       .set('Authorization', workerAuth)
+      .send({ reason: 'The recorded amount was never received' })
       .expect(409);
   });
 
