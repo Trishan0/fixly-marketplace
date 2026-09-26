@@ -10,6 +10,7 @@ export const NOTIFICATION_STYLES = {
   new_message: { icon: MessageSquare, tone: 'sky' },
   proposal_accepted: { icon: CheckCircle2, tone: 'emerald' },
   proposal_declined: { icon: XCircle, tone: 'rose' },
+  proposal_withdrawn: { icon: XCircle, tone: 'slate' },
   new_invite: { icon: Mail, tone: 'violet' },
   invite_accepted: { icon: ThumbsUp, tone: 'emerald' },
   job_started: { icon: Play, tone: 'sky' },

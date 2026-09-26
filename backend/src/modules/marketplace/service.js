@@ -384,10 +384,64 @@ async function withdrawProposal({ proposalId, workerId }) {
       if (proposal.status !== 'pending') throw conflict('Only pending proposals can be withdrawn');
       const withdrawn = await repository.setProposalStatus(proposalId, 'pending', 'withdrawn', tx);
       if (!withdrawn) throw conflict('Only pending proposals can be withdrawn');
+      const worker = await repository.findUserSummary(workerId);
+      await repository.insertNotification({
+        userId: proposal.customer_id,
+        type: 'proposal_withdrawn',
+        title: 'Proposal withdrawn',
+        body: `${worker?.full_name || 'A worker'} withdrew their proposal for: ${proposal.job_title}`,
+        meta: { job_id: proposal.job_id, worker_id: workerId },
+      }, tx);
     }, { isolationLevel: 'serializable', maxRetries: 2 });
   } catch (error) {
     translate(error);
   }
+}
+
+async function updateProposal({ proposalId, worker, input }) {
+  const data = parse(proposalInput, input);
+  const proposedPrice = data.inspection_needed ? null : (data.proposed_price || null);
+  if (!proposedPrice && !data.inspection_needed) {
+    throw badRequest('Add your price, or say you need to inspect the job first');
+  }
+  try {
+    return await withTransaction(async ({ tx }) => {
+      const proposal = await repository.findProposalForUpdate(proposalId, tx);
+      if (!proposal || proposal.worker_id !== worker.id) throw notFound('Proposal not found');
+      if (proposal.status !== 'pending') throw conflict('Only pending proposals can be changed');
+      if (!proposal.job_is_active || !['posted', 'proposals_received'].includes(proposal.job_status)) {
+        throw conflict('This job is no longer accepting proposals');
+      }
+      const firstQuote = !proposal.proposed_price && !proposal.inspection_needed;
+      const updated = await repository.updateProposalDetails(proposalId, {
+        proposedPrice,
+        inspectionNeeded: data.inspection_needed,
+        availability: data.availability || null,
+        message: data.message,
+      }, tx);
+      if (!updated) throw conflict('Only pending proposals can be changed');
+      await repository.insertNotification({
+        userId: proposal.customer_id,
+        type: 'new_proposal',
+        title: firstQuote ? 'Quote received' : 'Proposal updated',
+        body: firstQuote
+          ? `${worker.full_name || 'A worker'} sent their quote for: ${proposal.job_title}`
+          : `${worker.full_name || 'A worker'} updated their proposal for: ${proposal.job_title}`,
+        meta: { job_id: proposal.job_id, worker_id: worker.id },
+      }, tx);
+      return updated;
+    }, { isolationLevel: 'serializable', maxRetries: 2 });
+  } catch (error) {
+    translate(error);
+  }
+}
+
+async function listWorkerProposals({ workerId, status, page = 1, limit = 20 }) {
+  const [proposals, counts] = await Promise.all([
+    repository.listWorkerProposals(workerId, { status, page, limit }),
+    repository.workerProposalCounts(workerId),
+  ]);
+  return { proposals, counts };
 }
 
 async function updateJobWorkflowStatus({ jobId, actor, status }) {
@@ -572,6 +626,8 @@ async function createReview({ jobId, customerId, input }) {
 }
 
 module.exports = {
+  listWorkerProposals,
+  updateProposal,
   acceptProposal,
   acceptInvitation,
   cancelJob,

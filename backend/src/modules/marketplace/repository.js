@@ -197,6 +197,48 @@ function setProposalStatus(proposalId, fromStatus, toStatus, client) {
   `, client);
 }
 
+function updateProposalDetails(proposalId, input, client) {
+  return one(sql`
+    UPDATE proposals
+    SET proposed_price = ${input.proposedPrice}, inspection_needed = ${input.inspectionNeeded},
+        availability = ${input.availability}, message = ${input.message}, updated_at = NOW()
+    WHERE id = ${proposalId} AND status = 'pending'
+    RETURNING *
+  `, client);
+}
+
+const WORKER_PROPOSAL_STATUSES = ['pending', 'accepted', 'declined', 'withdrawn'];
+
+function listWorkerProposals(workerId, { status, page, limit }) {
+  const statusCondition = WORKER_PROPOSAL_STATUSES.includes(status) ? sql`AND p.status = ${status}` : sql``;
+  return rows(sql`
+    SELECT p.id, p.job_id, p.status, p.proposed_price, p.inspection_needed, p.availability, p.message,
+           p.created_at, p.updated_at,
+           j.title AS job_title, j.status AS job_status, j.district, j.town, j.urgency,
+           j.pricing_mode, j.fixed_budget, j.is_active AS job_is_active,
+           (j.assigned_worker_id IS NOT NULL AND j.assigned_worker_id <> p.worker_id) AS hired_someone_else,
+           c.name AS category_name, u.full_name AS customer_name
+    FROM proposals p
+    JOIN jobs j ON j.id = p.job_id
+    LEFT JOIN categories c ON c.id = j.category_id
+    LEFT JOIN users u ON u.id = j.customer_id
+    WHERE p.worker_id = ${workerId} ${statusCondition}
+    ORDER BY p.updated_at DESC
+    LIMIT ${limit} OFFSET ${(page - 1) * limit}
+  `);
+}
+
+function workerProposalCounts(workerId) {
+  return one(sql`
+    SELECT COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+           COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted,
+           COUNT(*) FILTER (WHERE status = 'declined')::int AS declined,
+           COUNT(*) FILTER (WHERE status = 'withdrawn')::int AS withdrawn
+    FROM proposals WHERE worker_id = ${workerId}
+  `);
+}
+
 function updateJobStatus(jobId, expectedStatus, nextStatus, client) {
   return one(sql`
     UPDATE jobs SET status = ${nextStatus}, updated_at = NOW()
@@ -516,6 +558,9 @@ module.exports = instrumentRepository('marketplace', {
   customerJobSummary,
   listCustomerJobs,
   listJobFeed,
+  listWorkerProposals,
+  updateProposalDetails,
+  workerProposalCounts,
   listJobStatusEvents,
   listCategories,
   listJobPhotos,

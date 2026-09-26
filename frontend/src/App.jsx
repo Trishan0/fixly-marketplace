@@ -35,6 +35,7 @@ const Invites = lazy(() => import('./pages/worker/WorkerPages').then(m => ({ def
 const AssignedJobs = lazy(() => import('./pages/worker/WorkerPages').then(m => ({ default: m.AssignedJobs })))
 const Earnings = lazy(() => import('./pages/worker/Earnings'))
 const SendProposal = lazy(() => import('./pages/worker/SendProposal'))
+const Proposals = lazy(() => import('./pages/worker/Proposals'))
 const ProfilePage = lazy(() => import('./pages/shared/ProfileSettings').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./pages/shared/ProfileSettings').then(m => ({ default: m.SettingsPage })))
 const Notifications = lazy(() => import('./pages/shared/Notifications'))
@@ -120,6 +121,7 @@ function AppRoutes() {
           <Route path="/invites" element={<RoleRoute role="worker"><Invites /></RoleRoute>} />
           <Route path="/jobs/assigned" element={<RoleRoute role="worker"><AssignedJobs /></RoleRoute>} />
           <Route path="/earnings" element={<RoleRoute role="worker"><Earnings /></RoleRoute>} />
+          <Route path="/proposals" element={<RoleRoute role="worker"><Proposals /></RoleRoute>} />
           <Route path="/jobs/:jobId/propose" element={<RoleRoute role="worker"><SendProposal /></RoleRoute>} />
           <Route path="/jobs/:id" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfileRedirect /></ProtectedRoute>} />

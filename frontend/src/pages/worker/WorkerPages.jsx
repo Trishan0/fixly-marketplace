@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { Search, MapPin, Briefcase, MessageSquare, MessagesSquare, CheckCircle, Play, Bot, SlidersHorizontal } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
@@ -200,6 +200,7 @@ export function OpenJobs() {
 
 export function Invites() {
   const { toast } = useToast()
+  const navigate = useNavigate()
   const qc = useQueryClient()
 
   usePageTitle('Invites')
@@ -211,11 +212,15 @@ export function Invites() {
   const respond = useMutation({
     mutationFn: ({ id, action }) => api.put(`/invites/${id}/${action}`),
     onSuccess: (_, vars) => {
-      toast(vars.action === 'accept'
-        ? { title: 'Invite accepted', description: 'The customer can now see you in their proposals and hire you.', variant: 'success' }
-        : { title: 'Invite declined', description: 'We’ve let the customer know.' })
       qc.invalidateQueries({ queryKey: ['invites'] })
       qc.invalidateQueries({ queryKey: ['job-feed'] })
+      qc.invalidateQueries({ queryKey: ['my-proposals'] })
+      if (vars.action === 'accept') {
+        toast({ title: 'Invite accepted', description: 'Now add your price and availability so the customer can hire you.', variant: 'success' })
+        navigate(`/jobs/${vars.jobId}/propose`)
+      } else {
+        toast({ title: 'Invite declined', description: 'We’ve let the customer know.' })
+      }
     },
     onError: (e) => toast({ title: 'Couldn’t respond to the invite', description: errorMessage(e), variant: 'error' }),
   })
@@ -241,7 +246,7 @@ export function Invites() {
                     <h2 className="mb-3 text-sm font-semibold text-slate-700">Pending ({pending.length})</h2>
                     <div className="space-y-4">
                       {pending.map(inv => (
-                        <InviteCard key={inv.id} invite={inv} onRespond={(action) => respond.mutate({ id: inv.id, action })} pendingAction={pendingAction(inv)} />
+                        <InviteCard key={inv.id} invite={inv} onRespond={(action) => respond.mutate({ id: inv.id, jobId: inv.job_id, action })} pendingAction={pendingAction(inv)} />
                       ))}
                     </div>
                   </div>
