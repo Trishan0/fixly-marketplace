@@ -3,82 +3,15 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Banknote, Briefcase, CheckCircle2, ChevronRight, Inbox, MessagesSquare, Plus, Search, Wallet } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Button, Card, CardHeader, EmptyState, IconChip, JobStatusBadge, Page, RowLink, Skeleton, Table, Td, Th } from '../../components/ui'
+import { AttentionItem, Button, Card, CardHeader, EmptyState, IconChip, JobStatusBadge, Page, RowLink, Skeleton, StatTile, Table, Td, Th, WelcomeBanner } from '../../components/ui'
 import { EmailVerificationNotice } from '../../components/shared/EmailVerificationNotice'
 import { useAuth } from '../../context/AuthContext'
 import { usePageTitle } from '../../hooks/usePageTitle'
-import { cn, formatCurrency, formatRelativeTime, pluralize } from '../../lib/utils'
+import { cn, formatCurrency, formatRelativeTime, joinWithAnd, pluralize } from '../../lib/utils'
 import { jobPriceLabel, shortDate } from '../../lib/jobs'
 import { categoryStyle } from '../../lib/tones'
 import { notificationTarget, NOTIFICATION_STYLES, DEFAULT_NOTIFICATION_STYLE } from '../../lib/notifications'
 import api from '../../lib/api'
-
-function greeting(date = new Date()) {
-  const hour = date.getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
-}
-
-function Welcome({ name, summaryLine }) {
-  const today = new Date().toLocaleDateString('en-LK', { weekday: 'long', day: 'numeric', month: 'long' })
-  return (
-    <section className="relative overflow-hidden rounded-card bg-gradient-to-br from-sky-500 via-sky-600 to-sky-700 px-5 py-6 text-white shadow-brand sm:px-7 sm:py-7">
-      {/* Quiet brand shapes echoing the logo's rounded square. */}
-      <span className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rotate-12 rounded-[3rem] border border-white/15" aria-hidden="true" />
-      <span className="pointer-events-none absolute -bottom-20 right-24 h-44 w-44 -rotate-6 rounded-[2.5rem] bg-white/[0.07]" aria-hidden="true" />
-      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[13px] font-medium text-sky-100">{today}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-[28px]">{greeting()}, {name}</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-sky-50/90">
-            {summaryLine || 'You’re all caught up. Post a new job whenever you need a hand.'}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button to="/jobs/new" variant="on-brand"><Plus className="h-4 w-4" aria-hidden="true" /> Post a job</Button>
-          <Button to="/find-workers" variant="on-brand-ghost"><Search className="h-4 w-4" aria-hidden="true" /> Find workers</Button>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function StatCard({ icon, tone, label, value, note, to }) {
-  const content = (
-    <>
-      <div className="flex items-center justify-between">
-        <IconChip icon={icon} tone={tone} />
-        {to && <ArrowRight className="h-4 w-4 text-fg-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden="true" />}
-      </div>
-      <p className="mt-4 text-[13px] font-medium text-fg-muted">{label}</p>
-      <p className="mt-0.5 whitespace-nowrap text-[22px] font-bold leading-tight tracking-tight text-fg tabular-nums sm:text-[28px]">
-        {value ?? <Skeleton className="mt-1 h-8 w-20" />}
-      </p>
-      {note && <p className="mt-1 text-xs text-fg-subtle">{note}</p>}
-    </>
-  )
-  const classes = 'group block rounded-card border border-line/80 bg-surface p-4 shadow-card transition-all sm:p-5'
-  return to
-    ? <Link to={to} className={cn(classes, 'hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand')}>{content}</Link>
-    : <div className={classes}>{content}</div>
-}
-
-function AttentionItem({ icon, tone, title, detail, to, action }) {
-  return (
-    <li>
-      <Link to={to} className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-brand-subtle/50 sm:px-5">
-        <IconChip icon={icon} tone={tone} size="sm" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-fg">{title}</span>
-          <span className="block truncate text-[13px] text-fg-muted">{detail}</span>
-        </span>
-        <span className="hidden shrink-0 rounded-lg px-2.5 py-1 text-[13px] font-semibold text-brand-text ring-1 ring-inset ring-sky-600/20 transition-colors group-hover:bg-brand group-hover:text-brand-on sm:inline">{action}</span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-fg-subtle sm:hidden" aria-hidden="true" />
-      </Link>
-    </li>
-  )
-}
 
 function JobTitleCell({ job }) {
   const { icon, tone } = categoryStyle(job.category_name)
@@ -96,11 +29,6 @@ function JobTitleCell({ job }) {
       </div>
     </div>
   )
-}
-
-function joinWithAnd(parts) {
-  if (parts.length <= 1) return parts.join('')
-  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
 export default function CustomerDashboard() {
@@ -167,14 +95,21 @@ export default function CustomerDashboard() {
     <AppShell>
       <Page>
         <div className="space-y-6">
-          <Welcome name={user?.full_name?.split(' ')[0] || 'there'} summaryLine={summaryLine} />
+          <WelcomeBanner
+            name={user?.full_name?.split(' ')[0] || 'there'}
+            summary={summaryLine || 'You’re all caught up. Post a new job whenever you need a hand.'}
+            actions={<>
+              <Button to="/jobs/new" variant="on-brand"><Plus className="h-4 w-4" aria-hidden="true" /> Post a job</Button>
+              <Button to="/find-workers" variant="on-brand-ghost"><Search className="h-4 w-4" aria-hidden="true" /> Find workers</Button>
+            </>}
+          />
           <EmailVerificationNotice />
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <StatCard icon={Briefcase} tone="sky" label="Active jobs" value={summary?.active} note="Open or in progress" to="/jobs" />
-            <StatCard icon={Inbox} tone="indigo" label="Proposals to review" value={summary?.awaiting_review} note={summary?.awaiting_review ? 'Waiting for your decision' : 'Nothing waiting'} />
-            <StatCard icon={CheckCircle2} tone="emerald" label="Completed" value={summary?.completed} note="All time" />
-            <StatCard icon={Wallet} tone="amber" label="Total paid" value={summary ? formatCurrency(Number(summary.total_spent)) : undefined} note="Payments you recorded" />
+            <StatTile icon={Briefcase} tone="sky" label="Active jobs" value={summary?.active} note="Open or in progress" to="/jobs" />
+            <StatTile icon={Inbox} tone="indigo" label="Proposals to review" value={summary?.awaiting_review} note={summary?.awaiting_review ? 'Waiting for your decision' : 'Nothing waiting'} />
+            <StatTile icon={CheckCircle2} tone="emerald" label="Completed" value={summary?.completed} note="All time" />
+            <StatTile icon={Wallet} tone="amber" label="Total paid" value={summary ? formatCurrency(Number(summary.total_spent)) : undefined} note="Payments you recorded" />
           </div>
 
           {/* Phones read top to bottom: what needs attention, then recent jobs.
