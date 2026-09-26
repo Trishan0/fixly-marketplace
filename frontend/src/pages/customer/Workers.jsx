@@ -59,7 +59,7 @@ export default function WorkersPage() {
           {myJobs.length === 0 ? (
             <div className="text-center py-4">
               <p className="text-slate-500 text-sm mb-4">You have no active jobs to invite this worker to.</p>
-              <Link to="/jobs/new" className="fixly-btn-primary text-sm">Post a job first</Link>
+              <Link to={`/jobs/new?invite=${inviteWorker?.id}`} className="fixly-btn-primary text-sm">Post a job and invite {inviteWorker?.full_name?.split(' ')[0]}</Link>
             </div>
           ) : (
             <>

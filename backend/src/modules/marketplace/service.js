@@ -21,6 +21,9 @@ const jobInput = z.object({
   urgency: z.enum(['today', 'tomorrow', 'this_week', 'flexible']).optional().nullable(),
   pricing_mode: z.enum(['fixed', 'ask_quotes', 'inspection']).optional().nullable(),
   fixed_budget: decimal.optional().nullable(),
+}).refine(value => value.pricing_mode !== 'fixed' || value.fixed_budget, {
+  message: 'Enter your budget, or choose "Ask for quotes"',
+  path: ['fixed_budget'],
 });
 
 const proposalInput = z.object({

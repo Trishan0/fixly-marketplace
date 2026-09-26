@@ -117,8 +117,8 @@ export default function WorkerProfile() {
           {myJobs.length === 0 ? (
             <div className="py-4 text-center">
               <p className="mb-4 text-sm text-slate-500">You have no active jobs to invite this worker to.</p>
-              <Link to="/jobs/new" onClick={() => setInviteModal(false)}>
-                <Button variant="primary">Post a Job First</Button>
+              <Link to={`/jobs/new?invite=${worker.id}`} onClick={() => setInviteModal(false)} className="fixly-btn-primary text-sm">
+                Post a job and invite {worker.full_name.split(' ')[0]}
               </Link>
             </div>
           ) : (

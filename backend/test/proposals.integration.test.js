@@ -28,6 +28,18 @@ async function setup() {
   return { customer, worker }
 }
 
+describe('job posting rules', () => {
+  test('a fixed-price job needs a budget', async () => {
+    const customer = await createUser(testPool, { email: 'budget-customer@fixly-test.local', fullName: 'Budget Customer', role: 'customer' });
+    const category = await testPool.query("SELECT id FROM categories WHERE name = 'Plumbing'");
+    const base = { title: 'Fix a tap', description: 'Kitchen tap is dripping all day.', category_id: category.rows[0].id, district: 'Colombo' };
+    const refused = await request(app).post('/api/jobs').set('Authorization', authorizationFor(customer)).send({ ...base, pricing_mode: 'fixed' }).expect(400);
+    expect(refused.body.error).toMatch(/budget/);
+    await request(app).post('/api/jobs').set('Authorization', authorizationFor(customer)).send({ ...base, pricing_mode: 'fixed', fixed_budget: '3500' }).expect(201);
+    await request(app).post('/api/jobs').set('Authorization', authorizationFor(customer)).send({ ...base, pricing_mode: 'ask_quotes' }).expect(201);
+  });
+});
+
 describe('worker proposals', () => {
   test('lists a worker\'s proposals with job context and counts', async () => {
     const { customer, worker } = await setup();
