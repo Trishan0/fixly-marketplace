@@ -1,0 +1,22 @@
+{
+  "name": "Fixly - Find trusted local workers",
+  "short_name": "Fixly",
+  "description": "Sri Lanka's local services marketplace. Post a job, compare quotes and hire trusted local workers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f8fc",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/fixly-mark-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/fixly-mark-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

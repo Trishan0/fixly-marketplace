@@ -16,7 +16,7 @@ const articles = [
 ]
 
 export default function Blog() {
-  usePageTitle('Blog')
+  usePageTitle('Blog', { description: 'Practical guides for hiring local workers in Sri Lanka and for workers building a strong reputation on Fixly.' })
   return (
     <div className="fixly-page-shell min-h-[100dvh] overflow-x-hidden">
       <PublicNavbar />

@@ -106,7 +106,7 @@ function WorkflowPreview({ journey }) {
 }
 
 export default function HowItWorks() {
-  usePageTitle('How it works')
+  usePageTitle('How it works', { description: 'See how Fixly works for customers and workers: post a job, compare proposals, hire a local professional, then pay and review.' })
   const [role, setRole] = useState('customer')
   const journey = journeys[role]
 
