@@ -38,6 +38,7 @@ const SendProposal = lazy(() => import('./pages/worker/SendProposal'))
 const ProfilePage = lazy(() => import('./pages/shared/ProfileSettings').then(m => ({ default: m.ProfilePage })))
 const SettingsPage = lazy(() => import('./pages/shared/ProfileSettings').then(m => ({ default: m.SettingsPage })))
 const Notifications = lazy(() => import('./pages/shared/Notifications'))
+const Messages = lazy(() => import('./pages/shared/Messages'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminDashboard })))
 const AdminUsers = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminUsers })))
 const AdminWorkers = lazy(() => import('./pages/admin/AdminPages').then(m => ({ default: m.AdminWorkers })))
@@ -125,6 +126,8 @@ function AppRoutes() {
           <Route path="/profile/edit" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+          <Route path="/messages/:jobId/:workerId" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
           <Route path="/admin/users" element={<RoleRoute role="admin"><AdminUsers /></RoleRoute>} />
           <Route path="/admin/workers" element={<RoleRoute role="admin"><AdminWorkers /></RoleRoute>} />

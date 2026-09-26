@@ -73,6 +73,16 @@ function markThreadRead(jobId, workerId, readerId) {
   `);
 }
 
+/** Reading a conversation also clears its "new message" notifications. */
+function markThreadNotificationsRead(jobId, workerId, readerId) {
+  return rows(sql`
+    UPDATE notifications SET is_read = true
+    WHERE user_id = ${readerId} AND type = 'new_message' AND is_read = false
+      AND meta->>'job_id' = ${jobId} AND meta->>'worker_id' = ${workerId}
+    RETURNING id
+  `);
+}
+
 function participantCondition(userId, role) {
   return role === 'customer' ? sql`j.customer_id = ${userId}` : sql`m.worker_id = ${userId}`;
 }
@@ -122,5 +132,5 @@ function insertNotification(input, client) {
 
 module.exports = instrumentRepository('messaging', {
   countUnreadForRecipient, insertMessage, insertNotification, listConversations, listThreadMessages,
-  markThreadRead, threadContext, unreadCount,
+  markThreadNotificationsRead, markThreadRead, threadContext, unreadCount,
 });

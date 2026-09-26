@@ -49,7 +49,10 @@ function describeThread(context, user) {
 
 async function getThread(user, jobId, workerId) {
   const context = await loadThread(user, jobId, workerId);
-  await repository.markThreadRead(jobId, workerId, user.id);
+  await Promise.all([
+    repository.markThreadRead(jobId, workerId, user.id),
+    repository.markThreadNotificationsRead(jobId, workerId, user.id),
+  ]);
   const messages = await repository.listThreadMessages(jobId, workerId);
   return { thread: describeThread(context, user), messages };
 }

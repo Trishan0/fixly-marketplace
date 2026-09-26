@@ -59,6 +59,8 @@ describe('job messaging', () => {
 
     unread = await request(app).get('/api/messages/unread-count').set('Authorization', workerAuth).expect(200);
     expect(unread.body.unread).toBe(0);
+    const cleared = await testPool.query("SELECT is_read FROM notifications WHERE user_id = $1 AND type = 'new_message'", [worker.id]);
+    expect(cleared.rows.every(row => row.is_read)).toBe(true);
 
     await request(app).post(thread).set('Authorization', workerAuth).send({ body: 'Saturday 9am works.' }).expect(201);
     const customerView = await request(app).get(thread).set('Authorization', customerAuth).expect(200);

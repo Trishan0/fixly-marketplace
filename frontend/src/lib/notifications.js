@@ -2,10 +2,12 @@ import {
   AlertTriangle, BadgeCheck, Banknote, Bell, CheckCircle2, ClipboardList, Flag, Mail,
   MessageSquare, Play, ShieldAlert, Star, ThumbsUp, XCircle,
 } from 'lucide-react'
+import { threadPath } from './messages'
 
 // Icon and tone for each notification type the backend sends.
 export const NOTIFICATION_STYLES = {
-  new_proposal: { icon: MessageSquare, tone: 'sky' },
+  new_proposal: { icon: ClipboardList, tone: 'sky' },
+  new_message: { icon: MessageSquare, tone: 'sky' },
   proposal_accepted: { icon: CheckCircle2, tone: 'emerald' },
   proposal_declined: { icon: XCircle, tone: 'rose' },
   new_invite: { icon: Mail, tone: 'violet' },
@@ -46,6 +48,8 @@ export function notificationTarget(notification) {
   switch (notification?.type) {
     case 'new_invite':
       return '/invites'
+    case 'new_message':
+      return meta.job_id && meta.worker_id ? threadPath(meta.job_id, meta.worker_id) : '/messages'
     case 'nic_verified':
     case 'nic_rejected':
       return '/profile/edit#identity'

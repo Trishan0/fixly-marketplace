@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Briefcase, Shield, Clock } from 'lucide-react'
+import { MapPin, Briefcase, Shield, Clock, MessagesSquare } from 'lucide-react'
 import { Avatar, Badge, StarRating, Button } from './UI'
 import { formatCurrency, formatRelativeTime, formatStartingPrice, pluralize, URGENCY_LABELS } from '../../lib/utils'
 
@@ -112,7 +112,7 @@ export function JobCard({ job, role, onAction }) {
   )
 }
 
-export function ProposalCard({ proposal, isOwner, onAccept, onDecline, onWithdraw }) {
+export function ProposalCard({ proposal, isOwner, onAccept, onDecline, onWithdraw, messageTo }) {
   return (
     <div className="fixly-card p-4 sm:p-5">
       <div className="flex items-start gap-3">
@@ -135,24 +135,35 @@ export function ProposalCard({ proposal, isOwner, onAccept, onDecline, onWithdra
             <p className="mt-2 text-lg font-bold text-sky-700 dark:text-sky-300">{formatCurrency(proposal.proposed_price)}</p>
           ) : proposal.price_range ? (
             <p className="mt-2 text-sm text-slate-500">Range: {proposal.price_range}</p>
+          ) : proposal.inspection_needed ? (
+            <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">Will quote after inspecting the job</p>
           ) : (
-            <p className="mt-2 text-sm text-amber-600 dark:text-amber-300">Inspection required for price</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Accepted your invite — hasn’t sent a quote yet</p>
           )}
           {proposal.availability && (
             <p className="mt-1 text-xs text-slate-500">Available: {proposal.availability}</p>
           )}
-          {proposal.message && (
-            <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm italic text-slate-600 dark:bg-slate-900/70">"{proposal.message}"</p>
+          {proposal.message && proposal.message !== 'Accepted via invite' && (
+            <p className="mt-3 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-900/70 dark:text-slate-200">{proposal.message}</p>
           )}
         </div>
       </div>
 
-      {proposal.status === 'pending' && isOwner && (
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-50 pt-4 dark:border-slate-800 sm:flex">
-          <Button variant="primary" size="sm" className="flex-1" onClick={() => onAccept(proposal.id)}>Accept</Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={() => onDecline(proposal.id)}>Decline</Button>
-          <Link to={`/workers/${proposal.worker_id}`} className="col-span-2 sm:col-span-1">
-            <Button variant="ghost" size="sm" className="w-full">Profile</Button>
+      {isOwner && proposal.status !== 'withdrawn' && (
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800 sm:flex">
+          {proposal.status === 'pending' && (
+            <>
+              <Button variant="primary" size="sm" className="flex-1" onClick={() => onAccept(proposal.id)}>Hire</Button>
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => onDecline(proposal.id)}>Decline</Button>
+            </>
+          )}
+          {messageTo && (
+            <Link to={messageTo} className="fixly-btn-secondary min-h-11 gap-1.5 px-3 text-xs">
+              <MessagesSquare className="h-4 w-4" /> Message
+            </Link>
+          )}
+          <Link to={`/workers/${proposal.worker_id}`} className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            View profile
           </Link>
         </div>
       )}

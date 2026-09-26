@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
-import { Search, MapPin, Briefcase, MessageSquare, CheckCircle, Play, Bot, SlidersHorizontal } from 'lucide-react'
+import { Search, MapPin, Briefcase, MessageSquare, MessagesSquare, CheckCircle, Play, Bot, SlidersHorizontal } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, Badge, PageHeader, Spinner, EmptyState } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, formatRelativeTime, pluralize, URGENCY_LABELS, DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
+import { threadPath } from '../../lib/messages'
+import { useAuth } from '../../context/AuthContext'
 import { errorMessage } from '../../lib/errors'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
@@ -261,6 +263,7 @@ export function Invites() {
 }
 
 function InviteCard({ invite, onRespond, pendingAction, past }) {
+  const { user } = useAuth()
   return (
     <Card className={cn('p-4 sm:p-6', past && 'opacity-60')}>
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -281,9 +284,14 @@ function InviteCard({ invite, onRespond, pendingAction, past }) {
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button variant="primary" size="sm" className="flex-1" onClick={() => onRespond('accept')} loading={pendingAction === 'accept'} disabled={Boolean(pendingAction)}>Accept</Button>
           <Button variant="outline" size="sm" className="flex-1" onClick={() => onRespond('decline')} loading={pendingAction === 'decline'} disabled={Boolean(pendingAction)}>Decline</Button>
-          <Link to={`/jobs/${invite.job_id}`} className="col-span-2 sm:col-span-1">
-            <Button variant="ghost" size="sm" className="w-full">View Job</Button>
+          <Link to={`/jobs/${invite.job_id}`} className="inline-flex min-h-11 items-center justify-center rounded-xl px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            View job
           </Link>
+          {user && (
+            <Link to={threadPath(invite.job_id, user.id)} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950/40">
+              <MessagesSquare className="h-4 w-4" /> Ask a question
+            </Link>
+          )}
         </div>
       )}
     </Card>

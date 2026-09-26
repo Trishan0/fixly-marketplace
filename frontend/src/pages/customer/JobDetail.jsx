@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  MessagesSquare,
   CheckCircle2,
   ChevronLeft,
   Play,
@@ -38,6 +39,7 @@ import {
   URGENCY_LABELS,
 } from "../../lib/utils";
 import api from "../../lib/api";
+import { threadPath } from "../../lib/messages";
 import { errorMessage, errorStatus } from "../../lib/errors";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -505,9 +507,9 @@ export default function JobDetail() {
           </Card>
         )}
 
-        {job.customer_id && (
+        {job.customer_id && !isOwner && (
           <Card className="p-5">
-            <h3 className="font-semibold text-slate-800 mb-3">Posted By</h3>
+            <h3 className="font-semibold text-slate-800 mb-3">Posted by</h3>
             <div className="flex items-center gap-3">
               <Avatar
                 name={job.customer_name}
@@ -524,12 +526,22 @@ export default function JobDetail() {
                   </p>
                 )}
               </div>
-              <Link to={`/customers/${job.customer_id}`} className="ml-auto">
-                <Button variant="outline" size="sm">
-                  View Profile
-                </Button>
-              </Link>
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
+                {isWorker && (myProposal || isAssignedWorker) && (
+                  <Link to={threadPath(job.id, user.id)} className="fixly-btn-primary min-h-11 gap-1.5 px-4 text-sm">
+                    <MessagesSquare className="h-4 w-4" /> Message
+                  </Link>
+                )}
+                <Link to={`/customers/${job.customer_id}`} className="fixly-btn-secondary min-h-11 px-4 text-sm">
+                  View profile
+                </Link>
+              </div>
             </div>
+            {isAssignedWorker && job.customer_phone && (
+              <a href={`tel:${job.customer_phone.replace(/\s+/g, "")}`} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-sky-700 dark:text-sky-300">
+                <Phone className="h-4 w-4" /> {job.customer_phone}
+              </a>
+            )}
           </Card>
         )}
 
@@ -549,19 +561,22 @@ export default function JobDetail() {
                 <p className="font-semibold text-slate-900">
                   {job.assigned_worker_name}
                 </p>
-                <p className="text-sm text-slate-500 flex items-center gap-1 mt-0.5">
-                  <Phone className="w-3.5 h-3.5" />{" "}
-                  {job.assigned_worker_phone || "-"}
-                </p>
+                {job.assigned_worker_phone && (isOwner || isAssignedWorker) && (
+                  <a href={`tel:${job.assigned_worker_phone.replace(/\s+/g, "")}`} className="mt-0.5 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-sky-700 dark:text-sky-300">
+                    <Phone className="h-4 w-4" /> {job.assigned_worker_phone}
+                  </a>
+                )}
               </div>
-              <Link
-                to={`/workers/${job.assigned_worker_id}`}
-                className="ml-auto"
-              >
-                <Button variant="outline" size="sm">
-                  View Profile
-                </Button>
-              </Link>
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
+                {isOwner && (
+                  <Link to={threadPath(job.id, job.assigned_worker_id)} className="fixly-btn-primary min-h-11 gap-1.5 px-4 text-sm">
+                    <MessagesSquare className="h-4 w-4" /> Message
+                  </Link>
+                )}
+                <Link to={`/workers/${job.assigned_worker_id}`} className="fixly-btn-secondary min-h-11 px-4 text-sm">
+                  View profile
+                </Link>
+              </div>
             </div>
           </Card>
         )}
@@ -585,6 +600,7 @@ export default function JobDetail() {
                     isOwner={isOwner}
                     onAccept={() => setConfirming({ kind: "hire", proposal: p })}
                     onDecline={() => setConfirming({ kind: "decline", proposal: p })}
+                    messageTo={isOwner && job.status !== "cancelled" ? threadPath(job.id, p.worker_id) : null}
                   />
                 ))}
               </div>
