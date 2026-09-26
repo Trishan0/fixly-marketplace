@@ -45,7 +45,7 @@ export default function MyJobs() {
   })
 
   const {
-    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching,
+    data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching,
   } = useInfiniteQuery({
     queryKey: ['my-jobs', 'list', tab, query],
     queryFn: ({ pageParam }) => api.get('/jobs/my', {
@@ -97,7 +97,7 @@ export default function MyJobs() {
           {isLoading ? (
             <div className="space-y-3 p-5">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-11 w-full" />)}</div>
           ) : isError ? (
-            <ErrorFallback title="We couldn’t load your jobs" description="Check your connection and try again." onRetry={() => refetch()} />
+            <ErrorFallback title="We couldn’t load your jobs" error={error} onRetry={() => refetch()} />
           ) : jobs.length === 0 ? (
             query ? (
               <EmptyState icon={Search} title="No matching jobs" description={`Nothing matches “${query}”. Try a different word.`} action={<Button variant="secondary" size="sm" onClick={() => setSearch('')}>Clear search</Button>} />

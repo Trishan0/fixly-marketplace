@@ -14,7 +14,7 @@ export default function Notifications() {
   const qc = useQueryClient()
   const navigate = useNavigate()
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get('/notifications').then(r => r.data),
   })
@@ -56,7 +56,7 @@ export default function Notifications() {
         {isLoading ? (
           <Card className="divide-y divide-line">{[0, 1, 2, 3].map(i => <div key={i} className="flex gap-3 p-4"><Skeleton className="h-10 w-10 rounded-[10px]" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-3/4" /></div></div>)}</Card>
         ) : isError ? (
-          <ErrorFallback title="We couldn’t load your notifications" description="Check your connection and try again." onRetry={() => refetch()} />
+          <ErrorFallback title="We couldn’t load your notifications" error={error} onRetry={() => refetch()} />
         ) : notifications.length === 0 ? (
           <Card><EmptyState icon={Bell} title="No notifications yet" description="Updates about your jobs, proposals and payments will appear here." /></Card>
         ) : (

@@ -1,6 +1,7 @@
 import React from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { captureError } from '../../lib/monitoring'
+import { loadFailureHint } from '../../lib/errors'
 
 // Catches render errors so one broken screen doesn't blank the whole app.
 // `resetKey` (the current path) clears the error when the user navigates.
@@ -31,7 +32,8 @@ export class ErrorBoundary extends React.Component {
   }
 }
 
-export function ErrorFallback({ onRetry, title = 'Something went wrong on this page', description = 'The rest of Fixly is still working. Try again, or go back to your dashboard.' }) {
+export function ErrorFallback({ onRetry, error, title = 'Something went wrong on this page', description }) {
+  const message = description ?? (error ? loadFailureHint(error) : 'The rest of Fixly is still working. Try again, or go back to your dashboard.')
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
       <div className="max-w-md text-center">
@@ -39,7 +41,7 @@ export function ErrorFallback({ onRetry, title = 'Something went wrong on this p
           <AlertTriangle className="h-7 w-7" aria-hidden="true" />
         </div>
         <h1 className="text-lg font-semibold text-fg">{title}</h1>
-        <p className="mt-1.5 text-sm leading-6 text-fg-muted">{description}</p>
+        <p className="mt-1.5 text-sm leading-6 text-fg-muted">{message}</p>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           {onRetry && (
             <button type="button" onClick={onRetry} className="fixly-btn-primary gap-2 text-sm">

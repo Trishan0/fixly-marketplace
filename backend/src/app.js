@@ -107,7 +107,10 @@ app.get('/api/ready', async (req, res) => {
     });
   } catch (error) {
     console.error('Readiness check failed:', error.message);
-    res.status(503).json({ status: 'not_ready', database: 'unavailable' });
+    const migrationsPending = error.message.startsWith('Database migrations are not current');
+    res.status(503).json(migrationsPending
+      ? { status: 'not_ready', database: 'connected', migrations: 'pending' }
+      : { status: 'not_ready', database: 'unavailable' });
   }
 });
 

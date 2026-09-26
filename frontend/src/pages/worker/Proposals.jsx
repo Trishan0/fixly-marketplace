@@ -48,7 +48,7 @@ export default function Proposals() {
   const activeTab = TABS.find(item => item.key === tab)
 
   const {
-    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,
+    data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: ['my-proposals', tab],
     queryFn: ({ pageParam }) => api.get('/proposals/mine', {
@@ -92,7 +92,7 @@ export default function Proposals() {
         {isLoading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : isError ? (
-          <ErrorFallback title="We couldn’t load your proposals" description="Check your connection and try again." onRetry={() => refetch()} />
+          <ErrorFallback title="We couldn’t load your proposals" error={error} onRetry={() => refetch()} />
         ) : proposals.length === 0 ? (
           <EmptyState
             icon={FileText}
