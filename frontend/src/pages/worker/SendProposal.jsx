@@ -1,17 +1,21 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { Button, Card, PageHeader } from '../../components/shared/UI'
 import { useToast } from '../../hooks/useToast'
 import { formatCurrency, URGENCY_LABELS } from '../../lib/utils'
 import api from '../../lib/api'
+import { errorMessage } from '../../lib/errors'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 export default function SendProposal() {
   const { jobId } = useParams()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const qc = useQueryClient()
+  usePageTitle('Send a proposal')
 
   const [form, setForm] = useState({
     proposed_price: '',
@@ -37,10 +41,13 @@ export default function SendProposal() {
       proposed_price: form.inspection_needed ? null : (form.proposed_price || null),
     }),
     onSuccess: () => {
-      toast({ title: 'Proposal sent!', description: 'The customer will review it shortly.', variant: 'success' })
+      toast({ title: 'Proposal sent', description: 'We’ll notify you when the customer responds.', variant: 'success' })
+      qc.invalidateQueries({ queryKey: ['job-feed'] })
+      qc.invalidateQueries({ queryKey: ['proposals', jobId] })
+      qc.invalidateQueries({ queryKey: ['my-proposal', jobId] })
       navigate(`/jobs/${jobId}`)
     },
-    onError: e => toast({ title: 'Failed', description: e.response?.data?.error, variant: 'error' }),
+    onError: e => toast({ title: 'Proposal not sent', description: errorMessage(e), variant: 'error' }),
   })
 
   if (existing) {

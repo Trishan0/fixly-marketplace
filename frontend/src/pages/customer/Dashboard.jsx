@@ -1,20 +1,36 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Briefcase, Plus, Bell, CheckCircle, DollarSign, Users } from 'lucide-react'
+import { Briefcase, Plus, Bell, CheckCircle, Banknote, Users } from 'lucide-react'
 import { AppShell } from '../../components/layout/AppShell'
 import { StatCard, Card, Button } from '../../components/shared/UI'
 import { JobCard } from '../../components/shared/Cards'
 import { useAuth } from '../../context/AuthContext'
 import { formatRelativeTime, formatCurrency } from '../../lib/utils'
 import api from '../../lib/api'
+import { usePageTitle } from '../../hooks/usePageTitle'
+import { EmailVerificationNotice } from '../../components/shared/EmailVerificationNotice'
+import { notificationTarget } from '../../lib/notifications'
+
+function greeting(date = new Date()) {
+  const hour = date.getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
 
 export default function CustomerDashboard() {
   const { user } = useAuth()
+  usePageTitle('Dashboard')
 
   const { data: jobs = [] } = useQuery({
-    queryKey: ['my-jobs'],
-    queryFn: () => api.get('/jobs/my?limit=5').then(r => r.data),
+    queryKey: ['my-jobs', 'recent'],
+    queryFn: () => api.get('/jobs/my', { params: { limit: 8 } }).then(r => r.data),
+  })
+
+  const { data: summary } = useQuery({
+    queryKey: ['my-jobs', 'summary'],
+    queryFn: () => api.get('/jobs/my/summary').then(r => r.data),
   })
 
   const { data: notifs } = useQuery({
@@ -23,11 +39,13 @@ export default function CustomerDashboard() {
     refetchInterval: 30000,
   })
 
-  const activeJobs = jobs.filter(j => !['completed', 'payment_recorded', 'reviewed', 'cancelled'].includes(j.status))
-  const completedJobs = jobs.filter(j => ['completed', 'payment_recorded', 'reviewed'].includes(j.status))
-  const totalSpent = completedJobs.reduce((s, j) => s + parseFloat(j.final_price || 0), 0)
+  const { data: proposalJobs = [] } = useQuery({
+    queryKey: ['my-jobs', 'awaiting-review'],
+    queryFn: () => api.get('/jobs/my', { params: { status: 'proposals_received', limit: 4 } }).then(r => r.data),
+  })
+
   const unreadNotifs = notifs?.notifications?.filter(n => !n.is_read) || []
-  const jobsAwaitingProposalReview = jobs.filter(j => j.status === 'proposals_received' && Number(j.proposal_count || 0) > 0)
+  const jobsAwaitingProposalReview = proposalJobs.filter(j => Number(j.proposal_count || 0) > 0)
   const prioritizedJobs = [...jobs].sort((a, b) => {
     const aPriority = a.status === 'proposals_received' && Number(a.proposal_count || 0) > 0 ? 0 : 1
     const bPriority = b.status === 'proposals_received' && Number(b.proposal_count || 0) > 0 ? 0 : 1
@@ -43,7 +61,7 @@ export default function CustomerDashboard() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-500">Customer Overview</p>
               <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:mt-3 sm:text-3xl">
-                Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {user?.full_name?.split(' ')[0]}!
+                {greeting()}, {user?.full_name?.split(' ')[0]}
               </h1>
               <p className="mt-2 text-sm leading-6 text-slate-500 sm:text-base">Manage jobs, review proposals, and hire trusted workers from one place.</p>
             </div>
@@ -54,18 +72,13 @@ export default function CustomerDashboard() {
             </Link>
           </div>
 
-          {!user?.is_email_verified && !user?.force_verified && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">Verify your email to post jobs</p>
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Check your inbox for a verification link.</p>
-            </div>
-          )}
+          <EmailVerificationNotice />
 
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <StatCard icon={Briefcase} label="Active Jobs" value={activeJobs.length} color="sky" />
-            <StatCard icon={CheckCircle} label="Completed" value={completedJobs.length} color="emerald" />
-            <StatCard icon={DollarSign} label="Total Spent" value={formatCurrency(totalSpent)} color="violet" />
-            <StatCard icon={Users} label="Need Proposal Review" value={jobsAwaitingProposalReview.length} color="amber" />
+            <StatCard icon={Briefcase} label="Active jobs" value={summary?.active} color="sky" />
+            <StatCard icon={CheckCircle} label="Completed" value={summary?.completed} color="emerald" />
+            <StatCard icon={Banknote} label="Total paid" value={summary ? formatCurrency(Number(summary.total_spent)) : undefined} sub="Payments you recorded" color="violet" />
+            <StatCard icon={Users} label="Proposals to review" value={summary?.awaiting_review} color="amber" />
           </div>
 
           {jobsAwaitingProposalReview.length > 0 && (
@@ -125,7 +138,7 @@ export default function CustomerDashboard() {
               </div>
               <Card className="divide-y divide-slate-50 dark:divide-slate-800">
                 {unreadNotifs.slice(0, 3).map(n => (
-                  <div key={n.id} className="flex items-start gap-3 p-4">
+                  <Link key={n.id} to={notificationTarget(n) || '/notifications'} className="flex items-start gap-3 p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-950/50">
                       <Bell className="h-4 w-4 text-sky-600" />
                     </div>
@@ -133,8 +146,8 @@ export default function CustomerDashboard() {
                       <p className="text-sm font-semibold text-slate-800">{n.title}</p>
                       <p className="text-xs text-slate-500">{n.body}</p>
                     </div>
-                    <p className="shrink-0 text-xs text-slate-400">{formatRelativeTime(n.created_at)}</p>
-                  </div>
+                    <p className="shrink-0 text-xs text-slate-500">{formatRelativeTime(n.created_at)}</p>
+                  </Link>
                 ))}
               </Card>
             </div>

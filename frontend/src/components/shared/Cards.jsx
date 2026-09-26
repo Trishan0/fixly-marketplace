@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { MapPin, Briefcase, Shield, Clock } from 'lucide-react'
 import { Avatar, Badge, StarRating, Button } from './UI'
-import { formatCurrency, formatRelativeTime, URGENCY_LABELS } from '../../lib/utils'
+import { formatCurrency, formatRelativeTime, formatStartingPrice, pluralize, URGENCY_LABELS } from '../../lib/utils'
 
 export function WorkerCard({ worker, onInvite }) {
   return (
@@ -31,7 +31,7 @@ export function WorkerCard({ worker, onInvite }) {
             </span>
           </div>
           {worker.starting_price && (
-            <p className="mt-1 text-xs text-slate-500">From {worker.starting_price}</p>
+            <p className="mt-1 text-xs text-slate-500">From {formatStartingPrice(worker.starting_price)}</p>
           )}
         </div>
       </div>
@@ -69,7 +69,7 @@ export function JobCard({ job, role, onAction }) {
             )}
             {job.proposal_count !== undefined && (
               <span className="flex items-center gap-1 text-xs text-slate-500">
-                <Briefcase className="h-3 w-3" />{job.proposal_count} proposal{job.proposal_count !== 1 ? 's' : ''}
+                <Briefcase className="h-3 w-3" />{pluralize(job.proposal_count, 'proposal')}
               </span>
             )}
             {job.has_my_proposal && <span className="fixly-pill-emerald">Proposal sent</span>}

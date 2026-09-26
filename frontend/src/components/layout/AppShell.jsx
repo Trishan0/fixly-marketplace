@@ -505,6 +505,8 @@ export function AppShell({ children }) {
       location.pathname === `/customers/${user?.id}`
     )
       return "Profile";
+    if (location.pathname === "/jobs/new") return "Post a job";
+    if (/^\/jobs\/[^/]+\/propose$/.test(location.pathname)) return "Send a proposal";
     if (location.pathname.startsWith("/settings")) return "Settings";
     if (location.pathname.startsWith("/notifications")) return "Notifications";
 

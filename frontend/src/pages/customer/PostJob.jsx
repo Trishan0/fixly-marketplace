@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Check, Upload, X } from "lucide-react";
 import { AppShell } from "../../components/layout/AppShell";
@@ -15,6 +15,11 @@ import { useToast } from "../../hooks/useToast";
 import { DISTRICTS, cn } from "../../lib/utils";
 import api from "../../lib/api";
 import { uploadJobImages } from "../../lib/storage";
+import { errorMessage } from "../../lib/errors";
+import { useAuth } from "../../context/AuthContext";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { EmailVerificationNotice } from "../../components/shared/EmailVerificationNotice";
+import { isEmailVerified } from "../../lib/auth";
 
 const URGENCIES = [
   { value: "today", label: "🔥 Today", desc: "Need it done ASAP" },
@@ -48,8 +53,24 @@ const PRICING_MODES = [
 const STEPS = ["Job details", "Location & photos", "Budget & review"];
 
 export default function PostJob() {
+  const { user } = useAuth();
+  usePageTitle("Post a job");
+  if (!isEmailVerified(user)) {
+    return (
+      <AppShell>
+        <div className="fixly-page max-w-3xl py-10">
+          <EmailVerificationNotice variant="gate" blockedAction="post a job" />
+        </div>
+      </AppShell>
+    );
+  }
+  return <PostJobForm />;
+}
+
+function PostJobForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [step, setStep] = useState(0);
   const [photos, setPhotos] = useState([]);
   const [form, setForm] = useState({
@@ -85,6 +106,7 @@ export default function PostJob() {
       return data;
     },
     onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["my-jobs"] });
       toast({
         title: data.photoUploadFailed ? "Job posted without photos" : "Job posted!",
         description: data.photoUploadFailed
@@ -96,8 +118,8 @@ export default function PostJob() {
     },
     onError: (err) => {
       toast({
-        title: "Failed to post job",
-        description: err.response?.data?.error,
+        title: "Job not posted",
+        description: errorMessage(err),
         variant: "error",
       });
     },

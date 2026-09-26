@@ -2,7 +2,10 @@ import React, { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronLeft,
+  Play,
   MapPin,
   Clock,
   DollarSign,
@@ -35,6 +38,20 @@ import {
   URGENCY_LABELS,
 } from "../../lib/utils";
 import api from "../../lib/api";
+import { errorMessage, errorStatus } from "../../lib/errors";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+import { ErrorFallback } from "../../components/shared/ErrorBoundary";
+
+const DISPUTE_REASONS = [
+  { value: "not_received", label: "I haven’t received this payment" },
+  { value: "wrong_amount", label: "The amount is different from what I received" },
+  { value: "other", label: "Something else" },
+];
+
+function failureToast(toast, title) {
+  return (error) => toast({ title, description: errorMessage(error), variant: "error" });
+}
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -53,11 +70,14 @@ export default function JobDetail() {
   });
   const [agreedPrice, setAgreedPrice] = useState("");
   const [review, setReview] = useState({ rating: 5, feedback: "" });
+  // One confirmation at a time: { kind, proposal? }
+  const [confirming, setConfirming] = useState(null);
 
-  const { data: job, isLoading } = useQuery({
+  const { data: job, isLoading, error: jobError, refetch: refetchJob } = useQuery({
     queryKey: ["job", id],
     queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
   });
+  usePageTitle(job?.title || "Job details");
 
   const { data: proposals = [] } = useQuery({
     queryKey: ["proposals", id],
@@ -71,98 +91,90 @@ export default function JobDetail() {
   const myProposal = isWorker ? proposals[0] : null;
 
   const refetch = () => {
-    qc.invalidateQueries(["job", id]);
-    qc.invalidateQueries(["proposals", id]);
-    qc.invalidateQueries(["my-jobs"]);
+    qc.invalidateQueries({ queryKey: ["job", id] });
+    qc.invalidateQueries({ queryKey: ["proposals", id] });
+    qc.invalidateQueries({ queryKey: ["my-jobs"] });
+    qc.invalidateQueries({ queryKey: ["assigned-jobs"] });
   };
+  const closeConfirm = () => setConfirming(null);
 
   const acceptProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/accept`),
-    onSuccess: () => {
-      toast({ title: "Proposal accepted!", variant: "success" });
+    onSuccess: (_data, pid) => {
+      const hired = proposals.find((p) => p.id === pid);
+      closeConfirm();
+      toast({
+        title: `${hired?.worker_name || "Worker"} is hired`,
+        description: "You can now see each other’s phone numbers. Agree a start time with them.",
+        variant: "success",
+      });
       refetch();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Couldn’t hire this worker"),
   });
 
   const declineProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/decline`),
     onSuccess: () => {
-      toast({ title: "Proposal declined" });
+      closeConfirm();
+      toast({ title: "Proposal declined", description: "We’ve let the worker know." });
       refetch();
     },
+    onError: failureToast(toast, "Couldn’t decline this proposal"),
   });
 
   const updateStatus = useMutation({
     mutationFn: (status) => api.put(`/jobs/${id}/status`, { status }),
-    onSuccess: () => {
-      toast({ title: "Status updated", variant: "success" });
+    onSuccess: (_data, status) => {
+      closeConfirm();
+      toast({
+        title: status === "in_progress" ? "Job marked as started" : "Job marked as complete",
+        description: status === "in_progress"
+          ? "The customer has been notified."
+          : "The customer has been notified and can now record the payment.",
+        variant: "success",
+      });
       refetch();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Couldn’t update the job"),
   });
+
+  const refreshPayments = () => {
+    refetch();
+    qc.invalidateQueries({ queryKey: ["earnings"] });
+  };
 
   const recordPayment = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/payment`, payment),
     onSuccess: () => {
       setPayModal(false);
       toast({
-        title: "Payment recorded!",
-        description: "The worker can now confirm receipt.",
+        title: "Payment recorded",
+        description: "We’ve asked the worker to confirm they received it.",
         variant: "success",
       });
-      refetch();
-      qc.invalidateQueries(["earnings"]);
-      qc.invalidateQueries(["assigned-jobs"]);
+      refreshPayments();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Payment not recorded"),
   });
 
   const confirmPayment = useMutation({
     mutationFn: () => api.put(`/payments/${job.payment_id}/confirm`),
     onSuccess: () => {
-      toast({ title: "Payment confirmed!", variant: "success" });
-      refetch();
-      qc.invalidateQueries(["earnings"]);
-      qc.invalidateQueries(["assigned-jobs"]);
+      toast({ title: "Payment confirmed", description: "Thanks — the customer has been notified.", variant: "success" });
+      refreshPayments();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Couldn’t confirm the payment"),
   });
 
   const disputePayment = useMutation({
-    mutationFn: () => api.put(`/payments/${job.payment_id}/dispute`),
+    mutationFn: (reason) => api.put(`/payments/${job.payment_id}/dispute`, { reason }),
     onSuccess: () => {
-      toast({ title: "Payment disputed" });
-      refetch();
-      qc.invalidateQueries(["earnings"]);
-      qc.invalidateQueries(["assigned-jobs"]);
+      closeConfirm();
+      toast({ title: "Payment disputed", description: "We’ve shared your reason with the customer. Try to resolve it with them directly." });
+      refreshPayments();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Couldn’t dispute the payment"),
   });
 
   const setFinalPrice = useMutation({
@@ -170,38 +182,31 @@ export default function JobDetail() {
       api.put(`/jobs/${id}/final-price`, { final_price: agreedPrice }),
     onSuccess: () => {
       setPriceModal(false);
-      toast({ title: "Agreed price saved!", variant: "success" });
+      toast({ title: "Agreed price saved", description: "The worker has been notified.", variant: "success" });
       refetch();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Price not saved"),
   });
 
   const submitReview = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/review`, review),
     onSuccess: () => {
       setReviewModal(false);
-      toast({ title: "Review submitted!", variant: "success" });
+      toast({ title: "Review published", description: "Thanks for helping other customers choose well.", variant: "success" });
       refetch();
     },
-    onError: (e) =>
-      toast({
-        title: "Failed",
-        description: e.response?.data?.error,
-        variant: "error",
-      }),
+    onError: failureToast(toast, "Review not submitted"),
   });
 
   const cancelJob = useMutation({
     mutationFn: () => api.delete(`/jobs/${id}`),
     onSuccess: () => {
-      toast({ title: "Job cancelled" });
+      closeConfirm();
+      qc.invalidateQueries({ queryKey: ["my-jobs"] });
+      toast({ title: "Job cancelled", description: "Workers can no longer send proposals for it." });
       navigate("/jobs");
     },
+    onError: failureToast(toast, "Couldn’t cancel the job"),
   });
 
   if (isLoading)
@@ -212,12 +217,19 @@ export default function JobDetail() {
         </div>
       </AppShell>
     );
-  if (!job)
+  if (!job) {
+    const status = errorStatus(jobError);
+    const copy = status === 403
+      ? { title: "You don’t have access to this job", description: "Only the customer who posted it, the hired worker, and invited workers can view it." }
+      : status === 404
+        ? { title: "This job doesn’t exist", description: "It may have been removed, or the link is wrong." }
+        : { title: "We couldn’t load this job", description: "Check your connection and try again." };
     return (
       <AppShell>
-        <div className="p-6 text-center text-slate-500">Job not found</div>
+        <ErrorFallback {...copy} onRetry={status === 403 || status === 404 ? undefined : () => refetchJob()} />
       </AppShell>
     );
+  }
 
   const canCancel =
     isOwner &&
@@ -385,10 +397,9 @@ export default function JobDetail() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => disputePayment.mutate()}
-                    loading={disputePayment.isPending}
+                    onClick={() => setConfirming({ kind: "dispute" })}
                   >
-                    Dispute Payment
+                    Dispute payment
                   </Button>
                 </>
               )}
@@ -398,16 +409,15 @@ export default function JobDetail() {
                 onClick={() => updateStatus.mutate("in_progress")}
                 loading={updateStatus.isPending}
               >
-                ▶ Mark Started
+                <Play className="w-4 h-4" /> Mark as started
               </Button>
             )}
             {canMarkDone && (
               <Button
                 variant="success"
-                onClick={() => updateStatus.mutate("completed")}
-                loading={updateStatus.isPending}
+                onClick={() => setConfirming({ kind: "complete" })}
               >
-                ✓ Mark Completed
+                <CheckCircle2 className="w-4 h-4" /> Mark as complete
               </Button>
             )}
             {canRecordPayment && (
@@ -432,11 +442,9 @@ export default function JobDetail() {
             {canCancel && (
               <Button
                 variant="danger"
-                onClick={() => {
-                  if (confirm("Cancel this job?")) cancelJob.mutate();
-                }}
+                onClick={() => setConfirming({ kind: "cancel" })}
               >
-                <Trash2 className="w-4 h-4" /> Cancel Job
+                <Trash2 className="w-4 h-4" /> Cancel job
               </Button>
             )}
           </div>
@@ -469,6 +477,23 @@ export default function JobDetail() {
               </p>
             )}
           </Card>
+        )}
+
+        {job.payment_disputed && (isOwner || isAssignedWorker) && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30" role="status">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-900 dark:text-amber-200">
+                {isOwner ? "The worker disputed this payment" : "You disputed this payment"}
+              </p>
+              {job.payment_dispute_reason && (
+                <p className="mt-1 text-amber-800 dark:text-amber-300">Reason: {job.payment_dispute_reason}</p>
+              )}
+              <p className="mt-1 text-amber-800 dark:text-amber-300">
+                Please talk to each other to sort it out. See our <Link to="/safety" className="font-semibold underline underline-offset-2">safety tips on payments</Link>.
+              </p>
+            </div>
+          </div>
         )}
 
         {job.final_price && (
@@ -558,8 +583,8 @@ export default function JobDetail() {
                     key={p.id}
                     proposal={p}
                     isOwner={isOwner}
-                    onAccept={(pid) => acceptProposal.mutate(pid)}
-                    onDecline={(pid) => declineProposal.mutate(pid)}
+                    onAccept={() => setConfirming({ kind: "hire", proposal: p })}
+                    onDecline={() => setConfirming({ kind: "decline", proposal: p })}
                   />
                 ))}
               </div>
@@ -710,6 +735,77 @@ export default function JobDetail() {
           </div>
         </div>
       </Modal>
+
+      {(() => {
+        const proposal = confirming?.proposal;
+        const others = proposals.filter((p) => p.status === "pending" && p.id !== proposal?.id).length;
+        const price = proposal?.proposed_price ? formatCurrency(proposal.proposed_price) : null;
+        return (
+          <>
+            <ConfirmDialog
+              open={confirming?.kind === "hire"}
+              onClose={closeConfirm}
+              onConfirm={() => acceptProposal.mutate(proposal.id)}
+              loading={acceptProposal.isPending}
+              title={`Hire ${proposal?.worker_name || "this worker"}?`}
+              confirmLabel="Hire worker"
+              description={
+                <>
+                  {price ? <>You’re hiring {proposal?.worker_name} for <strong>{price}</strong>. </> : <>{proposal?.worker_name} will confirm a price after inspecting the job. </>}
+                  You’ll both be able to see each other’s phone number.
+                  {others > 0 && <> The other {others} pending {others === 1 ? "proposal" : "proposals"} will be declined automatically.</>}
+                </>
+              }
+            />
+            <ConfirmDialog
+              open={confirming?.kind === "decline"}
+              onClose={closeConfirm}
+              onConfirm={() => declineProposal.mutate(proposal.id)}
+              loading={declineProposal.isPending}
+              title={`Decline ${proposal?.worker_name || "this"}’s proposal?`}
+              description="The worker will be told their proposal wasn’t chosen. You can’t undo this."
+              confirmLabel="Decline proposal"
+              tone="danger"
+            />
+            <ConfirmDialog
+              open={confirming?.kind === "cancel"}
+              onClose={closeConfirm}
+              onConfirm={() => cancelJob.mutate()}
+              loading={cancelJob.isPending}
+              title="Cancel this job?"
+              description={
+                proposals.length > 0
+                  ? `Workers will no longer be able to send proposals, and the ${proposals.length} ${proposals.length === 1 ? "worker who has" : "workers who have"} already applied won’t be able to be hired. You can’t undo this.`
+                  : "Workers will no longer be able to find it or send proposals. You can’t undo this."
+              }
+              confirmLabel="Cancel job"
+              cancelLabel="Keep job"
+              tone="danger"
+            />
+            <ConfirmDialog
+              open={confirming?.kind === "complete"}
+              onClose={closeConfirm}
+              onConfirm={() => updateStatus.mutate("completed")}
+              loading={updateStatus.isPending}
+              title="Mark this job as complete?"
+              description="Only do this when the work is finished. We’ll ask the customer to record the payment and leave a review."
+              confirmLabel="Mark as complete"
+              tone="success"
+            />
+            <ConfirmDialog
+              open={confirming?.kind === "dispute"}
+              onClose={closeConfirm}
+              onConfirm={(reason) => disputePayment.mutate(reason)}
+              loading={disputePayment.isPending}
+              title="Dispute this payment?"
+              description={`The customer recorded ${formatCurrency(job.payment_amount)} by ${String(job.payment_method || "").replace("_", " ")}. Tell them what’s wrong so you can sort it out.`}
+              confirmLabel="Dispute payment"
+              tone="danger"
+              reason={{ label: "What’s the problem?", placeholder: "For example: I received LKR 3,000, not LKR 4,000.", required: true, options: DISPUTE_REASONS }}
+            />
+          </>
+        );
+      })()}
 
       {/* ── Agent Panel slide-in modal ── */}
       {agentOpen && (

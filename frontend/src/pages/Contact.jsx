@@ -6,6 +6,8 @@ import { PublicFooter } from '../components/shared/PublicFooter'
 import { Button, Input, Select, Textarea } from '../components/shared/UI'
 import { useToast } from '../hooks/useToast'
 import api from '../lib/api'
+import { errorMessage } from '../lib/errors'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const contactOptions = [
   { icon: MessageCircle, title: 'Using Fixly', description: 'Need help posting a job, creating a worker profile, or understanding a proposal?', action: 'Explore how it works', to: '/how-it-works' },
@@ -15,6 +17,7 @@ const contactOptions = [
 
 export default function Contact() {
   const { toast } = useToast()
+  usePageTitle('Contact us')
   const [form, setForm] = useState({ name: '', email: '', topic: 'Getting started', message: '', website: '' })
   const [isSending, setIsSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -29,7 +32,7 @@ export default function Contact() {
       setForm({ name: '', email: '', topic: 'Getting started', message: '', website: '' })
       toast({ title: 'Message sent', description: 'The Fixly team will reply to the email you provided.', variant: 'success' })
     } catch (error) {
-      toast({ title: 'Message could not be sent', description: error.response?.data?.error || 'Please try again shortly.', variant: 'error' })
+      toast({ title: 'Message could not be sent', description: errorMessage(error, 'Please try again shortly.'), variant: 'error' })
     } finally {
       setIsSending(false)
     }

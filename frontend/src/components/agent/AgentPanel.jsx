@@ -6,8 +6,9 @@ import {
   AlertCircle, Send, UserCheck
 } from 'lucide-react'
 import { Button, Avatar } from '../shared/UI'
-import { cn } from '../../lib/utils'
+import { cn, formatStartingPrice, pluralize } from '../../lib/utils'
 import api from '../../lib/api'
+import { errorMessage } from '../../lib/errors'
 
 // ─── Score Bar ────────────────────────────────────────────────────────────────
 function ScoreBar({ score }) {
@@ -112,7 +113,7 @@ function WorkerRecCard({ rec, selected, onToggle }) {
               {w.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{w.district}</span>}
               {Number(w.avg_rating) > 0 && <span className="flex items-center gap-1 text-amber-500"><Star className="w-3 h-3 fill-current" />{Number(w.avg_rating).toFixed(1)}</span>}
               {Number(w.total_jobs_done) > 0 && <span>{w.total_jobs_done} jobs done</span>}
-              {w.starting_price && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />From {w.starting_price}</span>}
+              {w.starting_price && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />From {formatStartingPrice(w.starting_price)}</span>}
             </div>
           </div>
 
@@ -214,7 +215,7 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
               {j.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{j.district}</span>}
               {j.urgency && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{URGENCY_LABELS[j.urgency]}</span>}
               {j.fixed_budget && <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium"><DollarSign className="w-3 h-3" />LKR {Number(j.fixed_budget).toLocaleString()}</span>}
-              {j.proposal_count > 0 && <span className="text-slate-400">{j.proposal_count} proposals</span>}
+              {j.proposal_count > 0 && <span className="text-slate-400">{pluralize(j.proposal_count, 'proposal')}</span>}
             </div>
           </div>
 
@@ -356,6 +357,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
       isMatch
         ? api.post('/agent/match/run', { job_id: jobId }).then(r => r.data)
         : api.post('/agent/proposal/run').then(r => r.data),
+    // Errors are shown inside the panel.
+    meta: { silentError: true },
     onSuccess: data => {
       setRunId(data.run_id)
       setSelectedIds(new Set())
@@ -490,7 +493,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
             {runMutation.isError && (
               <div className="mt-4 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 justify-center">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {runMutation.error?.response?.data?.error || 'Something went wrong. Try again.'}
+                {errorMessage(runMutation.error)}
               </div>
             )}
           </div>

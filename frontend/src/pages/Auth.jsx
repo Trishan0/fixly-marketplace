@@ -16,18 +16,24 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { Button, Input, Select } from '../components/shared/UI'
 import { DISTRICTS, cn } from '../lib/utils'
+import { errorMessage } from '../lib/errors'
+import { safeNextPath } from '../lib/redirect'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { ThemeToggleIconButton } from '../components/shared/ThemeToggle'
 import { BrandLogo } from '../components/shared/BrandLogo'
 
 const CATEGORIES = ['Plumbing', 'Electrical', 'Carpentry', 'Cleaning', 'Painting', 'Tiling', 'Welding', 'AC Repair', 'Landscaping', 'General Labour']
-const ENABLE_DEMO_ACCOUNTS = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true'
-const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || 'password123'
-const DEMO_ADMIN_PASSWORD = import.meta.env.VITE_DEMO_ADMIN_PASSWORD || 'admin123'
+// Demo sign-in shortcuts. Local dev builds fall back to the seed passwords;
+// any other build only shows them when both the flag and the passwords are
+// provided explicitly, so no credentials are baked into a production bundle.
+const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || (import.meta.env.DEV ? 'password123' : '')
+const DEMO_ADMIN_PASSWORD = import.meta.env.VITE_DEMO_ADMIN_PASSWORD || (import.meta.env.DEV ? 'admin123' : '')
+const ENABLE_DEMO_ACCOUNTS = (import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === 'true') && Boolean(DEMO_PASSWORD)
 
 const DEMO_ACCOUNTS = [
   { label: 'Customer', email: 'customer@demo.lk', password: DEMO_PASSWORD },
   { label: 'Worker', email: 'worker@demo.lk', password: DEMO_PASSWORD },
-  { label: 'Admin', email: 'admin@fixly.lk', password: DEMO_ADMIN_PASSWORD },
+  ...(DEMO_ADMIN_PASSWORD ? [{ label: 'Admin', email: 'admin@fixly.lk', password: DEMO_ADMIN_PASSWORD }] : []),
 ]
 
 function PasswordField({ value, onChange, show, onToggle, register = false, error }) {
@@ -115,12 +121,16 @@ export default function Auth() {
   const [fieldErrors, setFieldErrors] = useState({})
   const { login, register, user } = useAuth()
   const navigate = useNavigate()
+  const nextPath = safeNextPath(params.get('next'))
+  const destination = nextPath || '/dashboard'
+  usePageTitle(tab === 'login' ? 'Sign in' : 'Create account')
 
-  useEffect(() => { if (user) navigate('/dashboard') }, [user, navigate])
+  useEffect(() => { if (user) navigate(destination, { replace: true }) }, [user, navigate, destination])
 
   const [form, setForm] = useState({
     full_name: '', email: '', password: '', phone: '', district: '', primary_skill: '', dashboard_mode: 'standard',
   })
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const set = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.value }))
@@ -135,12 +145,13 @@ export default function Auth() {
     const next = new URLSearchParams()
     if (nextTab === 'register') next.set('tab', 'register')
     if (nextTab === 'register' && role === 'worker') next.set('role', 'worker')
+    if (nextPath) next.set('next', nextPath)
     setParams(next, { replace: true })
   }
 
   const changeRole = (nextRole) => {
     setRole(nextRole)
-    setParams({ tab: 'register', ...(nextRole === 'worker' ? { role: 'worker' } : {}) }, { replace: true })
+    setParams({ tab: 'register', ...(nextRole === 'worker' ? { role: 'worker' } : {}), ...(nextPath ? { next: nextPath } : {}) }, { replace: true })
   }
 
   const validateAccountDetails = () => {
@@ -160,9 +171,11 @@ export default function Auth() {
     setLoading(true)
     try {
       await login(form.email, form.password)
-      navigate('/dashboard')
+      navigate(destination, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.error || 'We could not sign you in. Check your details and try again.')
+      setError(err.response?.status === 401
+        ? 'That email and password don’t match an account. Check them and try again.'
+        : errorMessage(err, 'We could not sign you in. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -176,12 +189,17 @@ export default function Auth() {
       return
     }
 
+    if (!acceptedTerms) {
+      setFieldErrors(current => ({ ...current, accept_terms: 'Please accept the Terms of Service and Privacy Policy to continue.' }))
+      return
+    }
+
     setLoading(true)
     try {
-      await register({ ...form, role })
-      navigate('/dashboard')
+      await register({ ...form, role, accept_terms: true })
+      navigate(destination, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.error || 'We could not create your account. Please try again.')
+      setError(errorMessage(err, 'We could not create your account. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -348,13 +366,34 @@ export default function Auth() {
                       </>
                     )}
 
+                    <div className="space-y-1.5">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-3 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={acceptedTerms}
+                          onChange={(event) => {
+                            setAcceptedTerms(event.target.checked)
+                            setFieldErrors(current => ({ ...current, accept_terms: '' }))
+                          }}
+                          className="mt-1 h-4 w-4 shrink-0 rounded"
+                          aria-invalid={Boolean(fieldErrors.accept_terms)}
+                          aria-describedby={fieldErrors.accept_terms ? 'accept-terms-error' : undefined}
+                        />
+                        <span>
+                          I agree to the{' '}
+                          <Link to="/terms" target="_blank" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">Terms of Service</Link>
+                          {' '}and{' '}
+                          <Link to="/privacy" target="_blank" className="font-semibold text-sky-700 underline underline-offset-2 dark:text-sky-300">Privacy Policy</Link>.
+                        </span>
+                      </label>
+                      {fieldErrors.accept_terms && <p id="accept-terms-error" role="alert" className="text-xs text-red-600">{fieldErrors.accept_terms}</p>}
+                    </div>
                     <div className="grid grid-cols-[auto_1fr] gap-3">
                       <Button type="button" variant="secondary" size="lg" onClick={() => setRegisterStep(0)} aria-label="Back to account details">
                         <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back</span>
                       </Button>
                       <Button type="submit" variant="primary" size="lg" loading={loading}><Check className="h-4 w-4" /> Create account</Button>
                     </div>
-                    <p className="text-center text-xs leading-5 text-slate-400">By creating an account, you agree to use Fixly responsibly and keep your information accurate.</p>
                   </>
                 )}
               </form>

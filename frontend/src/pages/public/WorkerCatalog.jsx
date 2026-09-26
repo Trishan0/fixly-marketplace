@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
 import { WorkerCard } from '../../components/shared/Cards'
 import { Button, Spinner, EmptyState } from '../../components/shared/UI'
@@ -9,10 +9,16 @@ import api from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { PublicNavbar } from '../../components/shared/PublicNavbar'
 import { PublicFooter } from '../../components/shared/PublicFooter'
+import { LoadMore } from '../../components/shared/LoadMore'
+import { ErrorFallback } from '../../components/shared/ErrorBoundary'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { usePageTitle } from '../../hooks/usePageTitle'
+
+const PAGE_SIZE = 24
 
 const CATEGORIES = ['All','Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
-export default function WorkerCatalog({ embedded, jobId, onInvite }) {
+export default function WorkerCatalog({ embedded, onInvite }) {
   const { user } = useAuth()
   const [params] = useSearchParams()
   const [search, setSearch] = useState('')
@@ -20,14 +26,26 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
   const [district, setDistrict] = useState('')
   const [verified, setVerified] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const debouncedSearch = useDebouncedValue(search.trim())
+  usePageTitle(embedded ? null : 'Browse workers')
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['workers', { category, district, verified, search }],
-    queryFn: () => api.get('/workers', { params: { category, district, verified: verified || undefined, search } }).then(r => r.data),
+  const {
+    data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['workers', { category, district, verified, search: debouncedSearch }],
+    queryFn: ({ pageParam }) => api.get('/workers', {
+      params: { category: category || undefined, district: district || undefined, verified: verified || undefined, search: debouncedSearch || undefined, page: pageParam, limit: PAGE_SIZE },
+    }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((count, page) => count + page.workers.length, 0)
+      return loaded < lastPage.total ? pages.length + 1 : undefined
+    },
     staleTime: 60000,
   })
 
-  const workers = data?.workers || []
+  const workers = data?.pages.flatMap(page => page.workers) || []
+  const total = data?.pages[0]?.total
 
   const content = (
     <div className="space-y-6">
@@ -79,20 +97,30 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
+      ) : isError ? (
+        <ErrorFallback title="We couldn’t load workers" description="Check your connection and try again." onRetry={() => refetch()} />
       ) : workers.length === 0 ? (
-        <EmptyState icon={Wrench} title="No workers found" description="Try adjusting your search or filters" />
+        <EmptyState icon={Wrench} title="No workers found" description="Try a different skill, district or search term." />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {workers.map((w) => (
-            <div key={w.id}>
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {workers.map((w) => (
               <WorkerCard
+                key={w.id}
                 worker={w}
                 onInvite={user && onInvite ? () => onInvite(w) : undefined}
-                jobId={jobId}
               />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <LoadMore
+            shown={workers.length}
+            total={total}
+            noun={total === 1 ? 'worker' : 'workers'}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            onLoadMore={() => fetchNextPage()}
+          />
+        </>
       )}
     </div>
   )
@@ -106,7 +134,9 @@ export default function WorkerCatalog({ embedded, jobId, onInvite }) {
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-600 dark:text-sky-300">Local professionals</p>
           <h1 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">Find the right worker</h1>
-          <p className="mt-1 text-sm leading-6 text-slate-500">Browse {data?.total || 0} skilled professionals across Sri Lanka</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            {typeof total === 'number' ? `${total.toLocaleString('en-LK')} skilled ${total === 1 ? 'professional' : 'professionals'} across Sri Lanka` : 'Skilled professionals across Sri Lanka'}
+          </p>
         </div>
         {content}
       </div>

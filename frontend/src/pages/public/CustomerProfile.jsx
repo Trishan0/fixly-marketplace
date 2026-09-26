@@ -13,8 +13,9 @@ import {
   ProfileStatPanel,
   PublicPageChrome,
 } from '../../components/shared/ProfileLayout'
-import { formatDate, formatRelativeTime } from '../../lib/utils'
+import { formatDate, formatRelativeTime, pluralize } from '../../lib/utils'
 import api from '../../lib/api'
+import { usePageTitle } from '../../hooks/usePageTitle'
 import { AppShell } from '../../components/layout/AppShell'
 import { PublicFooter } from '../../components/shared/PublicFooter'
 import { useAuth } from '../../context/AuthContext'
@@ -28,6 +29,7 @@ export default function CustomerProfile() {
     queryKey: ['customer', id],
     queryFn: () => api.get(`/customers/${id}`).then(r => r.data),
   })
+  usePageTitle(customer?.full_name || 'Customer profile')
 
   if (isLoading) {
     return (
@@ -178,7 +180,7 @@ function CustomerProfileBody({ customer, recentJobs, completionRate }) {
                       <p className="mt-3 text-lg font-semibold text-slate-900">{job.title}</p>
                       <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-500">
                         <span className="inline-flex items-center gap-1">
-                          <Briefcase className="h-4 w-4 text-slate-400" /> {job.proposal_count || 0} proposal{job.proposal_count === 1 ? '' : 's'}
+                          <Briefcase className="h-4 w-4 text-slate-400" /> {pluralize(job.proposal_count, 'proposal')}
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Clock className="h-4 w-4 text-slate-400" /> {formatRelativeTime(job.created_at)}
