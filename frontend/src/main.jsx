@@ -5,12 +5,19 @@ import App from './App'
 import { ThemeProvider } from './context/ThemeContext'
 import { emitToast } from './lib/toastBus'
 import { errorMessage, errorStatus } from './lib/errors'
+import { initMonitoring, track } from './lib/monitoring'
 import './index.css'
 
 const queryClient = new QueryClient({
   // Any mutation without its own onError still tells the user it failed.
   // A mutation can opt out with `meta: { silentError: true }`.
   mutationCache: new MutationCache({
+    // Funnel analytics: a mutation opts in with meta.track (event name) and
+    // optionally meta.trackProps(variables, data) for non-personal details.
+    onSuccess: (data, variables, _context, mutation) => {
+      const event = mutation.meta?.track
+      if (event) track(event, mutation.meta.trackProps?.(variables, data) || {})
+    },
     onError: (error, _variables, _context, mutation) => {
       if (mutation.options.onError || mutation.meta?.silentError) return
       if (errorStatus(error) === 401) return
@@ -28,6 +35,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+initMonitoring()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

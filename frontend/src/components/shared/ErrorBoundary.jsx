@@ -1,5 +1,6 @@
 import React from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { captureError } from '../../lib/monitoring'
 
 // Catches render errors so one broken screen doesn't blank the whole app.
 // `resetKey` (the current path) clears the error when the user navigates.
@@ -15,6 +16,7 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('Unhandled UI error', error, info?.componentStack)
+    captureError(error, { componentStack: info?.componentStack })
   }
 
   componentDidUpdate(previousProps) {

@@ -20,6 +20,7 @@ export function EmailVerificationNotice({ variant = 'banner', blockedAction = 'p
 
   const resend = useMutation({
     mutationFn: () => api.post('/auth/resend-verification'),
+    meta: { track: 'verification_email_resent' },
     onSuccess: () => {
       setSentTo(user?.email)
       toast({ title: 'Verification email sent', description: `Check ${user?.email}, including your spam folder.`, variant: 'success' })

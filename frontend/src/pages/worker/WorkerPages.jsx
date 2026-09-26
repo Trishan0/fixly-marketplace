@@ -211,6 +211,7 @@ export function Invites() {
 
   const respond = useMutation({
     mutationFn: ({ id, action }) => api.put(`/invites/${id}/${action}`),
+    meta: { track: 'invite_responded', trackProps: ({ action }) => ({ action }) },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['invites'] })
       qc.invalidateQueries({ queryKey: ['job-feed'] })

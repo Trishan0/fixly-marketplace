@@ -7,6 +7,7 @@ import { ProtectedRoute, RoleRoute, GuestRoute } from './router/guards'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { PageLoader } from './components/shared/PageLoader'
 import { usePageTitle } from './hooks/usePageTitle'
+import { trackPageview } from './lib/monitoring'
 
 // Each area loads on demand so visitors to the landing page don't download
 // the admin console, the worker tools, or the AI agent panel.
@@ -93,6 +94,16 @@ function ScrollToTop() {
   return null
 }
 
+// Page views without record IDs, so analytics never stores which job or
+// person someone looked at.
+function PageviewTracker() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    trackPageview(pathname.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id').replace(/\/(reset-password|verify-email)\/[^/]+/, '/$1/:token'))
+  }, [pathname])
+  return null
+}
+
 function AppRoutes() {
   const location = useLocation()
   return (
@@ -152,6 +163,7 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <ScrollToTop />
+          <PageviewTracker />
           <AppRoutes />
         </ToastProvider>
       </AuthProvider>

@@ -62,6 +62,7 @@ export default function Proposals() {
 
   const withdraw = useMutation({
     mutationFn: (proposal) => api.put(`/proposals/${proposal.id}/withdraw`),
+    meta: { track: 'proposal_withdrawn' },
     onSuccess: (_data, proposal) => {
       setWithdrawing(null)
       toast({ title: 'Proposal withdrawn', description: `We’ve told the customer you’re no longer available for “${proposal.job_title}”.` })

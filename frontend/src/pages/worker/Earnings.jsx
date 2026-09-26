@@ -39,6 +39,7 @@ export default function Earnings() {
 
   const confirm = useMutation({
     mutationFn: (payment) => api.put(`/payments/${payment.id}/confirm`),
+    meta: { track: 'payment_confirmed' },
     onSuccess: (_data, payment) => {
       toast({ title: 'Payment confirmed', description: `${formatCurrency(payment.amount)} for “${payment.job_title}”.`, variant: 'success' })
       refresh(payment)
@@ -48,6 +49,7 @@ export default function Earnings() {
 
   const dispute = useMutation({
     mutationFn: ({ payment, reason }) => api.put(`/payments/${payment.id}/dispute`, { reason }),
+    meta: { track: 'payment_disputed' },
     onSuccess: (_data, { payment }) => {
       setDisputing(null)
       toast({ title: 'Payment disputed', description: 'We’ve shared your reason with the customer. Try to resolve it with them directly.' })

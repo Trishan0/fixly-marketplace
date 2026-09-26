@@ -76,6 +76,7 @@ function ProposalForm({ job, existing }) {
     mutationFn: (payload) => (editing
       ? api.put(`/proposals/${existing.id}`, payload)
       : api.post(`/jobs/${job.id}/proposals`, payload)),
+    meta: { track: editing ? (firstQuote ? 'quote_sent_after_invite' : 'proposal_updated') : 'proposal_sent', trackProps: (payload) => ({ inspection_needed: payload.inspection_needed }) },
     onSuccess: () => {
       toast({
         title: firstQuote ? 'Quote sent' : editing ? 'Proposal updated' : 'Proposal sent',

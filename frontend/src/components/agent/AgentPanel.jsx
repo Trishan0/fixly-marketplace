@@ -358,7 +358,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         ? api.post('/agent/match/run', { job_id: jobId }).then(r => r.data)
         : api.post('/agent/proposal/run').then(r => r.data),
     // Errors are shown inside the panel.
-    meta: { silentError: true },
+    meta: { silentError: true, track: 'ai_run_started', trackProps: () => ({ mode }) },
     onSuccess: data => {
       setRunId(data.run_id)
       setSelectedIds(new Set())
@@ -399,6 +399,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         }).then(r => r.data)
       }
     },
+    meta: { track: 'ai_recommendations_confirmed', trackProps: () => ({ mode, selected: selectedIds.size }) },
     onSuccess: data => {
       setConfirmDone(data)
       qc.invalidateQueries({ queryKey: ['job-feed'] })

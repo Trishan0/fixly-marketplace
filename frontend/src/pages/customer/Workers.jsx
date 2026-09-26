@@ -28,6 +28,7 @@ export default function WorkersPage() {
 
   const sendInvite = useMutation({
     mutationFn: () => api.post(`/jobs/${jobId}/invites`, { worker_id: inviteWorker.id, message }),
+    meta: { track: 'invite_sent', trackProps: () => ({ from: 'worker_list' }) },
     onSuccess: () => {
       setInviteWorker(null)
       setJobId('')

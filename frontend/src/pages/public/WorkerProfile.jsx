@@ -57,6 +57,7 @@ export default function WorkerProfile() {
 
   const sendInvite = useMutation({
     mutationFn: () => api.post(`/jobs/${jobId}/invites`, { worker_id: id, message }),
+    meta: { track: 'invite_sent', trackProps: () => ({ from: 'worker_profile' }) },
     onSuccess: () => {
       setInviteModal(false)
       setJobId('')

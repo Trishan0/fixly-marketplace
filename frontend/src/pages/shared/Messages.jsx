@@ -127,6 +127,7 @@ function Thread({ jobId, workerId }) {
 
   const send = useMutation({
     mutationFn: (body) => api.post(`/messages/${jobId}/${workerId}`, { body }),
+    meta: { track: 'message_sent', trackProps: () => ({ role: user.role }) },
     onSuccess: () => {
       setDraft('')
       qc.invalidateQueries({ queryKey: ['thread', jobId, workerId] })

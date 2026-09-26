@@ -35,6 +35,7 @@ function ReportForm({ jobId, reportedUserId, subject, onDone, onCancel }) {
       report_type: type,
       description: description.trim(),
     }),
+    meta: { track: 'report_submitted', trackProps: () => ({ type, about: reportedUserId ? 'user' : 'job' }) },
     onSuccess: () => {
       toast({ title: 'Report sent', description: 'Thanks for telling us. Our team reviews every report and will follow up by notification.', variant: 'success' })
       onDone()

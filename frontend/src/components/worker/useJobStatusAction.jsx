@@ -18,6 +18,7 @@ export function useJobStatusAction() {
 
   const mutation = useMutation({
     mutationFn: ({ job, status }) => api.put(`/jobs/${job.id}/status`, { status }),
+    meta: { track: 'job_status_changed', trackProps: ({ status }) => ({ status, by: 'worker' }) },
     onSuccess: (_data, { job, status }) => {
       setConfirmJob(null)
       toast({

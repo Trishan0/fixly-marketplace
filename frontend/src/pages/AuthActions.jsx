@@ -7,6 +7,7 @@ import { Button, Input, Card, Spinner } from '../components/shared/UI'
 import { BrandLogo } from '../components/shared/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { track } from '../lib/monitoring'
 
 const PASSWORD_RULE = 'Use at least 8 characters with a letter and a number.'
 
@@ -173,6 +174,7 @@ export function VerifyEmailPage() {
       .then(() => {
         if (!mounted) return
         setStatus('success')
+        track('email_verified')
         refreshUser().catch(() => {})
       })
       .catch((err) => {

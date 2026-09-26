@@ -5,7 +5,7 @@ import { PublicNavbar } from '../../components/shared/PublicNavbar'
 import { PublicFooter } from '../../components/shared/PublicFooter'
 import { usePageTitle } from '../../hooks/usePageTitle'
 
-const LAST_UPDATED = '25 September 2026'
+const LAST_UPDATED = '26 September 2026'
 
 function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
   usePageTitle(title)
@@ -195,7 +195,8 @@ export function PrivacyPage() {
               'Identity documents: if a worker chooses to verify their identity, a photo of their National Identity Card (NIC).',
               'Marketplace activity: jobs, job photos and addresses, proposals, invitations, agreed prices, recorded payments, reviews, reports and notifications.',
               'Messages you send us through the Contact form.',
-              'Technical data: your browser stores your sign-in token and display preferences (such as dark mode) on your device. Our servers keep basic request logs for security.',
+              'Technical data: your browser stores your sign-in token, display preferences (such as dark mode) and any job draft on your device. Our servers keep basic request logs for security.',
+              'Usage and error data: which pages and features are used (for example “job posted” or “proposal sent”) and technical details when something breaks. These are linked to your account ID and role only — not your name, email or phone number — and the pages recorded never include which job or person you viewed.',
             ]} />
           ),
         },
@@ -238,7 +239,7 @@ export function PrivacyPage() {
           id: 'processors',
           title: 'Service providers',
           body: (
-            <p>We use trusted providers to host the app and database, store uploaded files, send email, and provide AI features. They process data only on our instructions. Some providers may store data outside Sri Lanka; where they do, we rely on safeguards permitted by law.</p>
+            <p>We use trusted providers to host the app and database, store uploaded files, send email, provide AI features, measure how the product is used (PostHog), and report errors (Sentry). They process data only on our instructions. Some providers may store data outside Sri Lanka; where they do, we rely on safeguards permitted by law. Usage measurement respects your browser’s “Do Not Track” setting.</p>
           ),
         },
         {

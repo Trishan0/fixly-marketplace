@@ -187,6 +187,7 @@ export default function JobDetail() {
 
   const acceptProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/accept`),
+    meta: { track: "worker_hired" },
     onSuccess: (_data, pid) => {
       const hired = proposals.find((p) => p.id === pid);
       closeConfirm();
@@ -198,6 +199,7 @@ export default function JobDetail() {
 
   const declineProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/decline`),
+    meta: { track: "proposal_declined" },
     onSuccess: () => {
       closeConfirm();
       toast({ title: "Proposal declined", description: "We’ve let the worker know." });
@@ -208,6 +210,7 @@ export default function JobDetail() {
 
   const withdrawProposal = useMutation({
     mutationFn: (pid) => api.put(`/proposals/${pid}/withdraw`),
+    meta: { track: "proposal_withdrawn" },
     onSuccess: () => {
       closeConfirm();
       toast({ title: "Proposal withdrawn", description: "We’ve told the customer you’re no longer available." });
@@ -219,6 +222,7 @@ export default function JobDetail() {
 
   const updateStatus = useMutation({
     mutationFn: (status) => api.put(`/jobs/${id}/status`, { status }),
+    meta: { track: "job_status_changed", trackProps: (status) => ({ status, by: "worker" }) },
     onSuccess: (_data, status) => {
       closeConfirm();
       toast({
@@ -238,6 +242,7 @@ export default function JobDetail() {
 
   const recordPayment = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/payment`, payment),
+    meta: { track: "payment_recorded", trackProps: () => ({ method: payment.method }) },
     onSuccess: () => {
       setPayModal(false);
       toast({ title: "Payment recorded", description: "We’ve asked the worker to confirm they received it.", variant: "success" });
@@ -248,6 +253,7 @@ export default function JobDetail() {
 
   const confirmPayment = useMutation({
     mutationFn: () => api.put(`/payments/${job.payment_id}/confirm`),
+    meta: { track: "payment_confirmed" },
     onSuccess: () => {
       toast({ title: "Payment confirmed", description: "Thanks — the customer has been notified.", variant: "success" });
       refreshPayments();
@@ -257,6 +263,7 @@ export default function JobDetail() {
 
   const disputePayment = useMutation({
     mutationFn: (reason) => api.put(`/payments/${job.payment_id}/dispute`, { reason }),
+    meta: { track: "payment_disputed" },
     onSuccess: () => {
       closeConfirm();
       toast({ title: "Payment disputed", description: "We’ve shared your reason with the customer. Try to resolve it with them directly." });
@@ -267,6 +274,7 @@ export default function JobDetail() {
 
   const setFinalPrice = useMutation({
     mutationFn: () => api.put(`/jobs/${id}/final-price`, { final_price: agreedPrice }),
+    meta: { track: "agreed_price_set" },
     onSuccess: () => {
       setPriceModal(false);
       toast({ title: "Agreed price saved", description: "The worker has been notified.", variant: "success" });
@@ -277,6 +285,7 @@ export default function JobDetail() {
 
   const submitReview = useMutation({
     mutationFn: () => api.post(`/jobs/${id}/review`, review),
+    meta: { track: "review_submitted", trackProps: () => ({ rating: review.rating }) },
     onSuccess: () => {
       setReviewModal(false);
       toast({ title: "Review published", description: "Thanks for helping other customers choose well.", variant: "success" });
@@ -287,6 +296,7 @@ export default function JobDetail() {
 
   const cancelJob = useMutation({
     mutationFn: () => api.delete(`/jobs/${id}`),
+    meta: { track: "job_cancelled", trackProps: () => ({ proposals: proposals.length }) },
     onSuccess: () => {
       closeConfirm();
       qc.invalidateQueries({ queryKey: ["my-jobs"] });

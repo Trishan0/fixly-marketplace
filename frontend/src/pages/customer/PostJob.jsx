@@ -204,6 +204,7 @@ function PostJobForm({ user }) {
       }
       return result;
     },
+    meta: { track: "job_posted", trackProps: (_vars, data) => ({ category: category?.name, pricing_mode: form.pricing_mode, urgency: form.urgency, photos: photos.length, invited: Boolean(data?.invited) }) },
     onSuccess: (data) => {
       clearDraft();
       qc.invalidateQueries({ queryKey: ["my-jobs"] });
