@@ -234,13 +234,20 @@ function listCategories(limit = 500) {
   return rows(sql`SELECT * FROM categories WHERE is_active = true ORDER BY name LIMIT ${limit}`);
 }
 
-function listJobFeed(workerId, { category, district, page, limit }) {
+function listJobFeed(workerId, { category, district, search, proposal, page, limit }) {
   const conditions = [
     sql`j.status IN ('posted', 'proposals_received')`,
     sql`j.is_active = true`,
   ];
   if (category) conditions.push(sql`c.name ILIKE ${`%${category}%`}`);
   if (district) conditions.push(sql`j.district ILIKE ${`%${district}%`}`);
+  if (search) conditions.push(sql`(j.title ILIKE ${`%${search}%`} OR j.description ILIKE ${`%${search}%`})`);
+  if (proposal === 'open') {
+    conditions.push(sql`NOT EXISTS(SELECT 1 FROM proposals fp WHERE fp.job_id = j.id AND fp.worker_id = ${workerId})`);
+  } else if (proposal === 'sent' || proposal === 'declined') {
+    const status = proposal === 'sent' ? 'pending' : 'declined';
+    conditions.push(sql`EXISTS(SELECT 1 FROM proposals fp WHERE fp.job_id = j.id AND fp.worker_id = ${workerId} AND fp.status = ${status})`);
+  }
   const offset = (page - 1) * limit;
 
   return rows(sql`
@@ -260,8 +267,21 @@ function listJobFeed(workerId, { category, district, page, limit }) {
   `);
 }
 
-function listCustomerJobs(customerId, { status, page, limit }) {
-  const statusCondition = status ? sql`AND j.status = ${status}` : sql``;
+const CUSTOMER_JOB_GROUPS = {
+  active: ['posted', 'proposals_received', 'assigned', 'in_progress'],
+  completed: ['completed', 'payment_recorded', 'reviewed'],
+  cancelled: ['cancelled'],
+};
+
+function customerJobStatusCondition({ status, group }) {
+  if (status) return sql`AND j.status = ${status}`;
+  const statuses = CUSTOMER_JOB_GROUPS[group];
+  if (!statuses) return sql``;
+  return sql`AND j.status IN (${sql.join(statuses.map(value => sql`${value}`), sql`, `)})`;
+}
+
+function listCustomerJobs(customerId, { status, group, page, limit }) {
+  const statusCondition = customerJobStatusCondition({ status, group });
   const offset = (page - 1) * limit;
   return rows(sql`
     SELECT j.*, c.name AS category_name, c.icon AS category_icon,
@@ -273,6 +293,24 @@ function listCustomerJobs(customerId, { status, page, limit }) {
     WHERE j.customer_id = ${customerId} ${statusCondition}
     ORDER BY j.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
+  `);
+}
+
+function customerJobSummary(customerId) {
+  return one(sql`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE j.status IN ('posted', 'proposals_received', 'assigned', 'in_progress'))::int AS active,
+      COUNT(*) FILTER (WHERE j.status IN ('completed', 'payment_recorded', 'reviewed'))::int AS completed,
+      COUNT(*) FILTER (WHERE j.status = 'cancelled')::int AS cancelled,
+      COUNT(*) FILTER (
+        WHERE j.status = 'proposals_received'
+          AND EXISTS(SELECT 1 FROM proposals p WHERE p.job_id = j.id AND p.status = 'pending')
+      )::int AS awaiting_review,
+      COALESCE(SUM(pay.amount) FILTER (WHERE pay.id IS NOT NULL), 0)::text AS total_spent
+    FROM jobs j
+    LEFT JOIN payments pay ON pay.job_id = j.id
+    WHERE j.customer_id = ${customerId}
   `);
 }
 
@@ -294,7 +332,8 @@ function findJobDetail(jobId) {
            u.full_name AS customer_name, u.phone AS customer_phone, u.profile_photo AS customer_photo,
            aw.full_name AS assigned_worker_name, aw.phone AS assigned_worker_phone, aw.profile_photo AS assigned_worker_photo,
            p.id AS payment_id, p.amount AS payment_amount, p.method AS payment_method,
-           p.worker_confirmed AS payment_worker_confirmed, p.disputed AS payment_disputed
+           p.worker_confirmed AS payment_worker_confirmed, p.disputed AS payment_disputed,
+           p.dispute_reason AS payment_dispute_reason
     FROM jobs j
     LEFT JOIN categories c ON c.id = j.category_id
     LEFT JOIN users u ON u.id = j.customer_id
@@ -387,8 +426,14 @@ function findPaymentForUpdate(paymentId, client) {
   `, client);
 }
 
-function updatePaymentStatus(paymentId, status, client) {
-  return one(sql`UPDATE payments SET status = ${status} WHERE id = ${paymentId} RETURNING *`, client);
+function updatePaymentStatus(paymentId, status, client, { disputeReason = null } = {}) {
+  return one(sql`
+    UPDATE payments
+    SET status = ${status},
+        dispute_reason = CASE WHEN ${status} = 'disputed' THEN ${disputeReason} ELSE dispute_reason END
+    WHERE id = ${paymentId}
+    RETURNING *
+  `, client);
 }
 
 function insertReview(input, client) {
@@ -464,6 +509,7 @@ module.exports = instrumentRepository('marketplace', {
   listAssignedJobs,
   listAgentOpenJobs,
   listAgentOpenJobsForWorker,
+  customerJobSummary,
   listCustomerJobs,
   listJobFeed,
   listCategories,

@@ -156,6 +156,7 @@ export const payments = pgTable("payments", {
 	disputed: boolean().default(false),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	status: varchar({ length: 20 }).default('recorded').notNull(),
+	disputeReason: text("dispute_reason"),
 }, (table) => [
 	foreignKey({
 			columns: [table.recordedBy],
@@ -466,6 +467,8 @@ export const users = pgTable("users", {
 	emailVerifyExpiresAt: timestamp("email_verify_expires_at", { withTimezone: true, mode: 'date' }),
 	passwordResetTokenHash: varchar("password_reset_token_hash", { length: 255 }),
 	passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true, mode: 'date' }),
+	nicRejectionReason: text("nic_rejection_reason"),
+	termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true, mode: 'date' }),
 }, (table) => [
 	index("idx_users_email_verify_token_hash").using("btree", table.emailVerifyTokenHash.asc().nullsLast().op("text_ops")),
 	index("idx_users_password_reset_token_hash").using("btree", table.passwordResetTokenHash.asc().nullsLast().op("text_ops")),

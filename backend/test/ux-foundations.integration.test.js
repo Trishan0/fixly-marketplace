@@ -1,0 +1,206 @@
+'use strict';
+
+const request = require('supertest');
+const app = require('../src/app');
+const appPool = require('../src/db');
+const {
+  createTestPool,
+  migrateTestDatabase,
+  resetTestDatabase,
+} = require('./support/database');
+const {
+  authorizationFor,
+  createJob,
+  createProposal,
+  createUser,
+} = require('./support/marketplace');
+
+let testPool;
+
+beforeAll(async () => {
+  await migrateTestDatabase();
+  testPool = createTestPool();
+});
+
+beforeEach(async () => {
+  await resetTestDatabase(testPool);
+});
+
+afterAll(async () => {
+  if (testPool) await testPool.end();
+  await appPool.end();
+});
+
+async function recordedPayment({ customer, worker }) {
+  const job = await createJob(testPool, { customerId: customer.id });
+  await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'payment_recorded' WHERE id = $2", [worker.id, job.id]);
+  const payment = await testPool.query(
+    'INSERT INTO payments (job_id, amount, method, recorded_by) VALUES ($1, $2, $3, $4) RETURNING id',
+    [job.id, '4000.00', 'cash', customer.id]
+  );
+  return { job, paymentId: payment.rows[0].id };
+}
+
+describe('customer job listing and summary', () => {
+  test('filters by status group, pages, and summarises across every job', async () => {
+    const customer = await createUser(testPool, { email: 'summary-customer@fixly-test.local', fullName: 'Summary Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'summary-worker@fixly-test.local', fullName: 'Summary Worker', role: 'worker' });
+    for (let i = 0; i < 6; i += 1) await createJob(testPool, { customerId: customer.id, title: `Active job ${i}` });
+    const reviewJob = await createJob(testPool, { customerId: customer.id, title: 'Needs review', status: 'proposals_received' });
+    await createProposal(testPool, { jobId: reviewJob.id, workerId: worker.id });
+    await createJob(testPool, { customerId: customer.id, title: 'Cancelled job', status: 'cancelled' });
+    const { job: paidJob } = await recordedPayment({ customer, worker });
+    const auth = authorizationFor(customer);
+
+    const summary = await request(app).get('/api/jobs/my/summary').set('Authorization', auth).expect(200);
+    expect(summary.body).toMatchObject({ total: 9, active: 7, completed: 1, cancelled: 1, awaiting_review: 1 });
+    expect(Number(summary.body.total_spent)).toBe(4000);
+
+    const cancelled = await request(app).get('/api/jobs/my?group=cancelled').set('Authorization', auth).expect(200);
+    expect(cancelled.body.map(job => job.title)).toEqual(['Cancelled job']);
+
+    const completed = await request(app).get('/api/jobs/my?group=completed').set('Authorization', auth).expect(200);
+    expect(completed.body.map(job => job.id)).toEqual([paidJob.id]);
+
+    const firstPage = await request(app).get('/api/jobs/my?group=active&limit=5&page=1').set('Authorization', auth).expect(200);
+    const secondPage = await request(app).get('/api/jobs/my?group=active&limit=5&page=2').set('Authorization', auth).expect(200);
+    expect(firstPage.body).toHaveLength(5);
+    expect(secondPage.body).toHaveLength(2);
+  });
+});
+
+describe('worker job feed filters', () => {
+  test('splits jobs by this worker\'s proposal state and searches titles', async () => {
+    const customer = await createUser(testPool, { email: 'feed-customer@fixly-test.local', fullName: 'Feed Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'feed-worker@fixly-test.local', fullName: 'Feed Worker', role: 'worker' });
+    const openJob = await createJob(testPool, { customerId: customer.id, title: 'Fix garden tap' });
+    const sentJob = await createJob(testPool, { customerId: customer.id, title: 'Replace ceiling fan' });
+    const declinedJob = await createJob(testPool, { customerId: customer.id, title: 'Paint front wall' });
+    await createProposal(testPool, { jobId: sentJob.id, workerId: worker.id });
+    const declined = await createProposal(testPool, { jobId: declinedJob.id, workerId: worker.id });
+    await testPool.query("UPDATE proposals SET status = 'declined' WHERE id = $1", [declined.id]);
+    const auth = authorizationFor(worker);
+
+    const open = await request(app).get('/api/jobs/feed?proposal=open').set('Authorization', auth).expect(200);
+    expect(open.body.map(job => job.id)).toEqual([openJob.id]);
+    const sent = await request(app).get('/api/jobs/feed?proposal=sent').set('Authorization', auth).expect(200);
+    expect(sent.body.map(job => job.id)).toEqual([sentJob.id]);
+    const rejected = await request(app).get('/api/jobs/feed?proposal=declined').set('Authorization', auth).expect(200);
+    expect(rejected.body.map(job => job.id)).toEqual([declinedJob.id]);
+    const searched = await request(app).get('/api/jobs/feed?search=ceiling').set('Authorization', auth).expect(200);
+    expect(searched.body.map(job => job.id)).toEqual([sentJob.id]);
+  });
+});
+
+describe('payment disputes', () => {
+  test('requires a reason and shows it to the customer', async () => {
+    const customer = await createUser(testPool, { email: 'dispute-customer@fixly-test.local', fullName: 'Dispute Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'dispute-worker@fixly-test.local', fullName: 'Dispute Worker', role: 'worker' });
+    const { job, paymentId } = await recordedPayment({ customer, worker });
+    const workerAuth = authorizationFor(worker);
+
+    await request(app).put(`/api/payments/${paymentId}/dispute`).set('Authorization', workerAuth).send({}).expect(400);
+    await request(app)
+      .put(`/api/payments/${paymentId}/dispute`)
+      .set('Authorization', workerAuth)
+      .send({ reason: 'I was paid LKR 3,000, not 4,000' })
+      .expect(200);
+
+    const detail = await request(app).get(`/api/jobs/${job.id}`).set('Authorization', authorizationFor(customer)).expect(200);
+    expect(detail.body.payment_disputed).toBe(true);
+    expect(detail.body.payment_dispute_reason).toBe('I was paid LKR 3,000, not 4,000');
+    const notification = await testPool.query("SELECT body FROM notifications WHERE user_id = $1 AND type = 'payment_disputed'", [customer.id]);
+    expect(notification.rows[0].body).toContain('I was paid LKR 3,000, not 4,000');
+  });
+});
+
+describe('NIC review', () => {
+  test('rejecting requires a reason, clears the image, and lets the worker upload again', async () => {
+    const admin = await createUser(testPool, { email: 'nic-admin@fixly-test.local', fullName: 'NIC Admin', role: 'admin' });
+    const worker = await createUser(testPool, { email: 'nic-worker@fixly-test.local', fullName: 'NIC Worker', role: 'worker' });
+    await testPool.query("UPDATE users SET nic_image_path = '/uploads/nic-front.jpg' WHERE id = $1", [worker.id]);
+    const adminAuth = authorizationFor(admin);
+    const workerAuth = authorizationFor(worker);
+
+    let me = await request(app).get('/api/auth/me').set('Authorization', workerAuth).expect(200);
+    expect(me.body.nic_status).toBe('pending');
+    expect(me.body).not.toHaveProperty('nic_image_path');
+
+    await request(app).put(`/api/admin/users/${worker.id}/reject-nic`).set('Authorization', adminAuth).send({}).expect(400);
+    await request(app)
+      .put(`/api/admin/users/${worker.id}/reject-nic`)
+      .set('Authorization', adminAuth)
+      .send({ reason: 'Photo is blurry' })
+      .expect(200);
+
+    me = await request(app).get('/api/auth/me').set('Authorization', workerAuth).expect(200);
+    expect(me.body).toMatchObject({ nic_status: 'rejected', nic_rejection_reason: 'Photo is blurry', is_nic_verified: false });
+    const stored = await testPool.query('SELECT nic_image_path FROM users WHERE id = $1', [worker.id]);
+    expect(stored.rows[0].nic_image_path).toBeNull();
+    const audit = await testPool.query("SELECT reason FROM admin_audit_logs WHERE action = 'reject_nic' AND entity_id = $1", [worker.id]);
+    expect(audit.rows[0].reason).toBe('Photo is blurry');
+
+    await testPool.query("UPDATE users SET nic_image_path = '/uploads/nic-new.jpg', nic_rejection_reason = NULL WHERE id = $1", [worker.id]);
+    await request(app).put(`/api/admin/users/${worker.id}/verify-nic`).set('Authorization', adminAuth).send({ verified: true }).expect(200);
+    me = await request(app).get('/api/auth/me').set('Authorization', workerAuth).expect(200);
+    expect(me.body.nic_status).toBe('verified');
+    const notice = await testPool.query("SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'nic_verified'", [worker.id]);
+    expect(notice.rowCount).toBe(1);
+  });
+
+  test('suspending a user requires a reason', async () => {
+    const admin = await createUser(testPool, { email: 'suspend-admin@fixly-test.local', fullName: 'Suspend Admin', role: 'admin' });
+    const customer = await createUser(testPool, { email: 'suspend-customer@fixly-test.local', fullName: 'Suspend Customer', role: 'customer' });
+    const adminAuth = authorizationFor(admin);
+
+    await request(app).put(`/api/admin/users/${customer.id}/suspend`).set('Authorization', adminAuth).send({ suspended: true }).expect(400);
+    await request(app).put(`/api/admin/users/${customer.id}/suspend`).set('Authorization', adminAuth).send({ suspended: true, reason: 'Repeated abusive messages' }).expect(200);
+    await request(app).put(`/api/admin/users/${customer.id}/suspend`).set('Authorization', adminAuth).send({ suspended: false }).expect(200);
+  });
+});
+
+describe('email verification resend', () => {
+  test('issues a fresh token for unverified users and refuses verified ones', async () => {
+    const unverified = await createUser(testPool, { email: 'resend-unverified@fixly-test.local', fullName: 'Resend User', role: 'customer', isEmailVerified: false });
+    const verified = await createUser(testPool, { email: 'resend-verified@fixly-test.local', fullName: 'Verified User', role: 'customer' });
+
+    await request(app).post('/api/auth/resend-verification').set('Authorization', authorizationFor(unverified)).expect(200);
+    const token = await testPool.query('SELECT email_verify_token_hash, email_verify_expires_at FROM users WHERE id = $1', [unverified.id]);
+    expect(token.rows[0].email_verify_token_hash).toBeTruthy();
+    expect(new Date(token.rows[0].email_verify_expires_at).getTime()).toBeGreaterThan(Date.now());
+
+    await request(app).post('/api/auth/resend-verification').set('Authorization', authorizationFor(verified)).expect(409);
+  });
+});
+
+describe('customer profile privacy', () => {
+  test('only signed-in users can view a customer profile', async () => {
+    const customer = await createUser(testPool, { email: 'private-customer@fixly-test.local', fullName: 'Private Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'viewer-worker@fixly-test.local', fullName: 'Viewer Worker', role: 'worker' });
+
+    await request(app).get(`/api/customers/${customer.id}`).expect(401);
+    const profile = await request(app).get(`/api/customers/${customer.id}`).set('Authorization', authorizationFor(worker)).expect(200);
+    expect(profile.body.full_name).toBe('Private Customer');
+  });
+});
+
+describe('public marketplace data', () => {
+  test('reports live stats and a worker\'s full review count', async () => {
+    const customer = await createUser(testPool, { email: 'stats-customer@fixly-test.local', fullName: 'Stats Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'stats-worker@fixly-test.local', fullName: 'Stats Worker', role: 'worker', district: 'Kandy' });
+    await createUser(testPool, { email: 'stats-worker-2@fixly-test.local', fullName: 'Second Worker', role: 'worker', district: 'Galle' });
+    for (let i = 0; i < 12; i += 1) {
+      const job = await createJob(testPool, { customerId: customer.id, title: `Reviewed job ${i}` });
+      await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'reviewed' WHERE id = $2", [worker.id, job.id]);
+      await testPool.query('INSERT INTO reviews (job_id, customer_id, worker_id, rating) VALUES ($1, $2, $3, $4)', [job.id, customer.id, worker.id, i % 2 ? 5 : 4]);
+    }
+
+    const stats = await request(app).get('/api/workers/stats').expect(200);
+    expect(stats.body).toMatchObject({ workers: 2, districts: 2, reviews: 12, avg_rating: '4.5', completed_jobs: 12 });
+
+    const profile = await request(app).get(`/api/workers/${worker.id}`).expect(200);
+    expect(profile.body.review_count).toBe(12);
+    const firstPage = await request(app).get(`/api/workers/${worker.id}/reviews`).expect(200);
+    expect(firstPage.body).toHaveLength(10);
+  });
+});

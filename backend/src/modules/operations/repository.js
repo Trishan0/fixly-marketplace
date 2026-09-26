@@ -84,7 +84,12 @@ function adminUser(id) {
 
 /** @param {string} id @param {AdminUserUpdate} fields @param {QueryExecutor} [client] */
 function updateAdminUser(id, fields, client) {
-  return one(sql`UPDATE users SET force_verified=COALESCE(${fields.forceVerified},force_verified),is_suspended=COALESCE(${fields.suspended},is_suspended),is_nic_verified=COALESCE(${fields.nicVerified},is_nic_verified),nic_verified_by=CASE WHEN ${fields.nicVerified}::boolean THEN ${fields.actorId} ELSE nic_verified_by END,updated_at=NOW() WHERE id=${id} RETURNING id,force_verified,is_suspended,is_nic_verified`, client);
+  return one(sql`UPDATE users SET force_verified=COALESCE(${fields.forceVerified},force_verified),is_suspended=COALESCE(${fields.suspended},is_suspended),is_nic_verified=COALESCE(${fields.nicVerified},is_nic_verified),nic_verified_by=CASE WHEN ${fields.nicVerified}::boolean THEN ${fields.actorId} ELSE nic_verified_by END,nic_rejection_reason=CASE WHEN ${fields.nicVerified}::boolean THEN NULL ELSE nic_rejection_reason END,updated_at=NOW() WHERE id=${id} RETURNING id,force_verified,is_suspended,is_nic_verified`, client);
+}
+
+/** Rejects a pending NIC: clears the image so the worker can upload a new one, and keeps the reason to show them. @param {string} id @param {string} reason @param {QueryExecutor} [client] */
+function rejectNic(id, reason, client) {
+  return one(sql`UPDATE users u SET is_nic_verified=false,nic_verified_by=NULL,nic_image_path=NULL,nic_rejection_reason=${reason},updated_at=NOW() FROM (SELECT id,nic_image_path FROM users WHERE id=${id} FOR UPDATE) prev WHERE u.id=prev.id AND u.role='worker' RETURNING u.id,u.is_nic_verified,u.nic_rejection_reason,prev.nic_image_path AS previous_nic_image_path`, client);
 }
 
 /** @param {AuditInput} input @param {QueryExecutor} [client] */
@@ -142,7 +147,7 @@ function resolveReport(id, input, client) {
 
 module.exports = instrumentRepository('operations', {
   adminStats, adminUser, adminUsers, cleanupRateLimitBuckets, countAdminJobs, countAdminUsers,
-  flagJob, findCategory, incrementRateLimit, insertAudit, insertCategory, insertNotification,
+  flagJob, findCategory, incrementRateLimit, insertAudit, insertCategory, insertNotification, rejectNic,
   insertReport, listAdminJobs, listAdminReports, listAdminWorkers, listCategoriesAdmin,
   listMyReports, listNotifications, markAllNotificationsRead, markNotificationRead, resolveReport,
   updateAdminUser, updateCategory,

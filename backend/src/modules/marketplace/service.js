@@ -506,7 +506,11 @@ async function recordPayment({ jobId, customerId, input }) {
   }
 }
 
-async function changePaymentState({ paymentId, workerId, targetStatus }) {
+async function changePaymentState({ paymentId, workerId, targetStatus, reason }) {
+  const disputeReason = typeof reason === 'string' ? reason.trim() : '';
+  if (targetStatus === 'disputed' && (disputeReason.length < 3 || disputeReason.length > 1000)) {
+    throw badRequest('Please describe why you are disputing this payment (3-1000 characters)');
+  }
   try {
     return await withTransaction(async ({ tx }) => {
       const payment = await repository.findPaymentForUpdate(paymentId, tx);
@@ -514,7 +518,9 @@ async function changePaymentState({ paymentId, workerId, targetStatus }) {
       if (payment.assigned_worker_id !== workerId) throw forbidden('Not your payment');
       if (payment.status === targetStatus) return payment;
       if (payment.status !== 'recorded') throw conflict(`Payment is already ${payment.status}`);
-      const updated = await repository.updatePaymentStatus(paymentId, targetStatus, tx);
+      const updated = await repository.updatePaymentStatus(paymentId, targetStatus, tx, {
+        disputeReason: targetStatus === 'disputed' ? disputeReason : null,
+      });
       if (!updated) throw conflict('Payment state could not be changed');
       await repository.insertNotification({
         userId: payment.customer_id,
@@ -522,7 +528,7 @@ async function changePaymentState({ paymentId, workerId, targetStatus }) {
         title: targetStatus === 'confirmed' ? 'Payment Confirmed' : 'Payment Disputed',
         body: targetStatus === 'confirmed'
           ? `Worker confirmed payment for: ${payment.job_title}`
-          : `Worker has disputed the payment for: ${payment.job_title}`,
+          : `Worker has disputed the payment for: ${payment.job_title}. Reason: ${disputeReason}`,
         meta: { job_id: payment.job_id, payment_id: payment.id },
       }, tx);
       return updated;
