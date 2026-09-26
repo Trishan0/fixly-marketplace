@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { BadgeCheck, LayoutGrid, Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
+import { BadgeCheck, Search, SlidersHorizontal, Wrench, X } from 'lucide-react'
 import { WorkerCard } from '../../components/shared/Cards'
 import { Button, Card, EmptyState, Page, PageHeader, Skeleton } from '../../components/ui'
-import { categoryStyle } from '../../lib/tones'
+import { useCategories } from '../../hooks/useCategories'
 import { DISTRICTS, cn } from '../../lib/utils'
 import api from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
@@ -17,7 +17,6 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 
 const PAGE_SIZE = 24
 
-const CATEGORIES = ['All','Plumbing','Electrical','Carpentry','Cleaning','Painting','Tiling','Welding','AC Repair','Landscaping','General Labour']
 
 export default function WorkerCatalog({ embedded, onInvite }) {
   const { user } = useAuth()
@@ -28,6 +27,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   const [verified, setVerified] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const debouncedSearch = useDebouncedValue(search.trim())
+  const { categories } = useCategories()
   usePageTitle(embedded ? null : 'Browse workers')
 
   const {
@@ -48,7 +48,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   const workers = data?.pages.flatMap(page => page.workers) || []
   const total = data?.pages[0]?.total
 
-  const activeFilters = Number(Boolean(district)) + Number(verified)
+  const activeFilters = Number(Boolean(category)) + Number(Boolean(district)) + Number(verified)
 
   const content = (
     <div className="space-y-5">
@@ -65,7 +65,11 @@ export default function WorkerCatalog({ embedded, onInvite }) {
               <span className="sr-only">Filters</span>
             </Button>
           </div>
-          <div id="worker-filters" className={cn('grid gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:items-center', !showFilters && 'hidden lg:flex')}>
+          <div id="worker-filters" className={cn('grid gap-2 sm:grid-cols-3 lg:flex lg:w-auto lg:items-center', !showFilters && 'hidden lg:flex')}>
+            <select aria-label="Filter by category" className="fixly-input fixly-select lg:w-44" value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="">All categories</option>
+              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
             <select aria-label="Filter by district" className="fixly-input fixly-select lg:w-44" value={district} onChange={e => setDistrict(e.target.value)}>
               <option value="">All districts</option>
               {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -75,30 +79,9 @@ export default function WorkerCatalog({ embedded, onInvite }) {
               <BadgeCheck className="h-4 w-4 text-brand-text" aria-hidden="true" /> Verified only
             </label>
             {activeFilters > 0 && (
-              <Button variant="ghost" onClick={() => { setDistrict(''); setVerified(false) }}><X className="h-4 w-4" aria-hidden="true" /> Clear</Button>
+              <Button variant="ghost" onClick={() => { setCategory(''); setDistrict(''); setVerified(false) }}><X className="h-4 w-4" aria-hidden="true" /> Clear</Button>
             )}
           </div>
-        </div>
-
-        <div className="-mx-3 mt-3 flex gap-2 overflow-x-auto border-t border-line px-3 pt-3 sm:-mx-4 sm:px-4" role="group" aria-label="Worker categories">
-          {CATEGORIES.map(c => {
-            const selected = c === 'All' ? !category : category === c
-            const Icon = c === 'All' ? LayoutGrid : categoryStyle(c).icon
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategory(c === 'All' ? '' : c)}
-                aria-pressed={selected}
-                className={cn(
-                  'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand [@media(pointer:coarse)]:h-10',
-                  selected ? 'border-brand bg-brand text-brand-on shadow-brand' : 'border-line bg-surface text-fg-muted hover:border-line-strong hover:text-fg',
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />{c}
-              </button>
-            )
-          })}
         </div>
       </Card>
 
