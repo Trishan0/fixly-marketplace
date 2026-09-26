@@ -74,9 +74,9 @@ function NotFound() {
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-card bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
           <Compass className="h-7 w-7" aria-hidden="true" />
         </div>
-        <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">Error 404</p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">We couldn&apos;t find that page</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">The link may be old, or the page may have moved.</p>
+        <p className="text-sm font-semibold text-brand-text">Error 404</p>
+        <h1 className="mt-2 text-2xl font-bold text-fg">We couldn&apos;t find that page</h1>
+        <p className="mt-2 text-sm leading-6 text-fg-subtle">The link may be old, or the page may have moved.</p>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Link to={user ? '/dashboard' : '/'} className="fixly-btn-primary text-sm">{user ? 'Go to dashboard' : 'Go to home page'}</Link>
           <Link to="/workers" className="fixly-btn-secondary text-sm">Browse workers</Link>

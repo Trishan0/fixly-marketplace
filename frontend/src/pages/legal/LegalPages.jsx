@@ -19,7 +19,7 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
               <Icon className="h-5 w-5" aria-hidden="true" />
             </div>
             <p className="text-sm font-semibold text-brand-text">{eyebrow}</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-fg sm:text-4xl">{title}</h1>
             <p className="mt-4 text-base leading-7 text-fg-muted">{intro}</p>
             <p className="mt-4 text-sm text-fg-subtle">Last updated {LAST_UPDATED}</p>
           </div>
@@ -31,7 +31,7 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
             <ol className="sticky top-24 mt-3 space-y-2 text-sm">
               {sections.map(section => (
                 <li key={section.id}>
-                  <a href={`#${section.id}`} className="text-fg-muted hover:text-sky-700 dark:hover:text-sky-300">{section.title}</a>
+                  <a href={`#${section.id}`} className="text-fg-muted hover:text-brand-text">{section.title}</a>
                 </li>
               ))}
             </ol>
@@ -39,7 +39,7 @@ function LegalLayout({ icon: Icon, eyebrow, title, intro, sections }) {
           <article className="max-w-3xl space-y-10">
             {sections.map(section => (
               <section key={section.id} id={section.id} className="scroll-mt-24">
-                <h2 className="text-xl font-bold text-slate-950">{section.title}</h2>
+                <h2 className="text-xl font-bold text-fg">{section.title}</h2>
                 <div className="mt-3 space-y-3 text-[15px] leading-7 text-fg-muted">{section.body}</div>
               </section>
             ))}

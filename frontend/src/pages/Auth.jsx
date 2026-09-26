@@ -59,7 +59,7 @@ function PasswordField({ value, onChange, show, onToggle, register = false, erro
         <button
           type="button"
           onClick={onToggle}
-          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-fg-subtle hover:text-fg-muted dark:hover:text-slate-200"
+          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-fg-subtle hover:text-fg-muted"
           aria-label={show ? 'Hide password' : 'Show password'}
         >
           {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -220,7 +220,7 @@ export default function Auth() {
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggleIconButton className="h-11 w-11" />
-          <Link to="/" className="flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-fg-subtle hover:text-fg dark:hover:text-white">
+          <Link to="/" className="flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-fg-subtle hover:text-fg">
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Home</span>
           </Link>
         </div>
@@ -250,7 +250,7 @@ export default function Auth() {
                   'min-h-11 rounded-card px-3 text-sm font-bold transition-colors',
                   tab === value
                     ? 'bg-brand-subtle text-brand-text'
-                    : 'text-fg-subtle hover:text-slate-800 dark:text-fg-subtle dark:hover:text-white',
+                    : 'text-fg-subtle hover:text-fg',
                 )}
               >
                 {label}
@@ -263,7 +263,7 @@ export default function Auth() {
               <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-brand-text lg:hidden">
                 <ShieldCheck className="h-4 w-4" /> Trusted local services
               </div>
-              <h1 id="auth-title" className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+              <h1 id="auth-title" className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">
                 {tab === 'login' ? 'Welcome back' : registerStep === 0 ? 'Create your account' : 'Complete your profile'}
               </h1>
               <p className="mt-2 text-sm leading-6 text-fg-subtle">
@@ -369,7 +369,7 @@ export default function Auth() {
                     )}
 
                     <div className="space-y-1.5">
-                      <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line p-3 text-sm leading-6 text-fg-muted dark:text-slate-300">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-card border border-line p-3 text-sm leading-6 text-fg-muted">
                         <input
                           type="checkbox"
                           checked={acceptedTerms}

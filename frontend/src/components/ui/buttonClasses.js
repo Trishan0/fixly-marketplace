@@ -3,7 +3,7 @@ import { cn } from '../../lib/utils'
 const VARIANTS = {
   primary: 'bg-brand text-brand-on hover:bg-brand-hover shadow-brand',
   secondary: 'border border-line bg-surface text-fg hover:border-line-strong hover:bg-subtle shadow-xs',
-  // Literal colours: the legacy dark-mode layer force-darkens `bg-white`.
+  // White in both themes: it sits on the brand gradient.
   'on-brand': 'bg-[#fff] text-[#0369a1] hover:bg-[#f0f9ff] shadow-sm',
   'on-brand-ghost': 'bg-white/10 text-white ring-1 ring-inset ring-white/25 hover:bg-white/20',
   ghost: 'text-fg-muted hover:bg-subtle hover:text-fg',

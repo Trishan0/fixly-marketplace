@@ -73,7 +73,7 @@ function WorkflowPreview({ journey }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-text">{isCustomer ? 'My job' : 'Open job'}</p>
-              <h2 className="mt-1 text-base font-bold text-slate-950 dark:text-white">{journey.preview.title}</h2>
+              <h2 className="mt-1 text-base font-bold text-fg">{journey.preview.title}</h2>
               <p className="mt-1 flex items-center gap-1 text-xs text-fg-subtle"><MapPin className="h-3 w-3" />{journey.preview.meta}</p>
             </div>
             <div className="rounded-xl bg-sky-50 p-2 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300">
@@ -87,7 +87,7 @@ function WorkflowPreview({ journey }) {
           <div className="mt-3 space-y-2">
             {journey.preview.rows.map(([name, rating, amount]) => (
               <div key={name} className="flex items-center gap-2 rounded-xl border border-line p-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-fg-muted dark:bg-slate-800">{name.charAt(0)}</div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-subtle text-xs font-bold text-fg-muted">{name.charAt(0)}</div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-bold text-fg">{name}</p>
                   <p className="mt-0.5 text-[11px] text-fg-subtle">{rating === '—' ? 'Suggested amount' : rating === 'Ready' ? 'Personalised response' : `★ ${rating} rating`}</p>
@@ -120,7 +120,7 @@ export default function HowItWorks() {
           <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 md:px-12 md:py-20">
             <div className="max-w-3xl">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-text">A simpler local-service journey</p>
-              <h1 className="mt-4 text-4xl font-bold tracking-[-0.035em] text-slate-950 dark:text-white sm:text-5xl md:text-6xl">See exactly how Fixly works.</h1>
+              <h1 className="mt-4 text-4xl font-bold tracking-[-0.035em] text-fg sm:text-5xl md:text-6xl">See exactly how Fixly works.</h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-fg-muted sm:text-lg sm:leading-8">Whether you need help at home or want to grow your service business, every next step is clear and easy to act on.</p>
             </div>
           </div>
@@ -130,9 +130,9 @@ export default function HowItWorks() {
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-text">Choose your path</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Built for both sides of the job.</h2>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-fg sm:text-3xl">Built for both sides of the job.</h2>
             </div>
-            <div className="grid grid-cols-2 rounded-card bg-slate-100 p-1.5 dark:bg-slate-800" role="tablist" aria-label="Select a Fixly journey">
+            <div className="grid grid-cols-2 rounded-card bg-subtle p-1.5" role="tablist" aria-label="Select a Fixly journey">
               {Object.entries(journeys).map(([key, item]) => (
                 <button
                   key={key}
@@ -151,7 +151,7 @@ export default function HowItWorks() {
           <div className="mt-10 grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
             <div>
               <p className="text-sm font-bold text-brand-text">{journey.eyebrow}</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">{journey.title}</h2>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg sm:text-4xl">{journey.title}</h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-fg-muted">{journey.description}</p>
 
               <ol className="mt-8 space-y-3">
@@ -162,7 +162,7 @@ export default function HowItWorks() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Icon className="h-4 w-4 text-brand-text" />
                         <h3 className="font-bold text-fg">{title}</h3>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fg-subtle dark:bg-slate-800 dark:text-fg-subtle">{label}</span>
+                        <span className="rounded-full bg-subtle px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fg-subtle">{label}</span>
                       </div>
                       <p className="mt-1.5 text-sm leading-6 text-fg-subtle">{text}</p>
                     </div>
@@ -177,7 +177,7 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <section className="border-y border-line bg-slate-50/70 py-12 dark:bg-slate-950/30 sm:py-16">
+        <section className="border-y border-line bg-subtle/60 py-12 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 md:px-12">
             <div className="grid gap-4 sm:grid-cols-3">
               {[
@@ -187,7 +187,7 @@ export default function HowItWorks() {
               ].map(([title, text]) => (
                 <div key={title} className="rounded-card border border-line bg-surface p-5">
                   <CheckCircle2 className="h-5 w-5 text-brand-text" />
-                  <h2 className="mt-4 font-bold text-slate-950 dark:text-white">{title}</h2>
+                  <h2 className="mt-4 font-bold text-fg">{title}</h2>
                   <p className="mt-2 text-sm leading-6 text-fg-subtle">{text}</p>
                 </div>
               ))}
@@ -196,7 +196,7 @@ export default function HowItWorks() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16 md:px-12">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Ready to make local work easier?</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">Ready to make local work easier?</h2>
           <p className="mx-auto mt-3 max-w-xl text-fg-muted">Create an account to post a job, find your next opportunity, or simply explore the marketplace first.</p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <Link to="/auth?tab=register" className="fixly-btn-primary rounded-card">Create an account</Link>

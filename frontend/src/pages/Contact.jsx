@@ -45,7 +45,7 @@ export default function Contact() {
         <section className="border-b border-line bg-[radial-gradient(circle_at_85%_0%,rgba(14,165,233,0.16),transparent_35%)] py-12 dark:bg-[radial-gradient(circle_at_85%_0%,rgba(14,165,233,0.22),transparent_35%)] sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-12">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-text">Contact Fixly</p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-slate-950 dark:text-white sm:text-5xl">Let&apos;s make local work simpler.</h1>
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-fg sm:text-5xl">Let&apos;s make local work simpler.</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-fg-muted sm:text-lg">Whether you are exploring the marketplace or preparing a project enquiry, this is the right place to start.</p>
           </div>
         </section>
@@ -54,7 +54,7 @@ export default function Contact() {
             {contactOptions.map(({ icon: Icon, title, description, action, to }) => (
               <div key={title} className="flex flex-col rounded-card border border-line bg-surface p-6">
                 <div className="flex h-11 w-11 items-center justify-center rounded-card bg-sky-50 text-sky-600 dark:bg-sky-950/45 dark:text-sky-300"><Icon className="h-5 w-5" /></div>
-                <h2 className="mt-5 text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+                <h2 className="mt-5 text-lg font-bold text-fg">{title}</h2>
                 <p className="mt-3 text-sm leading-6 text-fg-subtle">{description}</p>
                 {to.startsWith('#') ? <a href={to} className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-text">{action} <ArrowRight className="h-4 w-4" /></a> : <Link to={to} className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-text">{action} <ArrowRight className="h-4 w-4" /></Link>}
               </div>
@@ -64,7 +64,7 @@ export default function Contact() {
             <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr]">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-text">Send a message</p>
-                <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Tell us how we can help.</h2>
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-fg sm:text-3xl">Tell us how we can help.</h2>
                 <p className="mt-3 max-w-sm text-sm leading-6 text-fg-subtle">Use this form for feedback, support, or a demo/project enquiry. We will reply to the email you provide.</p>
                 {sent && <div className="mt-6 rounded-card border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">Thanks—your message has been sent. The Fixly team will reply by email.</div>}
               </div>
@@ -95,7 +95,7 @@ export default function Contact() {
           <div className="mt-12 grid gap-6 rounded-card border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <div className="inline-flex h-11 w-11 items-center justify-center rounded-card bg-sky-50 text-sky-600 dark:bg-sky-950/45 dark:text-sky-300"><Clock className="h-5 w-5" /></div>
-              <h2 className="mt-4 text-2xl font-bold text-slate-950 dark:text-white">Already know what you need?</h2>
+              <h2 className="mt-4 text-2xl font-bold text-fg">Already know what you need?</h2>
               <p className="mt-2 max-w-2xl leading-7 text-fg-muted">Start with the marketplace. Customers can post a job in minutes, while workers can build a profile and discover suitable work.</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">

@@ -24,7 +24,7 @@ export default function Blog() {
         <section className="border-b border-line bg-[radial-gradient(circle_at_12%_0%,rgba(14,165,233,0.16),transparent_34%)] py-12 dark:bg-[radial-gradient(circle_at_12%_0%,rgba(14,165,233,0.22),transparent_34%)] sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-12">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-text">The Fixly journal</p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-slate-950 dark:text-white sm:text-5xl">Practical advice for better local work.</h1>
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-[-0.035em] text-fg sm:text-5xl">Practical advice for better local work.</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-fg-muted sm:text-lg">Useful, no-nonsense guides for customers who need help and workers building a stronger local reputation.</p>
           </div>
         </section>
@@ -34,9 +34,9 @@ export default function Blog() {
               <article key={title} className="flex min-h-64 flex-col rounded-card border border-line bg-surface p-6">
                 <div className="flex h-11 w-11 items-center justify-center rounded-card bg-sky-50 text-sky-600 dark:bg-sky-950/45 dark:text-sky-300"><Icon className="h-5 w-5" /></div>
                 <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-brand-text">{tag}</p>
-                <h2 className="mt-2 text-lg font-bold tracking-tight text-slate-950 dark:text-white">{title}</h2>
+                <h2 className="mt-2 text-lg font-bold tracking-tight text-fg">{title}</h2>
                 <p className="mt-3 text-sm leading-6 text-fg-subtle">{description}</p>
-                <div className="mt-auto flex items-center justify-between pt-6 text-sm"><span className="font-semibold text-fg-muted">{read}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-fg-muted dark:bg-slate-800">Coming soon</span></div>
+                <div className="mt-auto flex items-center justify-between pt-6 text-sm"><span className="font-semibold text-fg-muted">{read}</span><span className="rounded-full bg-subtle px-2.5 py-1 text-xs font-semibold text-fg-muted">Coming soon</span></div>
               </article>
             ))}
           </div>
