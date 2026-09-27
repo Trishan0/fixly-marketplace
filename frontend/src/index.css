@@ -330,3 +330,13 @@
   from { transform: translateX(-100%); }
   to   { transform: translateX(0); }
 }
+
+/* ── Agent progress bar shimmer ── */
+@keyframes agent-progress-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+.agent-progress-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: agent-progress-shimmer 1.4s ease-in-out infinite;
+}
