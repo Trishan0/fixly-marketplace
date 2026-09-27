@@ -9,6 +9,8 @@ import { Button, Avatar } from '../shared/UI'
 import { cn, formatStartingPrice, pluralize } from '../../lib/utils'
 import api from '../../lib/api'
 import { errorMessage } from '../../lib/errors'
+import { planProgress } from '../../lib/agentProgress'
+import { RunProgress, StepList } from './AgentProgress'
 
 // ─── Score Bar ────────────────────────────────────────────────────────────────
 function ScoreBar({ score }) {
@@ -294,36 +296,6 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
   )
 }
 
-// ─── Plan Steps ────────────────────────────────────────────────────────────────
-function PlanSteps({ plan, steps }) {
-  const completedNames = new Set((steps || []).map(s => s.stepName))
-  return (
-    <div className="space-y-1.5">
-      {(plan || []).map((step, i) => {
-        const isCompleted = completedNames.has(
-          ['load_job','load_worker_profile','load_candidates','load_open_jobs','score_and_rank','save_recommendations','draft_proposals'][i]
-        ) || i < (steps?.length || 0)
-        return (
-          <div key={i} className="flex items-center gap-2.5">
-            <div className={cn(
-              'w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs',
-              isCompleted
-                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
-                : 'bg-subtle text-fg-subtle'
-            )}>
-              {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : <span>{i + 1}</span>}
-            </div>
-            <span className={cn(
-              'text-xs',
-              isCompleted ? 'text-fg-muted font-medium' : 'text-fg-subtle'
-            )}>{step}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ─── Main AgentPanel Component ────────────────────────────────────────────────
 /**
  * Props:
@@ -500,28 +472,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
           </div>
         )}
 
-        {/* In progress — the worker is still running the agent */}
-        {isRunInProgress && !confirmDone && (
-          <div className="text-center py-8">
-            <div className={cn(
-              'w-16 h-16 rounded-card mx-auto mb-4 flex items-center justify-center animate-pulse',
-              isMatch ? 'bg-sky-100 dark:bg-sky-900/30' : 'bg-violet-100 dark:bg-violet-900/30'
-            )}>
-              <Bot className={cn('w-8 h-8', isMatch ? 'text-sky-500' : 'text-violet-500')} />
-            </div>
-            <h3 className="font-bold text-fg mb-1">
-              {isMatch ? 'Finding the best workers…' : 'Finding the best jobs…'}
-            </h3>
-            <p className="text-sm text-fg-subtle max-w-xs mx-auto">
-              Reading profiles, reviews, and job details. This can take a little while.
-            </p>
-            {runData?.status === 'pending' && Number.isInteger(runData?.queue_position) && runData.queue_position > 0 && (
-              <p className="text-xs text-fg-subtle mt-2">
-                {runData.queue_position} {runData.queue_position === 1 ? 'run' : 'runs'} ahead of you
-              </p>
-            )}
-          </div>
-        )}
+        {/* In progress: live checklist driven by the agent's real tool calls */}
+        {isRunInProgress && !confirmDone && <RunProgress mode={mode} run={runData} />}
 
         {/* Run failed */}
         {runFailed && !confirmDone && (
@@ -550,7 +502,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
               </button>
               {showPlan && (
                 <div className="px-4 py-3 border-t border-line">
-                  <PlanSteps plan={runData.plan} steps={runData.steps} />
+                  <StepList mode={mode} items={planProgress(runData.plan || [], runData.status)} />
                 </div>
               )}
             </div>
