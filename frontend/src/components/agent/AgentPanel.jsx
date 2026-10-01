@@ -643,22 +643,23 @@ export default function AgentPanel({ mode, jobId, onClose }) {
               <div className="mb-1 flex items-center justify-between gap-3">
                 <h3 className="font-bold text-fg text-sm">
                   {isMatch
-                    ? `${runData.recommendations?.length || 0} Workers Suggested`
-                    : `${runData.recommendations?.length || 0} Best Jobs Found`}
+                    ? `${pluralize(runData.recommendations?.length || 0, 'Worker')} Suggested`
+                    : `${pluralize(runData.recommendations?.length || 0, 'Best Job')} Found`}
                 </h3>
                 {/* Starting again replaces these results. */}
                 <Button variant="ghost" size="sm" onClick={() => startRun()} loading={runMutation.isPending}>
                   <RotateCcw className="w-3.5 h-3.5" /> Run again
                 </Button>
               </div>
+              {/* Collapsed by default: the cards carry the per-worker reasons. */}
               {runData.overall_reasoning && (
-                <div className={cn(
-                  'mt-2 p-3 rounded-xl border text-xs leading-relaxed',
+                <details className={cn(
+                  'group mt-2 rounded-xl border text-xs leading-relaxed',
                   isMatch
                     ? 'bg-sky-50/80 border-sky-200 text-sky-800 dark:bg-sky-950/30 dark:border-sky-800 dark:text-sky-300'
                     : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
                 )}>
-                  <div className="flex items-center gap-1.5 mb-1">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-3 py-2 [&::-webkit-details-marker]:hidden">
                     {runData.engine === 'degraded' ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                         Rating-based (AI unavailable)
@@ -668,10 +669,11 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                         {runData.model_used || 'Gemini'}
                       </span>
                     )}
-                    <span className="font-semibold">reasoning:</span>
-                  </div>
-                  {runData.overall_reasoning}
-                </div>
+                    <span className="font-semibold">{runData.engine === 'degraded' ? 'How these were chosen' : isMatch ? 'Why these workers' : 'Why these jobs'}</span>
+                    <ChevronDown className="ml-auto w-4 h-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+                  </summary>
+                  <p className="px-3 pb-3">{runData.overall_reasoning}</p>
+                </details>
               )}
               <p className="text-xs text-fg-subtle mt-2">
                 {isMatch
