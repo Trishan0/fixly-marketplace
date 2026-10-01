@@ -1,0 +1,28 @@
+{
+  "name": "fixly-marketplace",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"frontend/public/fixly-mark-192.png\" alt=\"Fixly\" width=\"88\" /> </p>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+      "dev": "concurrently -n FRONTEND,BACKEND -c blue,green \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\""
+
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Trishan0/fixly-marketplace.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Trishan0/fixly-marketplace/issues"
+  },
+  "homepage": "https://github.com/Trishan0/fixly-marketplace#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

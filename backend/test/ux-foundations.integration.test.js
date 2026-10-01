@@ -208,3 +208,35 @@ describe('public marketplace data', () => {
     expect(firstPage.body).toHaveLength(10);
   });
 });
+
+describe('completed job history on profiles', () => {
+  test('lists only finished jobs and shows them without private details', async () => {
+    const customer = await createUser(testPool, { email: 'history-customer@fixly-test.local', fullName: 'History Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'history-worker@fixly-test.local', fullName: 'History Worker', role: 'worker' });
+    const done = await createJob(testPool, { customerId: customer.id, title: 'Fixed the geyser' });
+    await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'reviewed', final_price = 7500, address = '12 Private Lane' WHERE id = $2", [worker.id, done.id]);
+    await testPool.query('INSERT INTO reviews (job_id, customer_id, worker_id, rating, feedback) VALUES ($1, $2, $3, 5, $4)', [done.id, customer.id, worker.id, 'Spotless work']);
+    const inProgress = await createJob(testPool, { customerId: customer.id, title: 'Still going' });
+    await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'in_progress' WHERE id = $2", [worker.id, inProgress.id]);
+    const takenDown = await createJob(testPool, { customerId: customer.id, title: 'Taken down' });
+    await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'completed', is_active = false, flagged_at = NOW() WHERE id = $2", [worker.id, takenDown.id]);
+
+    const workerJobs = await request(app).get(`/api/workers/${worker.id}/jobs`).expect(200);
+    expect(workerJobs.body.total).toBe(1);
+    expect(workerJobs.body.jobs.map(job => job.title)).toEqual(['Fixed the geyser']);
+    expect(workerJobs.body.jobs[0].rating).toBe(5);
+
+    await request(app).get(`/api/customers/${customer.id}/jobs`).expect(401);
+    const customerJobs = await request(app).get(`/api/customers/${customer.id}/jobs`).set('Authorization', authorizationFor(worker)).expect(200);
+    expect(customerJobs.body.jobs.map(job => job.id)).toEqual([done.id]);
+    const profile = await request(app).get(`/api/customers/${customer.id}`).set('Authorization', authorizationFor(worker)).expect(200);
+    expect(profile.body.recent_jobs.map(job => job.title)).toEqual(['Still going']);
+
+    const detail = await request(app).get(`/api/jobs/${done.id}/public`).expect(200);
+    expect(detail.body).toMatchObject({ title: 'Fixed the geyser', worker_name: 'History Worker', review_rating: 5, review_feedback: 'Spotless work', final_price: '7500.00' });
+    expect(detail.body.address).toBeUndefined();
+    expect(detail.body.customer_phone).toBeUndefined();
+    await request(app).get(`/api/jobs/${inProgress.id}/public`).expect(404);
+    await request(app).get(`/api/jobs/${takenDown.id}/public`).expect(404);
+  });
+});

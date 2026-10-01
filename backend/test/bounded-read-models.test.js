@@ -5,7 +5,7 @@ const path = require('path');
 
 const repositoryRoot = path.resolve(__dirname, '../src/modules');
 const requiredBounds = {
-  'identity/repository.js': ['workerPortfolio', 'workerSkills', 'listWorkers', 'workerReviews', 'customerRecentJobs'],
+  'identity/repository.js': ['workerPortfolio', 'workerSkills', 'listWorkers', 'workerReviews', 'customerRecentJobs', 'completedJobs', 'completedJobPhotos'],
   'marketplace/repository.js': ['listReceivedInvites', 'listCategories', 'listJobFeed', 'listCustomerJobs', 'listAssignedJobs', 'listAgentOpenJobs', 'listAgentOpenJobsForWorker', 'listJobProposals', 'listJobPhotos', 'workerEarnings'],
   'operations/repository.js': ['listNotifications', 'listMyReports', 'adminUsers', 'listAdminWorkers', 'listAdminJobs', 'listAdminReports', 'listCategoriesAdmin'],
   'agents/repository.js': ['runSteps', 'runRecommendations', 'history', 'candidateWorkers'],
