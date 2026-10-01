@@ -14,14 +14,26 @@ async function one(statement) {
   return (await rows(statement))[0] || null;
 }
 
+// "Active" means the agent is still working. A run awaiting confirmation is
+// finished work the user hasn't acted on, so it never blocks a new run.
 /** @param {string} userId @param {string} jobId */
 function activeMatch(userId, jobId) {
-  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND job_id=${jobId} AND agent_type='match' AND status IN ('pending','running','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1`);
+  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND job_id=${jobId} AND agent_type='match' AND status IN ('pending','running') ORDER BY created_at DESC LIMIT 1`);
 }
 
 /** @param {string} userId */
 function activeProposal(userId) {
-  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND agent_type='proposal' AND status IN ('pending','running','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1`);
+  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND agent_type='proposal' AND status IN ('pending','running') ORDER BY created_at DESC LIMIT 1`);
+}
+
+/**
+ * Cancel a user's earlier runs before starting a new one, so only the
+ * newest run's results can be confirmed. Unconfirmed results are always
+ * replaced; a run still in progress is stopped only when `restart` is set.
+ * @param {{ userId: string, type: 'match' | 'proposal', jobId?: string | null, restart?: boolean }} input
+ */
+function supersedeRuns({ userId, type, jobId = null, restart = false }) {
+  return rows(sql`UPDATE agent_runs SET status='cancelled',completed_at=NOW() WHERE user_id=${userId} AND agent_type=${type} AND (${jobId}::uuid IS NULL OR job_id=${jobId}) AND (status='awaiting_confirmation' OR (${restart}::boolean AND status IN ('pending','running'))) RETURNING id`);
 }
 
 /** @param {string} runId @param {string} userId */
@@ -213,5 +225,5 @@ module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
   awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
   failRun, history, memory, memories, queuePosition, reclaimOrphanedRuns, runDetail, runRecommendations,
-  runSteps, upsertMemory, workerReviews,
+  runSteps, supersedeRuns, upsertMemory, workerReviews,
 });

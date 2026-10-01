@@ -3,12 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bot, Zap, CheckCircle2, XCircle, ChevronDown, ChevronUp,
   Star, MapPin, Briefcase, Shield, TrendingUp, Clock, DollarSign,
-  AlertCircle, Send, UserCheck
+  AlertCircle, Send, UserCheck, RotateCcw, Square
 } from 'lucide-react'
 import { Button, Avatar } from '../shared/UI'
 import { cn, formatStartingPrice, pluralize } from '../../lib/utils'
 import api from '../../lib/api'
-import { errorMessage } from '../../lib/errors'
+import { errorMessage, errorStatus } from '../../lib/errors'
 import { planProgress } from '../../lib/agentProgress'
 import { RunProgress, StepList } from './AgentProgress'
 
@@ -310,6 +310,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
   const [customMessages, setCustomMessages] = useState({}) // jobId → message
   const [showPlan, setShowPlan] = useState(false)
   const [confirmDone, setConfirmDone] = useState(null)
+  // True when the panel picked up a run that was already going.
+  const [resumed, setResumed] = useState(false)
 
   const isMatch = mode === 'match'
 
@@ -324,16 +326,43 @@ export default function AgentPanel({ mode, jobId, onClose }) {
   // ── Run agent ──────────────────────────────────────────────────────────────
   // Creating a run returns immediately (202 pending) - the agent worker
   // executes it off the request path, so the actual result is polled below.
+  // `restart` stops a run that's still working and starts a fresh one.
   const runMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: ({ restart = false } = {}) =>
       isMatch
-        ? api.post('/agent/match/run', { job_id: jobId }).then(r => r.data)
-        : api.post('/agent/proposal/run').then(r => r.data),
+        ? api.post('/agent/match/run', { job_id: jobId, restart }).then(r => r.data)
+        : api.post('/agent/proposal/run', { restart }).then(r => r.data),
     // Errors are shown inside the panel.
     meta: { silentError: true, track: 'ai_run_started', trackProps: () => ({ mode }) },
     onSuccess: data => {
       setRunId(data.run_id)
+      setResumed(false)
       setSelectedIds(new Set())
+    },
+    // A run is already going (e.g. started before the panel was closed):
+    // show it rather than an error, so the user can watch or stop it.
+    onError: error => {
+      const existingRunId = error.response?.data?.run_id
+      if (errorStatus(error) === 409 && existingRunId) {
+        setRunId(existingRunId)
+        setResumed(true)
+        setSelectedIds(new Set())
+      }
+    },
+  })
+  const startRun = (options) => runMutation.mutate(options)
+
+  // ── Stop the current run, or discard its results ─────────────────────────
+  const cancelMutation = useMutation({
+    mutationFn: () => api.post(`/agent/run/${runId}/cancel`),
+    meta: { silentError: true },
+    // A 404 means the run already ended; either way the panel goes back
+    // to the start so the user can run again.
+    onSettled: () => {
+      setRunId(null)
+      setResumed(false)
+      setSelectedIds(new Set())
+      qc.invalidateQueries({ queryKey: ['agent-history'] })
     },
   })
 
@@ -454,7 +483,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                 : 'The agent will rank open jobs by how well they match your skills and location.'}
             </p>
             <Button
-              onClick={() => runMutation.mutate()}
+              onClick={() => startRun()}
               loading={runMutation.isPending}
               variant="primary"
               size="lg"
@@ -473,7 +502,32 @@ export default function AgentPanel({ mode, jobId, onClose }) {
         )}
 
         {/* In progress: live checklist driven by the agent's real tool calls */}
-        {isRunInProgress && !confirmDone && <RunProgress mode={mode} run={runData} />}
+        {isRunInProgress && !confirmDone && (
+          <>
+            {resumed && (
+              <p className="rounded-xl border border-line bg-subtle px-3 py-2 text-xs text-fg-muted">
+                This agent was already running, so we picked it up where it is. Stop it or start over if you want a fresh run.
+              </p>
+            )}
+            <RunProgress mode={mode} run={runData} />
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-center">
+              <Button variant="outline" size="sm" onClick={() => cancelMutation.mutate()} loading={cancelMutation.isPending} disabled={runMutation.isPending}>
+                <Square className="w-3.5 h-3.5" /> Stop
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => startRun({ restart: true })} loading={runMutation.isPending} disabled={cancelMutation.isPending}>
+                <RotateCcw className="w-3.5 h-3.5" /> Start over
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* Restarting from a run that's open failed (e.g. rate limit) */}
+        {runId && !confirmDone && runMutation.isError && errorStatus(runMutation.error) !== 409 && (
+          <p className="flex items-center justify-center gap-2 text-sm text-red-600 dark:text-red-400">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {errorMessage(runMutation.error)}
+          </p>
+        )}
 
         {/* Run failed */}
         {runFailed && !confirmDone && (
@@ -509,11 +563,17 @@ export default function AgentPanel({ mode, jobId, onClose }) {
 
             {/* Results count + Gemini reasoning */}
             <div>
-              <h3 className="font-bold text-fg text-sm mb-1">
-                {isMatch
-                  ? `${runData.recommendations?.length || 0} Top Workers Found`
-                  : `${runData.recommendations?.length || 0} Best Jobs Found`}
-              </h3>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <h3 className="font-bold text-fg text-sm">
+                  {isMatch
+                    ? `${runData.recommendations?.length || 0} Top Workers Found`
+                    : `${runData.recommendations?.length || 0} Best Jobs Found`}
+                </h3>
+                {/* Starting again replaces these results. */}
+                <Button variant="ghost" size="sm" onClick={() => startRun()} loading={runMutation.isPending}>
+                  <RotateCcw className="w-3.5 h-3.5" /> Run again
+                </Button>
+              </div>
               {runData.overall_reasoning && (
                 <div className={cn(
                   'mt-2 p-3 rounded-xl border text-xs leading-relaxed',

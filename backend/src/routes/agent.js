@@ -4,6 +4,7 @@
  * POST /api/agent/match/run        — customer runs match agent on a job
  * POST /api/agent/proposal/run     — worker runs proposal agent
  * POST /api/agent/run/:id/confirm  — confirm a pending agent action
+ * POST /api/agent/run/:id/cancel   — stop a run or discard its results
  * GET  /api/agent/run/:id          — get run details
  * GET  /api/agent/history          — get recent runs for current user
  */
@@ -34,18 +35,20 @@ const proposalRunLimiter = createRateLimiter({
 // returns immediately (202); the in-process worker (agents/worker.js) does
 // the actual matching. Poll GET /run/:id for the result.
 router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter, async (req, res) => {
-  const { job_id } = req.body;
+  const { job_id, restart = false } = req.body;
 
   if (!job_id) {
     return res.status(400).json({ error: 'job_id is required' });
   }
 
   try {
-    // Check if there's already a running/awaiting run for this job to avoid duplicates
+    // One run at a time per job. Unconfirmed results are replaced; a run
+    // still working blocks a new one unless the user asks to restart it.
+    await repository.supersedeRuns({ userId: req.user.id, type: 'match', jobId: job_id, restart: restart === true });
     const existing = await repository.activeMatch(req.user.id, job_id);
     if (existing) {
       return res.status(409).json({
-        error: 'An agent run is already active for this job',
+        error: 'The match agent is already running for this job',
         run_id: existing.id,
         status: existing.status,
       });
@@ -66,11 +69,13 @@ router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter,
 // Worker triggers the proposal agent. Same async pattern as /match/run.
 router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimiter, async (req, res) => {
   try {
-    // Prevent duplicate active runs
+    // Same rules as /match/run: replace unconfirmed results, and only stop
+    // a run in progress when asked to.
+    await repository.supersedeRuns({ userId: req.user.id, type: 'proposal', restart: req.body?.restart === true });
     const existing = await repository.activeProposal(req.user.id);
     if (existing) {
       return res.status(409).json({
-        error: 'A proposal agent run is already active',
+        error: 'The proposal agent is already running',
         run_id: existing.id,
         status: existing.status,
       });
@@ -193,7 +198,7 @@ router.get('/history', verifyToken, async (req, res) => {
 });
 
 // ── POST /api/agent/run/:id/cancel ───────────────────────────────────────────
-// Cancel a pending or awaiting_confirmation run.
+// Stop a pending or running run, or discard results awaiting confirmation.
 router.post('/run/:id/cancel', verifyToken, async (req, res) => {
   const { id: runId } = req.params;
   try {

@@ -17,7 +17,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // tracks whatever's current, so it leads the list to reduce how often this
 // needs a manual bump again; gemini-3.6-flash is what Google's own error
 // pointed at as of this fix.
-const MODEL_NAMES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-2.0-flash'];
+const MODEL_NAMES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.8-flash'];
 const RETRY_BACKOFF_MS = 250;
 
 function isGeminiKeyConfigured() {
