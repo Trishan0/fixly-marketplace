@@ -149,7 +149,7 @@ export function ProfilePage() {
                   <option value="">Choose a skill</option>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </Select>
-                <Input label="Starting price (LKR)" inputMode="decimal" value={form.starting_price} onChange={set('starting_price')} placeholder="e.g. 2500" error={startingPriceError} />
+                <Input label="Starting price (LKR, optional)" inputMode="decimal" value={form.starting_price} onChange={set('starting_price')} placeholder="e.g. 2500" hint="A guide for customers. You agree the real price for each job, and it doesn’t affect where you appear in suggestions." error={startingPriceError} />
                 <div className="sm:col-span-2">
                   <Textarea label="About you" value={form.bio} onChange={set('bio')} placeholder="Your experience, the kind of work you do best, and anything included in your price." rows={4} />
                 </div>

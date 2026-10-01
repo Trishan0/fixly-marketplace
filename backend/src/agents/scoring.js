@@ -7,14 +7,22 @@
 
 // ─── Match Agent: Score a worker for a job ───────────────────────────────────
 
+// Price is deliberately not a factor: workers don't set fixed prices (the
+// starting price is an optional guide) and the price is agreed per job.
+// Ranking on it would push workers to post low guide prices to rank higher.
 const MATCH_WEIGHTS = {
-  skill_fit:        0.30,
-  location_fit:     0.20,
+  skill_fit:        0.35,
+  location_fit:     0.25,
   rating_score:     0.15,
   completion_score: 0.15,
-  price_fit:        0.10,
   urgency_fit:      0.10,
 };
+
+// Unrated workers start at the platform average rather than a fixed low
+// score; each real review then pulls them toward their own average. The
+// prior counts as this many reviews.
+const RATING_PRIOR_WEIGHT = 3;
+const DEFAULT_PLATFORM_RATING = 4.0;
 
 /**
  * Parse a starting_price VARCHAR like "LKR 2500" or "2500" → number or null.
@@ -66,13 +74,18 @@ function calcLocationFit(worker, job) {
 }
 
 /**
- * Rating score: normalize avg_rating (0–5) to [0, 1].
- * Workers with no rating get 0.4 (benefit of the doubt).
+ * Rating score: a Bayesian average, normalized to [0, 1]. With no reviews
+ * it's the platform average; with many it's the worker's own average.
+ * @param {{ platformAvgRating?: number | null }} [context]
  */
-function calcRatingScore(worker) {
+function calcRatingScore(worker, context = {}) {
   const rating = parseFloat(worker.avg_rating) || 0;
-  if (rating === 0) return 0.4;
-  return Math.min(rating / 5.0, 1.0);
+  const prior = Number(context.platformAvgRating) || DEFAULT_PLATFORM_RATING;
+  const reviews = worker.review_count != null
+    ? Number(worker.review_count) || 0
+    : (rating > 0 ? parseInt(worker.total_jobs_done) || 1 : 0);
+  const blended = (RATING_PRIOR_WEIGHT * prior + reviews * rating) / (RATING_PRIOR_WEIGHT + reviews);
+  return Math.min(blended / 5.0, 1.0);
 }
 
 /**
@@ -85,45 +98,33 @@ function calcCompletionScore(worker) {
   return Math.min(Math.log10(done + 1) / Math.log10(51), 1.0); // saturates at ~50
 }
 
+// A starting price this many times the job's fixed budget earns a note
+// on the recommendation. It's information for the customer, never a
+// penalty: the final price is agreed per job.
+const PRICE_NOTE_RATIO = 1.5;
+
 /**
- * Price fit: compare worker's starting_price vs job's fixed_budget.
- * If worker is cheaper or equal → good. If much more expensive → low score.
- * Unknown budget → 0.5.
+ * A short note when a worker's optional guide price is well above the
+ * job's fixed budget, or null.
  */
-function calcPriceFit(worker, job) {
+function priceNote(worker, job) {
   const workerPrice = parsePrice(worker.starting_price);
-  const jobBudget = parseFloat(job.fixed_budget) || null;
-
-  if (!workerPrice || !jobBudget) return 0.5;
-
-  const ratio = workerPrice / jobBudget;
-  if (ratio <= 0.8) return 1.0;   // well under budget
-  if (ratio <= 1.0) return 0.85;  // at or just under
-  if (ratio <= 1.2) return 0.5;   // slightly over
-  if (ratio <= 1.5) return 0.25;  // noticeably over
-  return 0.0;                      // way over
+  const jobBudget = job.pricing_mode === 'fixed' ? parseFloat(job.fixed_budget) || null : null;
+  if (!workerPrice || !jobBudget || workerPrice <= jobBudget * PRICE_NOTE_RATIO) return null;
+  return `Usually starts at LKR ${workerPrice.toLocaleString('en-LK')}. Your budget is LKR ${jobBudget.toLocaleString('en-LK')}.`;
 }
 
 /**
- * Urgency fit: can the worker respond quickly?
- * Using NIC verification and rating as proxies for reliability.
+ * Urgency fit: can the worker be trusted to turn up quickly? Uses ID
+ * verification only - experience is already scored by completion_score,
+ * so counting it again here would penalize new workers twice.
  */
 function calcUrgencyFit(worker, job) {
   const urgency = job.urgency;
   if (!urgency || urgency === 'flexible') return 0.8;
-
   const isVerified = worker.is_nic_verified;
-  const hasExperience = (parseInt(worker.total_jobs_done) || 0) > 3;
-
-  if (urgency === 'today') {
-    if (isVerified && hasExperience) return 1.0;
-    if (isVerified || hasExperience) return 0.65;
-    return 0.3;
-  }
-  if (urgency === 'tomorrow') {
-    if (isVerified) return 0.9;
-    return 0.6;
-  }
+  if (urgency === 'today') return isVerified ? 1.0 : 0.6;
+  if (urgency === 'tomorrow') return isVerified ? 0.9 : 0.7;
   if (urgency === 'this_week') return 0.85;
   return 0.8;
 }
@@ -132,13 +133,12 @@ function calcUrgencyFit(worker, job) {
  * Main: score a worker for a job.
  * Returns { total: Number, factors: Object, rationale: String }
  */
-function scoreWorkerForJob(worker, job) {
+function scoreWorkerForJob(worker, job, context = {}) {
   const factors = {
     skill_fit:        calcSkillFit(worker, job),
     location_fit:     calcLocationFit(worker, job),
-    rating_score:     calcRatingScore(worker),
+    rating_score:     calcRatingScore(worker, context),
     completion_score: calcCompletionScore(worker),
-    price_fit:        calcPriceFit(worker, job),
     urgency_fit:      calcUrgencyFit(worker, job),
   };
 
@@ -170,12 +170,12 @@ function buildMatchRationale(worker, job, factors, _total) {
     lines.push(`✗ Different district (${worker.district} vs ${job.district})`);
   }
 
-  if (factors.rating_score >= 0.8) {
+  if (!parseFloat(worker.avg_rating)) {
+    lines.push(`~ No reviews yet`);
+  } else if (factors.rating_score >= 0.8) {
     lines.push(`✓ Highly rated (${worker.avg_rating}/5)`);
   } else if (factors.rating_score >= 0.6) {
     lines.push(`~ Good rating (${worker.avg_rating}/5)`);
-  } else if (!parseFloat(worker.avg_rating)) {
-    lines.push(`~ No reviews yet`);
   } else {
     lines.push(`✗ Lower rating (${worker.avg_rating}/5)`);
   }
@@ -201,8 +201,65 @@ function buildMatchRationale(worker, job, factors, _total) {
  * @param {Object} job
  * @returns {{ worker: Object, total: number, factors: Object, rationale: string }[]}
  */
-function scoreAllWorkersForJob(workers, job) {
-  return workers.map(worker => ({ worker, ...scoreWorkerForJob(worker, job) }));
+function scoreAllWorkersForJob(workers, job, context = {}) {
+  return workers.map(worker => ({ worker, ...scoreWorkerForJob(worker, job, context) }));
+}
+
+// ─── Match Agent: newcomer fit (new-talent lane) ─────────────────────────────
+
+// No rating or experience terms: a newcomer has neither, and judging them
+// on it is exactly what keeps them invisible. Fit is about the job and how
+// much effort they've put into showing their work.
+const NEWCOMER_WEIGHTS = {
+  skill_fit:      0.40,
+  location_fit:   0.25,
+  profile:        0.20,
+  responsiveness: 0.15,
+};
+
+/** Bio depth and portfolio photos, in [0, 1]. */
+function calcProfileCompleteness(worker) {
+  const bioLength = String(worker.bio || '').trim().length;
+  const bio = bioLength >= 120 ? 1.0 : bioLength >= 60 ? 0.75 : 0.5;
+  const photos = Number(worker.portfolio_count) || 0;
+  const portfolio = photos >= 3 ? 1.0 : photos >= 1 ? 0.6 : 0.0;
+  return (bio + portfolio) / 2;
+}
+
+/**
+ * Share of recent invites the worker accepted. Neutral until they've had
+ * any, so the first customer to try them isn't held against them.
+ */
+function calcResponsiveness(worker) {
+  const accepted = Number(worker.invites_accepted) || 0;
+  const unanswered = Number(worker.invites_unanswered) || 0;
+  if (accepted + unanswered === 0) return 0.7;
+  return accepted / (accepted + unanswered);
+}
+
+function scoreNewcomerForJob(worker, job) {
+  const factors = {
+    skill_fit:      calcSkillFit(worker, job),
+    location_fit:   calcLocationFit(worker, job),
+    profile:        calcProfileCompleteness(worker),
+    responsiveness: calcResponsiveness(worker),
+  };
+  const total = Object.entries(NEWCOMER_WEIGHTS).reduce((sum, [key, weight]) => sum + factors[key] * weight, 0);
+  return { total: parseFloat(total.toFixed(4)), factors, rationale: buildNewcomerRationale(worker, job, factors) };
+}
+
+/** Plain facts for a newcomer card - never phrased as model reasoning. */
+function buildNewcomerRationale(worker, job, factors) {
+  const lines = [];
+  if (factors.skill_fit >= 1.0) lines.push(`${job.category_name || 'This trade'} is their main skill`);
+  else if (factors.skill_fit >= 0.7) lines.push(`Also does ${job.category_name || 'this kind of work'}`);
+  if (worker.district) lines.push(factors.location_fit === 1.0 ? `Based in ${worker.district}` : `Based in ${worker.district} (outside ${job.district || 'your district'})`);
+  lines.push('ID verified');
+  const photos = Number(worker.portfolio_count) || 0;
+  if (photos > 0) lines.push(`${photos} portfolio photo${photos === 1 ? '' : 's'}`);
+  const done = parseInt(worker.total_jobs_done) || 0;
+  lines.push(done > 0 ? `${done} job${done === 1 ? '' : 's'} done on Fixly` : 'New on Fixly');
+  return lines.join(' · ');
 }
 
 // ─── Proposal Agent: Score a job for a worker ────────────────────────────────
@@ -365,4 +422,4 @@ function draftProposalMessage(job, worker) {
   );
 }
 
-module.exports = { scoreWorkerForJob, scoreJobForWorker, scoreAllWorkersForJob, draftProposalMessage, parsePrice };
+module.exports = { scoreWorkerForJob, scoreJobForWorker, scoreAllWorkersForJob, scoreNewcomerForJob, draftProposalMessage, parsePrice, priceNote };

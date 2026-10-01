@@ -1,7 +1,7 @@
 import React from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query'
-import { BadgeCheck, Briefcase, Camera, CheckCircle2, MapPin, MessageSquare, Send, ShieldCheck, Star } from 'lucide-react'
+import { BadgeCheck, Briefcase, Camera, CheckCircle2, MapPin, MessageSquare, Send, ShieldCheck, Sparkles, Star } from 'lucide-react'
 import { Avatar, StarRating, Modal, Select, Textarea } from '../../components/shared/UI'
 import { Button, Card, IconChip, Page, Skeleton, buttonClasses } from '../../components/ui'
 import { OwnProfileBar, ProfileEmpty, ProfileHero, ProfileSectionCard, PublicPageChrome } from '../../components/shared/ProfileLayout'
@@ -163,11 +163,19 @@ function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, user, i
           avatarName={worker.full_name}
           avatarSrc={worker.profile_photo}
           title={worker.full_name}
-          badges={worker.is_nic_verified && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/15 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/20">
-              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> ID verified
-            </span>
-          )}
+          badges={<>
+            {worker.is_nic_verified && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/15 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/20">
+                <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> ID verified
+              </span>
+            )}
+            {/* Same cut-off as the match agent's new-talent lane (backend agents/lanes.js). */}
+            {Number(worker.total_jobs_done || 0) < 3 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/15 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-400/20">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> New on Fixly
+              </span>
+            )}
+          </>}
           actions={!isOwnProfile && primaryAction && <div className="lg:hidden">{primaryAction}</div>}
           meta={<>
             {worker.primary_skill && (

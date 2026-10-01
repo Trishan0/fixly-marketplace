@@ -16,6 +16,8 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 const { createMatchRun, confirmMatchAgent } = require('../agents/matchAgent');
 const { createProposalRun, confirmProposalAgent } = require('../agents/proposalAgent');
 const { MarketplaceError } = require('../modules/marketplace/errors');
+const { getJobDetails } = require('../agents/tools/getJobDetails');
+const { priceNote } = require('../agents/scoring');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
 // Each run can drive up to 12 Gemini tool-calling round trips, so these are
@@ -147,10 +149,11 @@ router.get('/run/:id', verifyToken, async (req, res) => {
   try {
     const run = await repository.runDetail(runId, req.user.id);
     if (!run) return res.status(404).json({ error: 'Run not found' });
-    const [steps, recommendations, queue] = await Promise.all([
+    const [steps, recommendations, queue, job] = await Promise.all([
       repository.runSteps(runId),
       repository.runRecommendations(runId),
       run.status === 'pending' ? repository.queuePosition(runId) : null,
+      run.agent_type === 'match' && run.job_id ? getJobDetails(run.job_id) : null,
     ]);
 
     res.json({
@@ -168,6 +171,10 @@ router.get('/run/:id', verifyToken, async (req, res) => {
       recommendations: recommendations.map(rec => ({
         recommendation_id: rec.id,
         rank: rec.rank,
+        lane: rec.lane,
+        // Informational only: shown when a worker's guide price is well
+        // above the job's fixed budget. Never part of the ranking.
+        price_note: job && rec.entity_type === 'worker' && rec.entity_data ? priceNote(rec.entity_data, job) : null,
         score: Number(rec.score),
         factors: rec.factors_json,
         rationale: rec.rationale,
