@@ -25,6 +25,7 @@ const SafetyPage = lazy(() => import('./pages/legal/LegalPages').then(m => ({ de
 const WorkerCatalogPublic = lazy(() => import('./pages/public/WorkerCatalog'))
 const WorkerProfile = lazy(() => import('./pages/public/WorkerProfile'))
 const CustomerProfile = lazy(() => import('./pages/public/CustomerProfile'))
+const CompletedJob = lazy(() => import('./pages/public/CompletedJob'))
 const CustomerDashboard = lazy(() => import('./pages/customer/Dashboard'))
 const PostJob = lazy(() => import('./pages/customer/PostJob'))
 const MyJobs = lazy(() => import('./pages/customer/MyJobs'))
@@ -123,6 +124,7 @@ function AppRoutes() {
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
           <Route path="/workers" element={<WorkerCatalogPublic />} />
           <Route path="/workers/:id" element={<WorkerProfile />} />
+          <Route path="/completed-jobs/:id" element={<CompletedJob />} />
           <Route path="/customers/:id" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
           <Route path="/customer-dashboard" element={<RoleRoute role="customer"><CustomerDashboard /></RoleRoute>} />

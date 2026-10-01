@@ -5,6 +5,7 @@ const { requireEmailVerified } = require("../middleware/verified");
 const upload = require("../middleware/upload");
 const { isBlobStorage, validateBlobReference } = require("../services/storage");
 const repository = require('../modules/marketplace/repository');
+const identityRepository = require('../modules/identity/repository');
 const { MarketplaceError } = require('../modules/marketplace/errors');
 const {
   cancelJob,
@@ -119,6 +120,20 @@ router.get(
     }
   },
 );
+
+// GET /api/jobs/:id/public - a finished job as shown from a profile's job
+// history. Public, so it carries no address, phone, proposals or messages.
+router.get("/:id/public", async (req, res) => {
+  try {
+    const job = await identityRepository.completedJobShowcase(req.params.id);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    job.photos = await identityRepository.completedJobPhotos(req.params.id);
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
+  }
+});
 
 // GET /api/jobs/:id
 router.get("/:id", verifyToken, async (req, res) => {

@@ -15,6 +15,7 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 import { ErrorFallback } from '../../components/shared/ErrorBoundary'
 import { ReportButton } from '../../components/shared/ReportDialog'
 import { AppShell } from '../../components/layout/AppShell'
+import { CompletedJobsSection } from '../../components/shared/CompletedJobs'
 import { PublicFooter } from '../../components/shared/PublicFooter'
 
 const REVIEW_PAGE_SIZE = 10
@@ -210,6 +211,12 @@ function WorkerProfileBody({ worker, reviews, reviewsQuery, reviewCount, user, i
             <ProfileEmpty icon={Camera}>{isOwnProfile ? <>No portfolio photos yet. <Link to="/profile/edit" className="font-semibold text-brand-text hover:underline">Add some</Link> to win more jobs.</> : 'No portfolio photos yet.'}</ProfileEmpty>
           )}
         </ProfileSectionCard>
+
+        <CompletedJobsSection
+          endpoint={`/workers/${worker.id}/jobs`}
+          queryKey={['worker-completed-jobs', worker.id]}
+          emptyText={isOwnProfile ? 'Jobs you finish on Fixly will show here.' : `${firstName} hasn’t finished a job on Fixly yet.`}
+        />
 
         <ProfileSectionCard title="Reviews" meta={reviewCount > 0 ? `${rating.toFixed(1)} average · ${pluralize(reviewCount, 'review')}` : null} bodyClassName={reviewCount > 0 ? 'p-0' : undefined}>
           {reviewCount === 0 ? (

@@ -164,7 +164,45 @@ function publicMarketplaceStats() { return one(sql`
 `); }
 function workerReviews(id, limit, offset) { return rows(sql`SELECT r.id,r.rating,r.feedback,r.created_at,u.full_name AS customer_name,u.profile_photo AS customer_photo,j.title AS job_title FROM reviews r JOIN users u ON u.id=r.customer_id JOIN jobs j ON j.id=r.job_id WHERE r.worker_id=${id} ORDER BY r.created_at DESC LIMIT ${limit} OFFSET ${offset}`); }
 function customerSummary(id) { return one(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.created_at, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id) AS jobs_posted, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('posted','proposals_received','assigned','in_progress')) AS active_jobs, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('completed','payment_recorded','reviewed')) AS jobs_completed, (SELECT COUNT(*)::int FROM reviews WHERE customer_id=u.id) AS reviews_given FROM users u WHERE u.id=${id} AND u.role='customer' AND u.is_suspended=false`); }
-function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j.created_at,c.name AS category_name,(SELECT COUNT(*)::int FROM proposals p WHERE p.job_id=j.id) AS proposal_count FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.customer_id=${id} ORDER BY j.created_at DESC LIMIT 4`); }
+function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j.created_at,c.name AS category_name,(SELECT COUNT(*)::int FROM proposals p WHERE p.job_id=j.id) AS proposal_count FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.customer_id=${id} AND j.status NOT IN ('completed','payment_recorded','reviewed') ORDER BY j.created_at DESC LIMIT 4`); }
+
+// Finished jobs shown on public profiles. Only jobs that are done, not taken
+// down by an admin, and between two accounts in good standing. No address,
+// phone or messages: the street address stays private to the two parties.
+const DONE_JOB = sql`j.status IN ('completed','payment_recorded','reviewed') AND j.is_active = true AND j.flagged_at IS NULL AND cu.is_suspended = false AND wu.is_suspended = false`;
+const COMPLETED_AT = sql`COALESCE((SELECT MAX(e.created_at) FROM job_status_events e WHERE e.job_id = j.id AND e.status = 'completed'), j.updated_at)`;
+function doneJobsFilter({ workerId, customerId }) { return workerId ? sql`j.assigned_worker_id = ${workerId}` : sql`j.customer_id = ${customerId}`; }
+function completedJobs({ workerId, customerId, limit, offset }) { return rows(sql`
+  SELECT j.id, j.title, j.district, j.town, c.name AS category_name, ${COMPLETED_AT} AS completed_at,
+         wu.id AS worker_id, wu.full_name AS worker_name, wu.profile_photo AS worker_photo,
+         r.rating, (SELECT ph.path FROM job_photos ph WHERE ph.job_id = j.id ORDER BY ph.order_idx LIMIT 1) AS cover_photo
+  FROM jobs j
+  JOIN users cu ON cu.id = j.customer_id
+  JOIN users wu ON wu.id = j.assigned_worker_id
+  LEFT JOIN categories c ON c.id = j.category_id
+  LEFT JOIN reviews r ON r.job_id = j.id
+  WHERE ${doneJobsFilter({ workerId, customerId })} AND ${DONE_JOB}
+  ORDER BY completed_at DESC, j.id
+  LIMIT ${limit} OFFSET ${offset}
+`); }
+function countCompletedJobs({ workerId, customerId }) { return one(sql`SELECT COUNT(*)::int AS count FROM jobs j JOIN users cu ON cu.id = j.customer_id JOIN users wu ON wu.id = j.assigned_worker_id WHERE ${doneJobsFilter({ workerId, customerId })} AND ${DONE_JOB}`); }
+function completedJobShowcase(jobId) { return one(sql`
+  SELECT j.id, j.title, j.description, j.district, j.town, j.status, j.created_at, ${COMPLETED_AT} AS completed_at,
+         CASE WHEN j.status IN ('payment_recorded','reviewed') THEN j.final_price END AS final_price,
+         c.name AS category_name,
+         cu.id AS customer_id, cu.full_name AS customer_name, cu.profile_photo AS customer_photo,
+         wu.id AS worker_id, wu.full_name AS worker_name, wu.profile_photo AS worker_photo, wu.is_nic_verified AS worker_verified,
+         wp.primary_skill AS worker_primary_skill, wp.avg_rating AS worker_avg_rating, wp.total_jobs_done AS worker_jobs_done,
+         r.rating AS review_rating, r.feedback AS review_feedback, r.created_at AS reviewed_at
+  FROM jobs j
+  JOIN users cu ON cu.id = j.customer_id
+  JOIN users wu ON wu.id = j.assigned_worker_id
+  LEFT JOIN worker_profiles wp ON wp.user_id = wu.id
+  LEFT JOIN categories c ON c.id = j.category_id
+  LEFT JOIN reviews r ON r.job_id = j.id
+  WHERE j.id = ${jobId} AND ${DONE_JOB}
+`); }
+function completedJobPhotos(jobId) { return rows(sql`SELECT id, path FROM job_photos WHERE job_id = ${jobId} ORDER BY order_idx LIMIT 10`); }
 
 module.exports = instrumentRepository('identity', {
   createWorkerProfile, deletePortfolioPhoto, findAuthUserByEmail, findCategoryByName, findResetEligibleUser,
@@ -173,4 +211,5 @@ module.exports = instrumentRepository('identity', {
   updateProfile, updateWorkerProfile, verifyEmail, workerPortfolio, workerProfileId, workerSkills,
   countWorkers, customerRecentJobs, customerSummary, listWorkers, publicWorker, workerReviews,
   findVerificationState, publicMarketplaceStats, setEmailVerifyToken,
+  completedJobs, countCompletedJobs, completedJobShowcase, completedJobPhotos,
 });
