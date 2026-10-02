@@ -105,20 +105,25 @@ function workerSkills(userId) { return rows(sql`
   WHERE ws.worker_id = (SELECT id FROM worker_profiles WHERE user_id = ${userId}) ORDER BY c.name LIMIT 50
 `); }
 
+// Partial updates: a field left out (undefined) keeps its value. Drizzle
+// drops undefined from SQL entirely, so each one is turned into null for
+// COALESCE first.
 function updateProfile(input, client) {
   return one(sql`
-    UPDATE users SET full_name = COALESCE(${input.fullName}, full_name), phone = COALESCE(${input.phone}, phone),
-      district = COALESCE(${input.district}, district), area = COALESCE(${input.area}, area), updated_at = NOW()
+    UPDATE users SET full_name = COALESCE(${input.fullName ?? null}, full_name), phone = COALESCE(${input.phone ?? null}, phone),
+      district = COALESCE(${input.district ?? null}, district), area = COALESCE(${input.area ?? null}, area), updated_at = NOW()
     WHERE id = ${input.userId} RETURNING id
   `, client);
 }
+// starting_price is optional: null clears it, undefined leaves it alone.
 function updateWorkerProfile(input, client) {
   return one(sql`
-    UPDATE worker_profiles SET bio = COALESCE(${input.bio}, bio), starting_price = COALESCE(${input.startingPrice}, starting_price),
-      primary_skill = COALESCE(${input.primarySkill}, primary_skill) WHERE user_id = ${input.userId} RETURNING id
+    UPDATE worker_profiles SET bio = COALESCE(${input.bio ?? null}, bio),
+      starting_price = CASE WHEN ${input.startingPrice !== undefined}::boolean THEN ${input.startingPrice ?? null}::varchar ELSE starting_price END,
+      primary_skill = COALESCE(${input.primarySkill ?? null}, primary_skill), updated_at = NOW() WHERE user_id = ${input.userId} RETURNING id
   `, client);
 }
-function setProfilePhoto(userId, path) { return one(sql`UPDATE users SET profile_photo = ${path}, updated_at = NOW() WHERE id = ${userId} RETURNING profile_photo`); }
+function setProfilePhoto(userId, path) { return one(sql`WITH touched AS (UPDATE worker_profiles SET updated_at = NOW() WHERE user_id = ${userId}) UPDATE users SET profile_photo = ${path}, updated_at = NOW() WHERE id = ${userId} RETURNING profile_photo`); }
 function setNicImage(userId, path) { return one(sql`UPDATE users SET nic_image_path = ${path}, is_nic_verified = false, nic_verified_by = NULL, nic_rejection_reason = NULL, updated_at = NOW() WHERE id = ${userId} RETURNING nic_image_path`); }
 function setEmailVerifyToken(userId, tokenHash, expiresAt) {
   return one(sql`
@@ -131,7 +136,7 @@ function findVerificationState(userId) { return one(sql`SELECT id, email, is_ema
 function setDashboardMode(userId, mode) { return one(sql`UPDATE users SET dashboard_mode = ${mode}, updated_at = NOW() WHERE id = ${userId} RETURNING dashboard_mode`); }
 function setAiMatchingOptIn(userId, optIn) { return one(sql`UPDATE worker_profiles SET ai_matching_opt_in = ${optIn} WHERE user_id = ${userId} RETURNING ai_matching_opt_in`); }
 function portfolioCount(workerId, client) { return one(sql`SELECT COUNT(*)::int AS count FROM worker_portfolio_photos WHERE worker_id = ${workerId}`, client); }
-function insertPortfolioPhoto(workerId, path, client) { return one(sql`INSERT INTO worker_portfolio_photos (worker_id, path) VALUES (${workerId}, ${path}) RETURNING *`, client); }
+function insertPortfolioPhoto(workerId, path, client) { return one(sql`WITH touched AS (UPDATE worker_profiles SET updated_at = NOW() WHERE id = ${workerId}) INSERT INTO worker_portfolio_photos (worker_id, path) VALUES (${workerId}, ${path}) RETURNING *`, client); }
 function deletePortfolioPhoto(photoId, workerId, client) { return one(sql`DELETE FROM worker_portfolio_photos WHERE id = ${photoId} AND worker_id = ${workerId} RETURNING path`, client); }
 function listWorkers({ category, district, minRating, verified, search, limit, offset }) { return rows(sql`
   SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.created_at,

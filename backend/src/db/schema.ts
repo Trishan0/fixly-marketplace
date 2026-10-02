@@ -312,7 +312,9 @@ export const agentRecommendations = pgTable("agent_recommendations", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	keyStrengths: jsonb("key_strengths"),
 	proposalDraft: text("proposal_draft"),
+	lane: varchar({ length: 20 }),
 }, (table) => [
+	index("idx_agent_recommendations_entity_created").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_agent_recommendations_rank").using("btree", table.runId.asc().nullsLast().op("int4_ops"), table.rank.asc().nullsLast().op("int4_ops")),
 	index("idx_agent_recommendations_run_id").using("btree", table.runId.asc().nullsLast().op("uuid_ops")),
 	uniqueIndex("uq_agent_recommendations_run_entity").using("btree", table.runId.asc().nullsLast().op("text_ops"), table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("text_ops")),
@@ -323,6 +325,7 @@ export const agentRecommendations = pgTable("agent_recommendations", {
 		}).onDelete("cascade"),
 	check("agent_recommendations_entity_type_check", sql`(entity_type)::text = ANY ((ARRAY['worker'::character varying, 'job'::character varying])::text[])`),
 	check("agent_recommendations_score_check", sql`(score >= (0)::numeric) AND (score <= (1)::numeric)`),
+	check("agent_recommendations_lane_check", sql`(lane IS NULL) OR ((lane)::text = ANY ((ARRAY['best_match'::character varying, 'new_talent'::character varying])::text[]))`),
 ]);
 
 export const agentMemories = pgTable("agent_memories", {
@@ -486,6 +489,7 @@ export const workerProfiles = pgTable("worker_profiles", {
 	avgRating: numeric("avg_rating", { precision: 3, scale:  2 }).default('0'),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 	aiMatchingOptIn: boolean("ai_matching_opt_in").default(true).notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'date' }).defaultNow(),
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],

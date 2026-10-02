@@ -205,3 +205,61 @@ describe('Phase 5 invitations and agent confirmation invariants', () => {
     expect(run.rows).toEqual([{ status: 'error' }]);
   });
 });
+
+describe('agent runs stay in the user\'s control', () => {
+  const originalKey = process.env.GEMINI_API_KEY;
+  beforeEach(() => { process.env.GEMINI_API_KEY = 'test-key-not-used-by-these-requests'; });
+  afterEach(() => { process.env.GEMINI_API_KEY = originalKey; });
+
+  async function runStatus(id) {
+    return (await testPool.query('SELECT status FROM agent_runs WHERE id = $1', [id])).rows[0].status;
+  }
+
+  test('unconfirmed results never block a new match run, and a running one can be restarted', async () => {
+    const customer = await createUser(testPool, { email: 'agent-control-customer@fixly-test.local', fullName: 'Agent Control', role: 'customer' });
+    const job = await createJob(testPool, { customerId: customer.id });
+    const auth = authorizationFor(customer);
+
+    const stale = await awaitingRun({ userId: customer.id, agentType: 'match', jobId: job.id });
+    const first = await request(app).post('/api/agent/match/run').set('Authorization', auth).send({ job_id: job.id }).expect(202);
+    expect(await runStatus(stale.id)).toBe('cancelled');
+
+    const blocked = await request(app).post('/api/agent/match/run').set('Authorization', auth).send({ job_id: job.id }).expect(409);
+    expect(blocked.body.run_id).toBe(first.body.run_id);
+
+    const restarted = await request(app).post('/api/agent/match/run').set('Authorization', auth).send({ job_id: job.id, restart: true }).expect(202);
+    expect(restarted.body.run_id).not.toBe(first.body.run_id);
+    expect(await runStatus(first.body.run_id)).toBe('cancelled');
+
+    await request(app).post(`/api/agent/run/${restarted.body.run_id}/cancel`).set('Authorization', auth).expect(200);
+    await request(app).post('/api/agent/match/run').set('Authorization', auth).send({ job_id: job.id }).expect(202);
+  });
+});
+
+describe('stopping a run mid-way', () => {
+  test('the agent stops at its next step and the rule-based fallback never runs', async () => {
+    const { executeProposalRun } = require('../src/agents/proposalAgent');
+    const { AgentRunCancelledError } = require('../src/agents/gemini');
+    const worker = await createUser(testPool, { email: 'stop-midway@fixly-test.local', fullName: 'Stop Midway', role: 'worker', primarySkill: 'Plumbing' });
+    const run = (await testPool.query(
+      "INSERT INTO agent_runs (user_id, agent_type, status, objective) VALUES ($1, 'proposal', 'running', 'test') RETURNING id, user_id",
+      [worker.id],
+    )).rows[0];
+
+    // The first model call asks for a tool; meanwhile the user presses Stop.
+    const generateContent = vi.fn(async () => {
+      await request(app).post(`/api/agent/run/${run.id}/cancel`).set('Authorization', authorizationFor(worker)).expect(200);
+      const calls = [{ name: 'get_worker_profile', args: {} }];
+      return { response: { candidates: [{ content: { role: 'model', parts: calls.map(c => ({ functionCall: c })) } }], functionCalls: () => calls } };
+    });
+    const genAI = { getGenerativeModel: () => ({ generateContent }) };
+
+    await expect(executeProposalRun(run, { genAI })).rejects.toBeInstanceOf(AgentRunCancelledError);
+
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    const after = await testPool.query('SELECT status, plan_json FROM agent_runs WHERE id = $1', [run.id]);
+    expect(after.rows[0]).toMatchObject({ status: 'cancelled', plan_json: null });
+    const recs = await testPool.query('SELECT COUNT(*)::int AS n FROM agent_recommendations WHERE run_id = $1', [run.id]);
+    expect(recs.rows[0].n).toBe(0);
+  });
+});

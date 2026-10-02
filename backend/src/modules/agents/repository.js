@@ -14,14 +14,31 @@ async function one(statement) {
   return (await rows(statement))[0] || null;
 }
 
+// "Active" means the agent is still working. A run awaiting confirmation is
+// finished work the user hasn't acted on, so it never blocks a new run.
 /** @param {string} userId @param {string} jobId */
 function activeMatch(userId, jobId) {
-  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND job_id=${jobId} AND agent_type='match' AND status IN ('pending','running','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1`);
+  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND job_id=${jobId} AND agent_type='match' AND status IN ('pending','running') ORDER BY created_at DESC LIMIT 1`);
 }
 
 /** @param {string} userId */
 function activeProposal(userId) {
-  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND agent_type='proposal' AND status IN ('pending','running','awaiting_confirmation') ORDER BY created_at DESC LIMIT 1`);
+  return one(sql`SELECT id,status FROM agent_runs WHERE user_id=${userId} AND agent_type='proposal' AND status IN ('pending','running') ORDER BY created_at DESC LIMIT 1`);
+}
+
+/**
+ * Cancel a user's earlier runs before starting a new one, so only the
+ * newest run's results can be confirmed. Unconfirmed results are always
+ * replaced; a run still in progress is stopped only when `restart` is set.
+ * @param {{ userId: string, type: 'match' | 'proposal', jobId?: string | null, restart?: boolean }} input
+ */
+function supersedeRuns({ userId, type, jobId = null, restart = false }) {
+  return rows(sql`UPDATE agent_runs SET status='cancelled',completed_at=NOW() WHERE user_id=${userId} AND agent_type=${type} AND (${jobId}::uuid IS NULL OR job_id=${jobId}) AND (status='awaiting_confirmation' OR (${restart}::boolean AND status IN ('pending','running'))) RETURNING id`);
+}
+
+/** @param {string} runId */
+function isRunCancelled(runId) {
+  return one(sql`SELECT status='cancelled' AS cancelled FROM agent_runs WHERE id=${runId}`).then(row => Boolean(row?.cancelled));
 }
 
 /** @param {string} runId @param {string} userId */
@@ -137,8 +154,8 @@ function addStep(runId, index, name, input, output, decision) {
  * @param {unknown} factors @param {string} rationale @param {number} rank
  * @param {string[] | null} [keyStrengths] @param {string | null} [proposalDraft]
  */
-function addRecommendation(runId, type, entityId, score, factors, rationale, rank, keyStrengths = null, proposalDraft = null) {
-  return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank,key_strengths,proposal_draft) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank},${JSON.stringify(keyStrengths)},${proposalDraft}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank,key_strengths=EXCLUDED.key_strengths,proposal_draft=EXCLUDED.proposal_draft RETURNING id`);
+function addRecommendation(runId, type, entityId, score, factors, rationale, rank, keyStrengths = null, proposalDraft = null, lane = null) {
+  return one(sql`INSERT INTO agent_recommendations (run_id,entity_type,entity_id,score,factors_json,rationale,rank,key_strengths,proposal_draft,lane) VALUES (${runId},${type},${entityId},${score},${JSON.stringify(factors)},${rationale},${rank},${JSON.stringify(keyStrengths)},${proposalDraft},${lane}) ON CONFLICT (run_id,entity_type,entity_id) DO UPDATE SET score=EXCLUDED.score,factors_json=EXCLUDED.factors_json,rationale=EXCLUDED.rationale,rank=EXCLUDED.rank,key_strengths=EXCLUDED.key_strengths,proposal_draft=EXCLUDED.proposal_draft,lane=EXCLUDED.lane RETURNING id`);
 }
 
 /** @param {string} runId @param {unknown} plan @param {string | null} [overallReasoning] */
@@ -191,12 +208,81 @@ function agentWorkerSkills(id) {
  * case of a missing worker_profiles row.
  * @param {string | null | undefined} district @param {number} limit
  */
-function candidateWorkers(district, limit) {
+// A worker "does" a category when it's one of their skills, or - for older
+// profiles without structured skills - their primary skill names it.
+function doesCategory(categoryId) {
+  return sql`(${categoryId}::uuid IS NULL OR EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = wp.id AND ws.category_id = ${categoryId})
+    OR (NOT EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = wp.id) AND wp.primary_skill ILIKE (SELECT name FROM categories WHERE id = ${categoryId})))`;
+}
+
+/**
+ * The match agent's candidate pool. With `minJobsDone` it's the proven
+ * workers for the best-match lane; `categoryId` filters to the job's trade
+ * *before* the limit, so a busy district can't push the right trade out.
+ * @param {string | null} district @param {number} limit
+ * @param {{ categoryId?: string | null, minJobsDone?: number }} [options]
+ */
+function candidateWorkers(district, limit, { categoryId = null, minJobsDone = 0 } = {}) {
   return rows(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.is_nic_verified,wp.id AS worker_profile_id,wp.bio,wp.starting_price,wp.primary_skill,wp.total_jobs_done,wp.avg_rating,
+    (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id) AS review_count,
     (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating>=4) AS positive_review_count,
     (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id AND r.rating<=2) AS negative_review_count,
     (SELECT ROUND(AVG(rating),2) FROM (SELECT rating FROM reviews WHERE worker_id=u.id ORDER BY created_at DESC LIMIT 10) recent) AS recent_avg_rating,
-    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND COALESCE(wp.ai_matching_opt_in,true)=true AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+    COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'category_icon',c.icon,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=wp.id),'[]'::json) AS skills FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.role='worker' AND u.is_suspended=false AND COALESCE(wp.ai_matching_opt_in,true)=true AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) AND COALESCE(wp.total_jobs_done,0) >= ${minJobsDone} AND ${doesCategory(categoryId)} ORDER BY wp.avg_rating DESC NULLS LAST,wp.total_jobs_done DESC LIMIT ${limit}`);
+}
+
+/**
+ * Workers eligible for the new-talent lane of one job, with the history
+ * the rotation needs. Eligibility is enforced here, in SQL, never by the
+ * model: fewer than `maxJobsDone` completed jobs, ID verified, email
+ * verified, opted in to matching, does the job's category, has a profile
+ * photo and a real bio, and hasn't already been invited to or applied for
+ * this job.
+ *
+ * Rotation history is counted since the worker's "reset point" - their
+ * last profile update or last invite, whichever is later - so improving
+ * the profile or getting picked restores their priority.
+ * @param {{ jobId: string, categoryId: string | null, district: string | null, maxJobsDone: number, minBioLength: number, inviteResponseDays: number, lookbackDays: number, limit: number }} input
+ */
+function newcomerCandidates({ jobId, categoryId, district, maxJobsDone, minBioLength, inviteResponseDays, lookbackDays, limit }) {
+  return rows(sql`
+    WITH base AS (
+      SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified,
+             wp.id AS worker_profile_id, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating,
+             GREATEST(COALESCE(wp.updated_at, '-infinity'::timestamptz),
+                      COALESCE((SELECT MAX(i.created_at) FROM invites i WHERE i.worker_id = u.id), '-infinity'::timestamptz)) AS reset_at
+      FROM users u JOIN worker_profiles wp ON wp.user_id = u.id
+      WHERE u.role = 'worker' AND u.is_suspended = false AND u.is_email_verified = true AND u.is_nic_verified = true
+        AND wp.ai_matching_opt_in = true AND COALESCE(wp.total_jobs_done, 0) < ${maxJobsDone}
+        AND u.profile_photo IS NOT NULL AND LENGTH(TRIM(COALESCE(wp.bio, ''))) >= ${minBioLength}
+        AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`})
+        AND ${doesCategory(categoryId)}
+        AND NOT EXISTS (SELECT 1 FROM invites i WHERE i.job_id = ${jobId} AND i.worker_id = u.id)
+        AND NOT EXISTS (SELECT 1 FROM proposals p WHERE p.job_id = ${jobId} AND p.worker_id = u.id)
+    )
+    SELECT b.*,
+      (SELECT COUNT(*)::int FROM worker_portfolio_photos ph WHERE ph.worker_id = b.worker_profile_id) AS portfolio_count,
+      COALESCE((SELECT json_agg(json_build_object('category_id',ws.category_id,'category_name',c.name,'is_primary',ws.is_primary)) FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=b.worker_profile_id),'[]'::json) AS skills,
+      -- Only runs that reached a result count as being shown to a customer.
+      (SELECT MAX(ar.created_at) FROM agent_recommendations ar JOIN agent_runs r ON r.id = ar.run_id
+        WHERE ar.entity_type = 'worker' AND ar.entity_id = b.id AND r.plan_json IS NOT NULL) AS last_shown_at,
+      (SELECT COUNT(*)::int FROM agent_recommendations ar JOIN agent_runs r ON r.id = ar.run_id
+        WHERE ar.entity_type = 'worker' AND ar.entity_id = b.id AND r.plan_json IS NOT NULL AND ar.created_at > b.reset_at) AS shown_since_reset,
+      (SELECT COUNT(*)::int FROM invites i WHERE i.worker_id = b.id AND i.status = 'accepted'
+        AND i.created_at > NOW() - make_interval(days => ${lookbackDays})) AS invites_accepted,
+      (SELECT COUNT(*)::int FROM invites i WHERE i.worker_id = b.id
+        AND i.created_at > NOW() - make_interval(days => ${lookbackDays})
+        AND (i.status = 'declined' OR (i.status = 'pending' AND i.created_at < NOW() - make_interval(days => ${inviteResponseDays})))) AS invites_unanswered,
+      EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = b.id AND n.type = 'matching_tip' AND n.created_at > b.reset_at) AS tip_sent
+    FROM base b
+    ORDER BY b.id
+    LIMIT ${limit}
+  `);
+}
+
+/** Platform-wide average review rating, the prior for unrated workers. */
+function platformAverageRating() {
+  return one(sql`SELECT ROUND(AVG(rating), 2)::float AS avg_rating FROM reviews`);
 }
 
 /**
@@ -213,5 +299,5 @@ module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
   awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
   failRun, history, memory, memories, queuePosition, reclaimOrphanedRuns, runDetail, runRecommendations,
-  runSteps, upsertMemory, workerReviews,
+  isRunCancelled, runSteps, supersedeRuns, upsertMemory, workerReviews, newcomerCandidates, platformAverageRating,
 });

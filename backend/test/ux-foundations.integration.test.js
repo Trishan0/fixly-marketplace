@@ -240,3 +240,20 @@ describe('completed job history on profiles', () => {
     await request(app).get(`/api/jobs/${takenDown.id}/public`).expect(404);
   });
 });
+
+describe('worker starting price', () => {
+  test('is optional: a worker can set it, keep it while editing other fields, and clear it', async () => {
+    const worker = await createUser(testPool, { email: 'price-worker@fixly-test.local', fullName: 'Price Worker', role: 'worker' });
+    const auth = authorizationFor(worker);
+    const price = async () => (await testPool.query('SELECT starting_price FROM worker_profiles WHERE user_id = $1', [worker.id])).rows[0].starting_price;
+
+    await request(app).put('/api/profile/me').set('Authorization', auth).send({ starting_price: '2500' }).expect(200);
+    expect(await price()).toBe('2500');
+
+    await request(app).put('/api/profile/me').set('Authorization', auth).send({ bio: 'Plumber' }).expect(200);
+    expect(await price()).toBe('2500');
+
+    await request(app).put('/api/profile/me').set('Authorization', auth).send({ starting_price: null }).expect(200);
+    expect(await price()).toBeNull();
+  });
+});
