@@ -4,7 +4,10 @@ const { verifyToken, requireRole } = require("../middleware/auth");
 const { requireEmailVerified } = require("../middleware/verified");
 const upload = require("../middleware/upload");
 const { isBlobStorage, validateBlobReference } = require("../services/storage");
+const { z } = require('zod');
 const repository = require('../modules/marketplace/repository');
+const { createRateLimiter } = require('../middleware/rateLimit');
+const { suggestClarifyingQuestions } = require('../agents/jobClarifier');
 const identityRepository = require('../modules/identity/repository');
 const { MarketplaceError } = require('../modules/marketplace/errors');
 const {
@@ -34,6 +37,40 @@ router.get("/categories", async (req, res) => {
     res.status(500).json({ error: "Failed to load categories" });
   }
 });
+
+// Each call is one Gemini request; customers use it once or twice per job.
+const clarifyLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000, max: 30, keyPrefix: 'job-clarify',
+  message: 'Too many requests for suggested questions, please try again later',
+});
+const clarifyInput = z.object({
+  title: z.string().trim().max(255).default(''),
+  description: z.string().trim().min(10, 'Write a sentence about the job first').max(4000),
+  category_id: z.string().uuid().optional().nullable(),
+  urgency: z.enum(['today', 'tomorrow', 'this_week', 'flexible']).optional().nullable(),
+});
+
+// POST /api/jobs/clarify - questions that would make a draft job clearer.
+// Returns questions only; the customer's answers are added to the
+// description by the client, never by the model (see agents/jobClarifier.js).
+router.post(
+  "/clarify",
+  verifyToken,
+  requireRole("customer"),
+  requireEmailVerified,
+  clarifyLimiter,
+  async (req, res) => {
+    const parsed = clarifyInput.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    const { title, description, category_id: categoryId, urgency } = parsed.data;
+    try {
+      const category = categoryId ? await repository.findCategoryName(categoryId) : null;
+      res.json(await suggestClarifyingQuestions({ title, description, categoryName: category?.name, urgency }));
+    } catch (err) {
+      sendError(err, res);
+    }
+  },
+);
 
 // POST /api/jobs
 router.post(

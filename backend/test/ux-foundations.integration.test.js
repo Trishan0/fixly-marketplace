@@ -257,3 +257,23 @@ describe('worker starting price', () => {
     expect(await price()).toBeNull();
   });
 });
+
+describe('suggested questions for a job draft', () => {
+  test('customers only; falls back to the guide questions when Gemini is unavailable', async () => {
+    const originalKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    try {
+      const customer = await createUser(testPool, { email: 'clarify-customer@fixly-test.local', fullName: 'Clarify Customer', role: 'customer' });
+      const worker = await createUser(testPool, { email: 'clarify-worker@fixly-test.local', fullName: 'Clarify Worker', role: 'worker' });
+      const body = { title: 'Pipe is broken', description: 'Pipe is broken, water everywhere' };
+
+      await request(app).post('/api/jobs/clarify').send(body).expect(401);
+      await request(app).post('/api/jobs/clarify').set('Authorization', authorizationFor(worker)).send(body).expect(403);
+      await request(app).post('/api/jobs/clarify').set('Authorization', authorizationFor(customer)).send({ description: 'short' }).expect(400);
+      const response = await request(app).post('/api/jobs/clarify').set('Authorization', authorizationFor(customer)).send(body).expect(200);
+      expect(response.body).toEqual({ source: 'guide', questions: [] });
+    } finally {
+      process.env.GEMINI_API_KEY = originalKey;
+    }
+  });
+});

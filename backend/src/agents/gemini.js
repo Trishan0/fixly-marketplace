@@ -97,7 +97,9 @@ function sleep(ms) {
  */
 // `shouldStop` is checked before every model call, so a run the user
 // stopped ends within one step instead of finishing (and spending tokens).
-async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandlers, onStep, shouldStop, maxIterations = 12, genAI = getGenAI() }) {
+// With no `tools` it's a single plain generation; `timeoutMs` bounds each
+// model call (the SDK has no default timeout).
+async function runGeminiAgent({ systemInstruction, userPrompt, tools = [], toolHandlers = {}, onStep, shouldStop, maxIterations = 12, timeoutMs, genAI = getGenAI() }) {
   const startedAt = Date.now();
 
   const models = MODEL_NAMES.map(name => {
@@ -107,9 +109,9 @@ async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandle
         model: genAI.getGenerativeModel({
           model: name,
           systemInstruction,
-          tools: [{ functionDeclarations: tools }],
+          ...(tools.length > 0 ? { tools: [{ functionDeclarations: tools }] } : {}),
           generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
-        }),
+        }, timeoutMs ? { timeout: timeoutMs } : undefined),
       };
     } catch {
       return null;

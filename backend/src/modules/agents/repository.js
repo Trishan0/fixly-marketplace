@@ -194,6 +194,14 @@ function agentWorkerSkills(id) {
   return rows(sql`SELECT ws.category_id,ws.is_primary,c.name AS category_name FROM worker_skills ws JOIN categories c ON c.id=ws.category_id WHERE ws.worker_id=(SELECT id FROM worker_profiles WHERE user_id=${id})`);
 }
 
+// A worker "does" a category when it's one of their skills, or - for older
+// profiles without structured skills - their primary skill names it.
+/** @param {string | null} categoryId */
+function doesCategory(categoryId) {
+  return sql`(${categoryId}::uuid IS NULL OR EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = wp.id AND ws.category_id = ${categoryId})
+    OR (NOT EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = wp.id) AND wp.primary_skill ILIKE (SELECT name FROM categories WHERE id = ${categoryId})))`;
+}
+
 /**
  * Candidate workers plus cheap review-distribution signal (no review text -
  * just counts/averages, computed off the existing idx_reviews_worker_created
@@ -206,20 +214,11 @@ function agentWorkerSkills(id) {
  * Excludes any worker who has opted out of AI matching
  * (ai_matching_opt_in=false) - the COALESCE only guards the theoretical
  * case of a missing worker_profiles row.
+ *
+ * With `minJobsDone` it's the proven workers for the best-match lane;
+ * `categoryId` filters to the job's trade *before* the limit, so a busy
+ * district can't push the right trade out.
  * @param {string | null | undefined} district @param {number} limit
- */
-// A worker "does" a category when it's one of their skills, or - for older
-// profiles without structured skills - their primary skill names it.
-function doesCategory(categoryId) {
-  return sql`(${categoryId}::uuid IS NULL OR EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = wp.id AND ws.category_id = ${categoryId})
-    OR (NOT EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = wp.id) AND wp.primary_skill ILIKE (SELECT name FROM categories WHERE id = ${categoryId})))`;
-}
-
-/**
- * The match agent's candidate pool. With `minJobsDone` it's the proven
- * workers for the best-match lane; `categoryId` filters to the job's trade
- * *before* the limit, so a busy district can't push the right trade out.
- * @param {string | null} district @param {number} limit
  * @param {{ categoryId?: string | null, minJobsDone?: number }} [options]
  */
 function candidateWorkers(district, limit, { categoryId = null, minJobsDone = 0 } = {}) {
