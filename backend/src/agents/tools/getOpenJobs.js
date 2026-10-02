@@ -14,8 +14,8 @@ function getOpenJobs({ district, categoryId, limit = 30 } = {}) {
   });
 }
 
-function getOpenJobsForWorker(workerId, { limit = 30 } = {}) {
-  return repository.listAgentOpenJobsForWorker(workerId, normalizedLimit(limit));
+function getOpenJobsForWorker(workerId, { district = null, limit = 30 } = {}) {
+  return repository.listAgentOpenJobsForWorker(workerId, normalizedLimit(limit), { district });
 }
 
 module.exports = { getOpenJobs, getOpenJobsForWorker };
