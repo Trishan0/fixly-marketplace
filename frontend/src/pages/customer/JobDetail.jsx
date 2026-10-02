@@ -162,9 +162,12 @@ export default function JobDetail() {
   // One confirmation at a time: { kind, proposal? }
   const [confirming, setConfirming] = useState(null);
 
+  // Coming back to this tab always reloads: the job may have changed in
+  // another tab or on the other person's side (a hire, a status change).
   const { data: job, isLoading, error: jobError, refetch: refetchJob } = useQuery({
     queryKey: ["job", id],
     queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
+    refetchOnWindowFocus: "always",
   });
   usePageTitle(job?.title || "Job details");
 
@@ -172,6 +175,7 @@ export default function JobDetail() {
     queryKey: ["proposals", id],
     queryFn: () => api.get(`/jobs/${id}/proposals`).then((r) => r.data),
     enabled: !!job,
+    refetchOnWindowFocus: "always",
   });
 
   const isOwner = user?.id === job?.customer_id;
@@ -197,7 +201,8 @@ export default function JobDetail() {
       toast({ title: `${hired?.worker_name || "Worker"} is hired`, description: "You can now see each other’s phone numbers. Agree a start time with them.", variant: "success" });
       refetch();
     },
-    onError: failureToast(toast, "Couldn’t hire this worker"),
+    // e.g. someone was already hired from another tab: show the real state.
+    onError: (error) => { failureToast(toast, "Couldn’t hire this worker")(error); closeConfirm(); refetch(); },
   });
 
   const declineProposal = useMutation({
@@ -208,7 +213,7 @@ export default function JobDetail() {
       toast({ title: "Proposal declined", description: "We’ve let the worker know." });
       refetch();
     },
-    onError: failureToast(toast, "Couldn’t decline this proposal"),
+    onError: (error) => { failureToast(toast, "Couldn’t decline this proposal")(error); closeConfirm(); refetch(); },
   });
 
   const withdrawProposal = useMutation({

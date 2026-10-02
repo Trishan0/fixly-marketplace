@@ -342,8 +342,11 @@ async function acceptProposal({ proposalId, customerId }) {
       const proposal = await repository.findProposalForUpdate(proposalId, tx);
       if (!proposal) throw notFound('Proposal not found');
       if (proposal.customer_id !== customerId) throw forbidden('Not your job');
+      // A repeat of a hire that already went through (a retry after a
+      // timeout, a double click) succeeds without doing anything again.
+      if (proposal.status === 'accepted') return;
       if (!proposal.job_is_active || !['posted', 'proposals_received'].includes(proposal.job_status)) {
-        throw conflict('Job is not accepting proposals');
+        throw conflict('Another worker is already hired for this job');
       }
       if (proposal.status !== 'pending') throw conflict('Proposal is not pending');
 
@@ -475,6 +478,9 @@ async function updateJobWorkflowStatus({ jobId, actor, status }) {
         throw forbidden('Insufficient permissions');
       }
 
+      // Already in that status: a retried or repeated request succeeds with
+      // no change and no second notification.
+      if (job.status === nextStatus) return job;
       if (!transitions[job.status]?.includes(nextStatus)) {
         throw conflict(`Invalid transition from ${job.status} to ${nextStatus}`);
       }

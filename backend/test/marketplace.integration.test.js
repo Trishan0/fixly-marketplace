@@ -373,3 +373,42 @@ describe('Phase 3 jobs and proposals invariants', () => {
       .expect(400);
   });
 });
+
+describe('repeated requests (a retry after a timeout, a double click)', () => {
+  test('hiring the same worker twice succeeds once, notifies once; a second worker is refused', async () => {
+    const customer = await createUser(testPool, { email: 'repeat-hire-customer@fixly-test.local', fullName: 'Repeat Customer', role: 'customer' });
+    const workerA = await createUser(testPool, { email: 'repeat-hire-a@fixly-test.local', fullName: 'Repeat Worker A', role: 'worker' });
+    const workerB = await createUser(testPool, { email: 'repeat-hire-b@fixly-test.local', fullName: 'Repeat Worker B', role: 'worker' });
+    const job = await createJob(testPool, { customerId: customer.id, status: 'proposals_received' });
+    const proposalA = await createProposal(testPool, { jobId: job.id, workerId: workerA.id });
+    const proposalB = await createProposal(testPool, { jobId: job.id, workerId: workerB.id });
+    const auth = authorizationFor(customer);
+
+    await request(app).put(`/api/proposals/${proposalA.id}/accept`).set('Authorization', auth).expect(200);
+    await request(app).put(`/api/proposals/${proposalA.id}/accept`).set('Authorization', auth).expect(200);
+    const second = await request(app).put(`/api/proposals/${proposalB.id}/accept`).set('Authorization', auth).expect(409);
+    expect(second.body.error).toBe('Another worker is already hired for this job');
+
+    const notified = await testPool.query("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND type = 'proposal_accepted'", [workerA.id]);
+    expect(notified.rows[0].n).toBe(1);
+    const assigned = await testPool.query('SELECT assigned_worker_id FROM jobs WHERE id = $1', [job.id]);
+    expect(assigned.rows[0].assigned_worker_id).toBe(workerA.id);
+  });
+
+  test('repeating a status change succeeds without a second notification', async () => {
+    const customer = await createUser(testPool, { email: 'repeat-status-customer@fixly-test.local', fullName: 'Status Customer', role: 'customer' });
+    const worker = await createUser(testPool, { email: 'repeat-status-worker@fixly-test.local', fullName: 'Status Worker', role: 'worker' });
+    const job = await createJob(testPool, { customerId: customer.id });
+    await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'assigned' WHERE id = $2", [worker.id, job.id]);
+    const auth = authorizationFor(worker);
+
+    await request(app).put(`/api/jobs/${job.id}/status`).set('Authorization', auth).send({ status: 'in_progress' }).expect(200);
+    await request(app).put(`/api/jobs/${job.id}/status`).set('Authorization', auth).send({ status: 'in_progress' }).expect(200);
+
+    const notified = await testPool.query("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND type = 'job_started'", [customer.id]);
+    expect(notified.rows[0].n).toBe(1);
+    // A real backwards move is still refused.
+    await request(app).put(`/api/jobs/${job.id}/status`).set('Authorization', auth).send({ status: 'completed' }).expect(200);
+    await request(app).put(`/api/jobs/${job.id}/status`).set('Authorization', auth).send({ status: 'in_progress' }).expect(409);
+  });
+});
