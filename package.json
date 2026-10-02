@@ -1,7 +1,7 @@
 {
   "name": "fixly-marketplace",
   "version": "1.0.0",
-  "description": "<p align=\"center\">   <img src=\"frontend/public/fixly-mark-192.png\" alt=\"Fixly\" width=\"88\" /> </p>",
+  "description": "<p align=\"center\">   <img src=\"frontend/public/fixly-icon-192.png\" alt=\"Fixly\" width=\"88\" /> </p>",
   "main": "index.js",
   "directories": {
     "doc": "docs"

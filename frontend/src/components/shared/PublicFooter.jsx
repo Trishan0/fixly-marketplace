@@ -6,7 +6,7 @@ export function PublicFooter() {
     <footer className="border-t border-slate-800 bg-[#0b1220] text-slate-400">
       <div className="mx-auto grid max-w-[1200px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:px-8 lg:grid-cols-[1.35fr_0.8fr_0.8fr_0.9fr]">
         <div>
-          <Link to="/" aria-label="Fixly home"><img src="/fixly-logo-dark.svg" alt="Fixly" width="124" height="34" className="h-auto w-[124px] object-contain" /></Link>
+          <Link to="/" aria-label="Fixly home"><img src="/fixly-wordmark.svg" alt="Fixly" width="124" height="34" className="h-auto w-[124px] object-contain" /></Link>
           <p className="mt-4 max-w-xs text-sm leading-6 text-slate-400">Sri Lanka&apos;s local-service marketplace for finding trusted help and building a stronger service business.</p>
         </div>
         <FooterColumn title="Marketplace" links={[

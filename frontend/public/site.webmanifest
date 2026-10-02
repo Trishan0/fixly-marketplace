@@ -9,12 +9,12 @@
   "theme_color": "#0284c7",
   "icons": [
     {
-      "src": "/fixly-mark-192.png",
+      "src": "/fixly-icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/fixly-mark-512.png",
+      "src": "/fixly-icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
