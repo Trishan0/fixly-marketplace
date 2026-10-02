@@ -1,6 +1,6 @@
 import {
   AlertTriangle, BadgeCheck, Banknote, Bell, CheckCircle2, ClipboardList, Flag, Mail,
-  MessageSquare, Play, ShieldAlert, Star, ThumbsUp, XCircle,
+  Lightbulb, MessageSquare, Play, ShieldAlert, Star, ThumbsUp, XCircle,
 } from 'lucide-react'
 import { threadPath } from './messages'
 
@@ -25,6 +25,7 @@ export const NOTIFICATION_STYLES = {
   job_flagged: { icon: ShieldAlert, tone: 'rose' },
   job_restored: { icon: CheckCircle2, tone: 'emerald' },
   dispute_resolved: { icon: Banknote, tone: 'slate' },
+  matching_tip: { icon: Lightbulb, tone: 'amber' },
 }
 
 export const DEFAULT_NOTIFICATION_STYLE = { icon: Bell, tone: 'slate' }
@@ -48,6 +49,8 @@ export function notificationTarget(notification) {
     case 'nic_verified':
     case 'nic_rejected':
       return '/profile/edit#identity'
+    case 'matching_tip':
+      return '/profile/edit'
     case 'report_updated':
       return null
     default:

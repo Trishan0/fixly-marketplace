@@ -7,17 +7,17 @@ import React from 'react'
  */
 export function BrandLogo({ compact = false, onDark = false, className = '', alt = 'Fixly' }) {
   if (compact) {
-    return <img src="/fixly-mark-192.png" alt={alt} className={`object-contain ${className}`} />
+    return <img src="/fixly-icon-192.png" alt={alt} className={`object-contain ${className}`} />
   }
 
   if (onDark) {
-    return <img src="/fixly-logo-dark.svg" alt={alt} className={`block h-full w-full object-contain ${className}`} />
+    return <img src="/fixly-wordmark.svg" alt={alt} className={`block h-full w-full object-contain ${className}`} />
   }
 
   return (
     <span className={`block ${className}`}>
-      <img src="/fixly-logo.svg" alt={alt} className="block h-full w-full object-contain dark:hidden" />
-      <img src="/fixly-logo-dark.svg" alt={alt} className="hidden h-full w-full object-contain dark:block" />
+      <img src="/fixly-wordmark.svg" alt={alt} className="block h-full w-full object-contain dark:hidden" />
+      <img src="/fixly-wordmark.svg" alt={alt} className="hidden h-full w-full object-contain dark:block" />
     </span>
   )
 }

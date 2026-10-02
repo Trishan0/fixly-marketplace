@@ -5,6 +5,7 @@ import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, F
 import { AppShell } from "../../components/layout/AppShell";
 import { Button, Input, Textarea, Select, Card, Spinner } from "../../components/shared/UI";
 import { EmailVerificationNotice } from "../../components/shared/EmailVerificationNotice";
+import { DescriptionHelper } from "../../components/jobs/DescriptionHelper";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -369,6 +370,17 @@ function PostJobForm({ user }) {
                   </ul>
                   <p className="mt-1.5 text-xs text-amber-800 dark:text-amber-300">Don’t include your phone number — you can share it once you hire someone.</p>
                 </div>
+                <DescriptionHelper
+                  title={form.title}
+                  description={form.description}
+                  categoryId={form.category_id}
+                  urgency={form.urgency}
+                  hints={hints}
+                  onChange={(description) => {
+                    setForm((current) => ({ ...current, description }));
+                    setErrors((current) => ({ ...current, description: "" }));
+                  }}
+                />
               </div>
             </div>
           )}

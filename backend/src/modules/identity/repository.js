@@ -105,20 +105,25 @@ function workerSkills(userId) { return rows(sql`
   WHERE ws.worker_id = (SELECT id FROM worker_profiles WHERE user_id = ${userId}) ORDER BY c.name LIMIT 50
 `); }
 
+// Partial updates: a field left out (undefined) keeps its value. Drizzle
+// drops undefined from SQL entirely, so each one is turned into null for
+// COALESCE first.
 function updateProfile(input, client) {
   return one(sql`
-    UPDATE users SET full_name = COALESCE(${input.fullName}, full_name), phone = COALESCE(${input.phone}, phone),
-      district = COALESCE(${input.district}, district), area = COALESCE(${input.area}, area), updated_at = NOW()
+    UPDATE users SET full_name = COALESCE(${input.fullName ?? null}, full_name), phone = COALESCE(${input.phone ?? null}, phone),
+      district = COALESCE(${input.district ?? null}, district), area = COALESCE(${input.area ?? null}, area), updated_at = NOW()
     WHERE id = ${input.userId} RETURNING id
   `, client);
 }
+// starting_price is optional: null clears it, undefined leaves it alone.
 function updateWorkerProfile(input, client) {
   return one(sql`
-    UPDATE worker_profiles SET bio = COALESCE(${input.bio}, bio), starting_price = COALESCE(${input.startingPrice}, starting_price),
-      primary_skill = COALESCE(${input.primarySkill}, primary_skill) WHERE user_id = ${input.userId} RETURNING id
+    UPDATE worker_profiles SET bio = COALESCE(${input.bio ?? null}, bio),
+      starting_price = CASE WHEN ${input.startingPrice !== undefined}::boolean THEN ${input.startingPrice ?? null}::varchar ELSE starting_price END,
+      primary_skill = COALESCE(${input.primarySkill ?? null}, primary_skill), updated_at = NOW() WHERE user_id = ${input.userId} RETURNING id
   `, client);
 }
-function setProfilePhoto(userId, path) { return one(sql`UPDATE users SET profile_photo = ${path}, updated_at = NOW() WHERE id = ${userId} RETURNING profile_photo`); }
+function setProfilePhoto(userId, path) { return one(sql`WITH touched AS (UPDATE worker_profiles SET updated_at = NOW() WHERE user_id = ${userId}) UPDATE users SET profile_photo = ${path}, updated_at = NOW() WHERE id = ${userId} RETURNING profile_photo`); }
 function setNicImage(userId, path) { return one(sql`UPDATE users SET nic_image_path = ${path}, is_nic_verified = false, nic_verified_by = NULL, nic_rejection_reason = NULL, updated_at = NOW() WHERE id = ${userId} RETURNING nic_image_path`); }
 function setEmailVerifyToken(userId, tokenHash, expiresAt) {
   return one(sql`
@@ -131,7 +136,7 @@ function findVerificationState(userId) { return one(sql`SELECT id, email, is_ema
 function setDashboardMode(userId, mode) { return one(sql`UPDATE users SET dashboard_mode = ${mode}, updated_at = NOW() WHERE id = ${userId} RETURNING dashboard_mode`); }
 function setAiMatchingOptIn(userId, optIn) { return one(sql`UPDATE worker_profiles SET ai_matching_opt_in = ${optIn} WHERE user_id = ${userId} RETURNING ai_matching_opt_in`); }
 function portfolioCount(workerId, client) { return one(sql`SELECT COUNT(*)::int AS count FROM worker_portfolio_photos WHERE worker_id = ${workerId}`, client); }
-function insertPortfolioPhoto(workerId, path, client) { return one(sql`INSERT INTO worker_portfolio_photos (worker_id, path) VALUES (${workerId}, ${path}) RETURNING *`, client); }
+function insertPortfolioPhoto(workerId, path, client) { return one(sql`WITH touched AS (UPDATE worker_profiles SET updated_at = NOW() WHERE id = ${workerId}) INSERT INTO worker_portfolio_photos (worker_id, path) VALUES (${workerId}, ${path}) RETURNING *`, client); }
 function deletePortfolioPhoto(photoId, workerId, client) { return one(sql`DELETE FROM worker_portfolio_photos WHERE id = ${photoId} AND worker_id = ${workerId} RETURNING path`, client); }
 function listWorkers({ category, district, minRating, verified, search, limit, offset }) { return rows(sql`
   SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.created_at,
@@ -164,7 +169,45 @@ function publicMarketplaceStats() { return one(sql`
 `); }
 function workerReviews(id, limit, offset) { return rows(sql`SELECT r.id,r.rating,r.feedback,r.created_at,u.full_name AS customer_name,u.profile_photo AS customer_photo,j.title AS job_title FROM reviews r JOIN users u ON u.id=r.customer_id JOIN jobs j ON j.id=r.job_id WHERE r.worker_id=${id} ORDER BY r.created_at DESC LIMIT ${limit} OFFSET ${offset}`); }
 function customerSummary(id) { return one(sql`SELECT u.id,u.full_name,u.district,u.area,u.profile_photo,u.created_at, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id) AS jobs_posted, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('posted','proposals_received','assigned','in_progress')) AS active_jobs, (SELECT COUNT(*)::int FROM jobs WHERE customer_id=u.id AND status IN ('completed','payment_recorded','reviewed')) AS jobs_completed, (SELECT COUNT(*)::int FROM reviews WHERE customer_id=u.id) AS reviews_given FROM users u WHERE u.id=${id} AND u.role='customer' AND u.is_suspended=false`); }
-function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j.created_at,c.name AS category_name,(SELECT COUNT(*)::int FROM proposals p WHERE p.job_id=j.id) AS proposal_count FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.customer_id=${id} ORDER BY j.created_at DESC LIMIT 4`); }
+function customerRecentJobs(id) { return rows(sql`SELECT j.id,j.title,j.status,j.created_at,c.name AS category_name,(SELECT COUNT(*)::int FROM proposals p WHERE p.job_id=j.id) AS proposal_count FROM jobs j LEFT JOIN categories c ON c.id=j.category_id WHERE j.customer_id=${id} AND j.status NOT IN ('completed','payment_recorded','reviewed') ORDER BY j.created_at DESC LIMIT 4`); }
+
+// Finished jobs shown on public profiles. Only jobs that are done, not taken
+// down by an admin, and between two accounts in good standing. No address,
+// phone or messages: the street address stays private to the two parties.
+const DONE_JOB = sql`j.status IN ('completed','payment_recorded','reviewed') AND j.is_active = true AND j.flagged_at IS NULL AND cu.is_suspended = false AND wu.is_suspended = false`;
+const COMPLETED_AT = sql`COALESCE((SELECT MAX(e.created_at) FROM job_status_events e WHERE e.job_id = j.id AND e.status = 'completed'), j.updated_at)`;
+function doneJobsFilter({ workerId, customerId }) { return workerId ? sql`j.assigned_worker_id = ${workerId}` : sql`j.customer_id = ${customerId}`; }
+function completedJobs({ workerId, customerId, limit, offset }) { return rows(sql`
+  SELECT j.id, j.title, j.district, j.town, c.name AS category_name, ${COMPLETED_AT} AS completed_at,
+         wu.id AS worker_id, wu.full_name AS worker_name, wu.profile_photo AS worker_photo,
+         r.rating, (SELECT ph.path FROM job_photos ph WHERE ph.job_id = j.id ORDER BY ph.order_idx LIMIT 1) AS cover_photo
+  FROM jobs j
+  JOIN users cu ON cu.id = j.customer_id
+  JOIN users wu ON wu.id = j.assigned_worker_id
+  LEFT JOIN categories c ON c.id = j.category_id
+  LEFT JOIN reviews r ON r.job_id = j.id
+  WHERE ${doneJobsFilter({ workerId, customerId })} AND ${DONE_JOB}
+  ORDER BY completed_at DESC, j.id
+  LIMIT ${limit} OFFSET ${offset}
+`); }
+function countCompletedJobs({ workerId, customerId }) { return one(sql`SELECT COUNT(*)::int AS count FROM jobs j JOIN users cu ON cu.id = j.customer_id JOIN users wu ON wu.id = j.assigned_worker_id WHERE ${doneJobsFilter({ workerId, customerId })} AND ${DONE_JOB}`); }
+function completedJobShowcase(jobId) { return one(sql`
+  SELECT j.id, j.title, j.description, j.district, j.town, j.status, j.created_at, ${COMPLETED_AT} AS completed_at,
+         CASE WHEN j.status IN ('payment_recorded','reviewed') THEN j.final_price END AS final_price,
+         c.name AS category_name,
+         cu.id AS customer_id, cu.full_name AS customer_name, cu.profile_photo AS customer_photo,
+         wu.id AS worker_id, wu.full_name AS worker_name, wu.profile_photo AS worker_photo, wu.is_nic_verified AS worker_verified,
+         wp.primary_skill AS worker_primary_skill, wp.avg_rating AS worker_avg_rating, wp.total_jobs_done AS worker_jobs_done,
+         r.rating AS review_rating, r.feedback AS review_feedback, r.created_at AS reviewed_at
+  FROM jobs j
+  JOIN users cu ON cu.id = j.customer_id
+  JOIN users wu ON wu.id = j.assigned_worker_id
+  LEFT JOIN worker_profiles wp ON wp.user_id = wu.id
+  LEFT JOIN categories c ON c.id = j.category_id
+  LEFT JOIN reviews r ON r.job_id = j.id
+  WHERE j.id = ${jobId} AND ${DONE_JOB}
+`); }
+function completedJobPhotos(jobId) { return rows(sql`SELECT id, path FROM job_photos WHERE job_id = ${jobId} ORDER BY order_idx LIMIT 10`); }
 
 module.exports = instrumentRepository('identity', {
   createWorkerProfile, deletePortfolioPhoto, findAuthUserByEmail, findCategoryByName, findResetEligibleUser,
@@ -173,4 +216,5 @@ module.exports = instrumentRepository('identity', {
   updateProfile, updateWorkerProfile, verifyEmail, workerPortfolio, workerProfileId, workerSkills,
   countWorkers, customerRecentJobs, customerSummary, listWorkers, publicWorker, workerReviews,
   findVerificationState, publicMarketplaceStats, setEmailVerifyToken,
+  completedJobs, countCompletedJobs, completedJobShowcase, completedJobPhotos,
 });

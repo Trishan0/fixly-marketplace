@@ -387,6 +387,10 @@ function findJobDetail(jobId) {
   `);
 }
 
+function findCategoryName(categoryId) {
+  return one(sql`SELECT name FROM categories WHERE id = ${categoryId} AND is_active = true`);
+}
+
 function findAgentJobDetails(jobId) {
   return one(sql`
     SELECT j.*, c.name AS category_name, c.icon AS category_icon
@@ -538,6 +542,7 @@ module.exports = instrumentRepository('marketplace', {
   findJobById,
   findOwnedJob,
   findAgentJobDetails,
+  findCategoryName,
   findJobDetail,
   findJobForUpdate,
   findAgentRunForUpdate,

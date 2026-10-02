@@ -18,6 +18,24 @@ const WORKERS = [
   ['asanka.welder@demo.lk', 'Asanka Cooray', 'Galle', 'Unawatuna', true, 'Welding', 'Gate fabrication, handrails and structural welding repairs.', 'LKR 3,000', 16, 4.75],
 ];
 
+// ID-verified workers with fewer than 3 completed jobs, so the match
+// agent's "New on Fixly" lane has someone to show for the demo jobs.
+const NEWCOMERS = [
+  ['tharindu.plumber@demo.lk', 'Tharindu Perera', 'Colombo', 'Nugegoda', 'Plumbing', 'Trained plumber from the Vocational Training Authority. I fix leaking taps and pipes, clear blocked drains and fit new bathroom sinks and showers.', 0, 0],
+  ['nadeesha.plumber@demo.lk', 'Nadeesha Fernando', 'Colombo', 'Dehiwala', 'Plumbing', 'Plumbing apprentice for four years before going independent. Bathroom and kitchen leaks, tap replacement and water tank connections.', 1, 5],
+  ['isuru.electrician@demo.lk', 'Isuru Bandara', 'Colombo', 'Maharagama', 'Electrical', 'NVQ level 4 electrician. Breaker trips, faulty sockets, ceiling fan and light fitting installation, and DB box checks.', 0, 0],
+  ['shehan.electrician@demo.lk', 'Shehan Rodrigo', 'Colombo', 'Rajagiriya', 'Electrical', 'Electrician focused on safe home rewiring, short circuit repairs and installing fans and lights. Careful, tidy and on time.', 2, 4.5],
+  ['kavindi.painter@demo.lk', 'Kavindi Jayawardena', 'Colombo', 'Maharagama', 'Painting', 'Interior painter for living rooms and bedrooms. I prepare and patch walls properly first and keep floors and furniture covered.', 0, 0],
+  ['ravindu.ac@demo.lk', 'Ravindu Senanayake', 'Colombo', 'Kottawa', 'AC Repair', 'AC technician trained on inverter units. Servicing, cleaning, gas pressure checks and refills for split-type air conditioners.', 1, 5],
+];
+
+/** A small initials avatar, so seeded newcomers have a profile photo without uploaded files. */
+function initialsAvatar(name) {
+  const initials = name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='#7c3aed'/><text x='32' y='40' font-size='22' font-family='sans-serif' text-anchor='middle' fill='white'>${initials}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 const JOBS = [
   ['Emergency Bathroom Pipe Leak & Tap Replacement', 'Water leaking heavily under the main bathroom sink. Replace two corroded taps.', 'Plumbing', 'Colombo', 'Nugegoda', 'today', 'fixed', 4500, 'posted'],
   ['Complete Living Room Wall Painting & Touch-up', 'Repaint a 20x15 ft living room. Paint will be provided.', 'Painting', 'Colombo', 'Maharagama', 'this_week', 'fixed', 12000, 'posted'],
@@ -154,6 +172,25 @@ async function seedDemoDatabase({ connectionString } = {}) {
       }
     }
 
+    for (const [email, name, district, area, skill, bio, jobsDone, rating] of NEWCOMERS) {
+      const userId = await upsertUser(client, {
+        email, passwordHash, name, role: 'worker', district, area, nicVerified: true,
+      });
+      await client.query('UPDATE users SET profile_photo=$1 WHERE id=$2', [initialsAvatar(name), userId]);
+      const profileId = await upsertWorkerProfile(client, userId, {
+        skill, bio, startingPrice: null, jobsDone, rating,
+      });
+      const categoryId = categoryIds.get(skill.toLowerCase());
+      if (categoryId) {
+        await client.query(
+          `INSERT INTO worker_skills (worker_id,category_id,is_primary)
+           VALUES ($1,$2,true)
+           ON CONFLICT (worker_id,category_id) DO UPDATE SET is_primary=true`,
+          [profileId, categoryId]
+        );
+      }
+    }
+
     const jobIds = new Map();
     for (let index = 0; index < JOBS.length; index += 1) {
       const [title, description, category, district, town, urgency, pricingMode, budget, status] = JOBS[index];
@@ -244,7 +281,7 @@ async function seedDemoDatabase({ connectionString } = {}) {
     );
 
     await client.query('COMMIT');
-    console.log('Demo seed complete: admin, 2 customers, 9 workers, 13 jobs across the full lifecycle, proposals, payment, review, invite and report.');
+    console.log('Demo seed complete: admin, 2 customers, 9 workers + 6 new verified workers, 13 jobs across the full lifecycle, proposals, payment, review, invite and report.');
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

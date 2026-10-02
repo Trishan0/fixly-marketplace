@@ -8,7 +8,7 @@
  */
 
 const repository = require('../modules/agents/repository');
-const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./gemini');
+const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured, AgentRunCancelledError } = require('./gemini');
 const { getOpenJobsForWorker } = require('./tools/getOpenJobs');
 const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE, PROMPT_SAFETY_NOTE } = require('./tools/getWorkerReviews');
 const { scoreJobForWorker, draftProposalMessage } = require('./scoring');
@@ -260,6 +260,7 @@ async function executeProposalRun(run, opts = {}) {
         userPrompt: `Find top jobs for worker ID ${workerId}`,
         tools: PROPOSAL_TOOLS,
         toolHandlers: buildToolHandlers({ workerId, workerCache, jobCache }),
+        shouldStop: () => repository.isRunCancelled(runId),
         // No safety net left if this runs out of room, so a bit more
         // headroom than the bare minimum the process needs.
         maxIterations: 18,
@@ -342,6 +343,7 @@ async function executeProposalRun(run, opts = {}) {
         recommendations,
       };
     } catch (geminiErr) {
+      if (geminiErr instanceof AgentRunCancelledError) throw geminiErr;
       console.warn(`[proposal-agent] run ${runId} Gemini path failed, using degraded fallback:`, geminiErr.message);
       return await buildDegradedProposalFallback(worker, runId, logStep);
     }

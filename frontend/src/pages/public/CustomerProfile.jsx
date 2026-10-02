@@ -15,6 +15,7 @@ import { ReportButton } from '../../components/shared/ReportDialog'
 import { AppShell } from '../../components/layout/AppShell'
 import { PublicFooter } from '../../components/shared/PublicFooter'
 import { useAuth } from '../../context/AuthContext'
+import { CompletedJobsSection } from '../../components/shared/CompletedJobs'
 
 export default function CustomerProfile() {
   const { id } = useParams()
@@ -78,9 +79,16 @@ export default function CustomerProfile() {
             ]}
           />
 
-          <ProfileSectionCard title="Recent jobs" meta={recentJobs.length > 0 ? `${recentJobs.length} shown` : null} bodyClassName={recentJobs.length > 0 ? 'p-0' : undefined}>
+          <CompletedJobsSection
+            endpoint={`/customers/${customer.id}/jobs`}
+            queryKey={['customer-completed-jobs', customer.id]}
+            showWorker
+            emptyText="No completed jobs yet."
+          />
+
+          <ProfileSectionCard title="Open and recent requests" meta={recentJobs.length > 0 ? `${recentJobs.length} shown` : null} bodyClassName={recentJobs.length > 0 ? 'p-0' : undefined}>
             {recentJobs.length === 0 ? (
-              <ProfileEmpty icon={Briefcase}>No public job history yet.</ProfileEmpty>
+              <ProfileEmpty icon={Briefcase}>No open or recent requests.</ProfileEmpty>
             ) : (
               <ul className="divide-y divide-line">
                 {recentJobs.map(job => {

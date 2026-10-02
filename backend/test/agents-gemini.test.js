@@ -8,7 +8,7 @@
 // (termination, tool dispatch, model failover, max-iteration guard) rather
 // than any real Gemini call.
 
-const { runGeminiAgent, GeminiAgentError } = require('../src/agents/gemini');
+const { runGeminiAgent, GeminiAgentError, AgentRunCancelledError } = require('../src/agents/gemini');
 
 function makeModel(generateContentImpl) {
   return { generateContent: vi.fn(generateContentImpl) };
@@ -138,5 +138,31 @@ describe('runGeminiAgent', () => {
     const err = new GeminiAgentError('boom', 'network', new Error('cause'));
     expect(err).toBeInstanceOf(Error);
     expect(err.classification).toBe('network');
+  });
+});
+
+describe('runGeminiAgent cancellation', () => {
+  test('stops before the next model call once the run is cancelled', async () => {
+    const model = makeModel(async () => toolCallResponse([{ name: 'lookup', args: {} }]));
+    let cancelled = false;
+    const lookup = vi.fn(async () => { cancelled = true; return { ok: true }; });
+
+    await expect(runGeminiAgent({
+      systemInstruction: 'sys', userPrompt: 'go', tools: [], toolHandlers: { lookup },
+      shouldStop: async () => cancelled, genAI: fakeGenAI([model]),
+    })).rejects.toBeInstanceOf(AgentRunCancelledError);
+
+    // One model call and one tool call, then nothing more is spent.
+    expect(model.generateContent).toHaveBeenCalledTimes(1);
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
+  test('a run that is never cancelled finishes normally', async () => {
+    const model = makeModel(async () => textResponse('{"done":true}'));
+    const result = await runGeminiAgent({
+      systemInstruction: 'sys', userPrompt: 'go', tools: [], toolHandlers: {},
+      shouldStop: async () => false, genAI: fakeGenAI([model]),
+    });
+    expect(result.text).toBe('{"done":true}');
   });
 });

@@ -30,9 +30,18 @@ const proposalRecommendationSchema = z.object({
   ...recommendationBase,
 });
 
+// New-talent picks carry no score: a newcomer's fit score comes from code
+// (scoring.js scoreNewcomerForJob); the model only chooses and explains.
+const newTalentPickSchema = z.object({
+  worker_id: z.string().uuid(),
+  ai_rationale: z.string().min(1),
+  key_strengths: z.array(z.string()).default([]),
+});
+
 const matchAgentOutputSchema = z.object({
   overall_reasoning: z.string().min(1),
   recommendations: z.array(matchRecommendationSchema),
+  new_talent: z.array(newTalentPickSchema).default([]),
 });
 
 const proposalAgentOutputSchema = z.object({
@@ -147,6 +156,7 @@ function filterHallucinationRedFlags(parsed, resolveObjectiveScore) {
 }
 
 module.exports = {
+  findInjectionMarker,
   matchAgentOutputSchema,
   proposalAgentOutputSchema,
   filterHallucinationRedFlags,
