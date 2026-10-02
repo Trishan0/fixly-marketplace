@@ -235,3 +235,31 @@ describe('agent runs stay in the user\'s control', () => {
     await request(app).post('/api/agent/match/run').set('Authorization', auth).send({ job_id: job.id }).expect(202);
   });
 });
+
+describe('stopping a run mid-way', () => {
+  test('the agent stops at its next step and the rule-based fallback never runs', async () => {
+    const { executeProposalRun } = require('../src/agents/proposalAgent');
+    const { AgentRunCancelledError } = require('../src/agents/gemini');
+    const worker = await createUser(testPool, { email: 'stop-midway@fixly-test.local', fullName: 'Stop Midway', role: 'worker', primarySkill: 'Plumbing' });
+    const run = (await testPool.query(
+      "INSERT INTO agent_runs (user_id, agent_type, status, objective) VALUES ($1, 'proposal', 'running', 'test') RETURNING id, user_id",
+      [worker.id],
+    )).rows[0];
+
+    // The first model call asks for a tool; meanwhile the user presses Stop.
+    const generateContent = vi.fn(async () => {
+      await request(app).post(`/api/agent/run/${run.id}/cancel`).set('Authorization', authorizationFor(worker)).expect(200);
+      const calls = [{ name: 'get_worker_profile', args: {} }];
+      return { response: { candidates: [{ content: { role: 'model', parts: calls.map(c => ({ functionCall: c })) } }], functionCalls: () => calls } };
+    });
+    const genAI = { getGenerativeModel: () => ({ generateContent }) };
+
+    await expect(executeProposalRun(run, { genAI })).rejects.toBeInstanceOf(AgentRunCancelledError);
+
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    const after = await testPool.query('SELECT status, plan_json FROM agent_runs WHERE id = $1', [run.id]);
+    expect(after.rows[0]).toMatchObject({ status: 'cancelled', plan_json: null });
+    const recs = await testPool.query('SELECT COUNT(*)::int AS n FROM agent_recommendations WHERE run_id = $1', [run.id]);
+    expect(recs.rows[0].n).toBe(0);
+  });
+});

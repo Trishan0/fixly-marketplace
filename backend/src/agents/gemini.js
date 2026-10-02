@@ -50,6 +50,17 @@ class GeminiAgentError extends Error {
 }
 
 /**
+ * Thrown when the user stops a run while the agent is still working. Not a
+ * Gemini failure: callers must not fall back to a degraded result for it.
+ */
+class AgentRunCancelledError extends Error {
+  constructor() {
+    super('Agent run was cancelled');
+    this.name = 'AgentRunCancelledError';
+  }
+}
+
+/**
  * Classify an error thrown by the @google/generative-ai SDK into a coarse
  * bucket. `invalid_key` is treated as non-retryable everywhere else in this
  * file since it will fail identically against every model in MODEL_NAMES.
@@ -84,7 +95,9 @@ function sleep(ms) {
  * @param {{ getGenerativeModel: Function }} [opts.genAI] — injectable SDK client, for tests; defaults to the real Gemini client
  * @returns {{ text: string, steps: Object[], telemetry: Object }}
  */
-async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandlers, onStep, maxIterations = 12, genAI = getGenAI() }) {
+// `shouldStop` is checked before every model call, so a run the user
+// stopped ends within one step instead of finishing (and spending tokens).
+async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandlers, onStep, shouldStop, maxIterations = 12, genAI = getGenAI() }) {
   const startedAt = Date.now();
 
   const models = MODEL_NAMES.map(name => {
@@ -158,6 +171,7 @@ async function runGeminiAgent({ systemInstruction, userPrompt, tools, toolHandle
   }
 
   for (let i = 0; i < maxIterations; i++) {
+    if (shouldStop && await shouldStop()) throw new AgentRunCancelledError();
     const res = await generateWithFailover(contents);
     const candidate = res.response.candidates?.[0];
 
@@ -229,4 +243,4 @@ function parseJsonFromText(text) {
   return JSON.parse(raw.trim());
 }
 
-module.exports = { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured, GeminiAgentError, classifyGeminiError };
+module.exports = { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured, GeminiAgentError, AgentRunCancelledError, classifyGeminiError };

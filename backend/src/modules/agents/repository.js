@@ -36,6 +36,11 @@ function supersedeRuns({ userId, type, jobId = null, restart = false }) {
   return rows(sql`UPDATE agent_runs SET status='cancelled',completed_at=NOW() WHERE user_id=${userId} AND agent_type=${type} AND (${jobId}::uuid IS NULL OR job_id=${jobId}) AND (status='awaiting_confirmation' OR (${restart}::boolean AND status IN ('pending','running'))) RETURNING id`);
 }
 
+/** @param {string} runId */
+function isRunCancelled(runId) {
+  return one(sql`SELECT status='cancelled' AS cancelled FROM agent_runs WHERE id=${runId}`).then(row => Boolean(row?.cancelled));
+}
+
 /** @param {string} runId @param {string} userId */
 function runDetail(runId, userId) {
   return one(sql`SELECT id,user_id,agent_type,objective,plan_json,overall_reasoning,status,job_id,created_at,completed_at,engine,model_used,latency_ms,prompt_tokens,completion_tokens,total_tokens,iteration_count FROM agent_runs WHERE id=${runId} AND user_id=${userId}`);
@@ -294,5 +299,5 @@ module.exports = instrumentRepository('agents', {
   activeMatch, activeProposal, addRecommendation, addStep, agentWorker, agentWorkerSkills,
   awaitConfirmation, cancelRun, candidateWorkers, claimPendingRun, completeRunTelemetry, createRun,
   failRun, history, memory, memories, queuePosition, reclaimOrphanedRuns, runDetail, runRecommendations,
-  runSteps, supersedeRuns, upsertMemory, workerReviews, newcomerCandidates, platformAverageRating,
+  isRunCancelled, runSteps, supersedeRuns, upsertMemory, workerReviews, newcomerCandidates, platformAverageRating,
 });

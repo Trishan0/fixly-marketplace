@@ -17,7 +17,7 @@
  */
 
 const repository = require('../modules/agents/repository');
-const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./gemini');
+const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured, AgentRunCancelledError } = require('./gemini');
 const { getJobDetails } = require('./tools/getJobDetails');
 const { getCandidateWorkers } = require('./tools/getCandidateWorkers');
 const { getWorkerReviews, REVIEW_LIMIT, UNTRUSTED_TEXT_NOTE, PROMPT_SAFETY_NOTE } = require('./tools/getWorkerReviews');
@@ -379,6 +379,7 @@ async function executeMatchRun(run) {
         userPrompt: `Match workers for job ID ${jobId}. Customer ID: ${customerId}`,
         tools: MATCH_TOOLS,
         toolHandlers: buildToolHandlers({ jobId, customerId, workerCache, jobCache, pools }),
+        shouldStop: () => repository.isRunCancelled(runId),
         // Higher than the default: the agent reasons over the full
         // eligible pool (not a pre-cut shortlist) and may read reviews for
         // several candidates before it's satisfied.
@@ -451,6 +452,7 @@ async function executeMatchRun(run) {
         recommendations,
       };
     } catch (geminiErr) {
+      if (geminiErr instanceof AgentRunCancelledError) throw geminiErr;
       console.warn(`[match-agent] run ${runId} Gemini path failed, using degraded fallback:`, geminiErr.message);
       return await buildDegradedMatchFallback(job, runId, pools, logStep);
     }

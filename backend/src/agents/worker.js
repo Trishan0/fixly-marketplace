@@ -15,6 +15,7 @@
 const repository = require('../modules/agents/repository');
 const { executeMatchRun } = require('./matchAgent');
 const { executeProposalRun } = require('./proposalAgent');
+const { AgentRunCancelledError } = require('./gemini');
 
 const POLL_INTERVAL_MS = 3000;
 const STALE_MINUTES = 5;
@@ -40,6 +41,11 @@ async function executeRun(run) {
       await repository.failRun(run.id);
     }
   } catch (err) {
+    // The user stopped it; the run is already 'cancelled'.
+    if (err instanceof AgentRunCancelledError) {
+      console.info(`[agent/worker] run ${run.id} (${run.agent_type}) stopped by the user`);
+      return;
+    }
     // executeMatchRun/executeProposalRun already mark the run 'error' and
     // rethrow; log here so one bad run can't crash the poll loop.
     console.error(`[agent/worker] run ${run.id} (${run.agent_type}) failed:`, err.message);
