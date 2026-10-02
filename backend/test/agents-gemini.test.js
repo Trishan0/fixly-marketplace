@@ -8,7 +8,9 @@
 // (termination, tool dispatch, model failover, max-iteration guard) rather
 // than any real Gemini call.
 
-const { runGeminiAgent, GeminiAgentError, AgentRunCancelledError } = require('../src/agents/gemini');
+const { runGeminiAgent, GeminiAgentError, AgentRunCancelledError, modelNames, resetModelPreference } = require('../src/agents/gemini');
+
+beforeEach(() => resetModelPreference());
 
 function makeModel(generateContentImpl) {
   return { generateContent: vi.fn(generateContentImpl) };
@@ -164,5 +166,31 @@ describe('runGeminiAgent cancellation', () => {
       shouldStop: async () => false, genAI: fakeGenAI([model]),
     });
     expect(result.text).toBe('{"done":true}');
+  });
+});
+
+describe('model choice', () => {
+  test('the next run starts with the model that last answered, skipping a busy one', async () => {
+    const busy = makeModel(async () => { throw Object.assign(new Error('503 high demand'), { status: 503 }); });
+    const working = makeModel(async () => textResponse('ok'));
+    const run = () => runGeminiAgent({
+      systemInstruction: 'sys', userPrompt: 'go', tools: [], toolHandlers: {},
+      models: ['busy-model', 'working-model'],
+      genAI: { getGenerativeModel: ({ model }) => (model === 'busy-model' ? busy : working) },
+    });
+    expect((await run()).telemetry.modelUsed).toBe('working-model');
+    expect((await run()).telemetry.modelUsed).toBe('working-model');
+    expect(busy.generateContent).toHaveBeenCalledTimes(1);
+  });
+
+  test('GEMINI_MODELS overrides the default list, without duplicates', () => {
+    const original = process.env.GEMINI_MODELS;
+    process.env.GEMINI_MODELS = 'model-a, model-b, model-a';
+    try {
+      expect(modelNames()).toEqual(['model-a', 'model-b']);
+      expect(modelNames(['only-this'])).toEqual(['only-this']);
+    } finally {
+      if (original === undefined) delete process.env.GEMINI_MODELS; else process.env.GEMINI_MODELS = original;
+    }
   });
 });

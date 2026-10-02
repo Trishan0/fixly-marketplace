@@ -27,7 +27,12 @@ const { writingStyle } = require('./language');
 
 const MAX_QUESTIONS = 4;
 const MAX_OPTIONS = 4;
-const TIMEOUT_MS = 12_000;
+// A small task, so a short timeout each and fast models: a flash model
+// for better Sinhala/Singlish, then lite models that stay up under load.
+const CLARIFIER_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
+// One retry when a reply has nothing usable: replies vary call to call.
+const ATTEMPTS = 2;
+const TIMEOUT_MS = 8_000;
 
 const outputSchema = z.object({
   questions: z.array(z.object({
@@ -100,10 +105,10 @@ function acceptQuestions(parsed) {
 /**
  * @param {{ title: string, description: string, categoryName?: string | null, urgency?: string | null }} job
  * @param {{ genAI?: object }} [opts] - injectable client for tests
- * @returns {Promise<{ source: 'ai' | 'guide', questions: { id: string, question: string, options: string[] }[] }>}
+ * @returns {Promise<{ source: 'ai' | 'guide', reason?: 'ai_unavailable' | 'no_usable_questions', questions: { id: string, question: string, options: string[] }[] }>}
  */
 async function suggestClarifyingQuestions(job, opts = {}) {
-  if (!opts.genAI && !isGeminiKeyConfigured()) return { source: 'guide', questions: [] };
+  if (!opts.genAI && !isGeminiKeyConfigured()) return { source: 'guide', reason: 'ai_unavailable', questions: [] };
   const style = writingStyle(`${job.title} ${job.description}`);
   const userPrompt = [
     `Language: ${STYLE_INSTRUCTIONS[style]}`,
@@ -114,20 +119,29 @@ async function suggestClarifyingQuestions(job, opts = {}) {
     redactText(job.description),
   ].join('\n');
 
-  try {
-    const { text } = await runGeminiAgent({
-      systemInstruction: SYSTEM_PROMPT,
-      userPrompt,
-      maxIterations: 1,
-      timeoutMs: TIMEOUT_MS,
-      ...(opts.genAI ? { genAI: opts.genAI } : {}),
-    });
-    const questions = acceptQuestions(parseJsonFromText(text));
-    return questions.length > 0 ? { source: 'ai', questions } : { source: 'guide', questions: [] };
-  } catch (err) {
-    console.warn('[job-clarifier] falling back to guide questions:', err.message);
-    return { source: 'guide', questions: [] };
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    let text;
+    try {
+      ({ text } = await runGeminiAgent({
+        systemInstruction: SYSTEM_PROMPT,
+        userPrompt,
+        maxIterations: 1,
+        timeoutMs: TIMEOUT_MS,
+        models: CLARIFIER_MODELS,
+        ...(opts.genAI ? { genAI: opts.genAI } : {}),
+      }));
+    } catch (err) {
+      // Every model already failed; another round would only make the
+      // customer wait longer.
+      console.warn('[job-clarifier] falling back to guide questions:', err.message);
+      return { source: 'guide', reason: 'ai_unavailable', questions: [] };
+    }
+    let parsed = null;
+    try { parsed = parseJsonFromText(text); } catch { /* unusable reply: retry */ }
+    const questions = parsed ? acceptQuestions(parsed) : [];
+    if (questions.length > 0) return { source: 'ai', questions };
   }
+  return { source: 'guide', reason: 'no_usable_questions', questions: [] };
 }
 
 module.exports = { suggestClarifyingQuestions, acceptQuestions, writingStyle, MAX_QUESTIONS, MAX_OPTIONS };
