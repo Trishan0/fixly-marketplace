@@ -271,7 +271,7 @@ describe('suggested questions for a job draft', () => {
       await request(app).post('/api/jobs/clarify').set('Authorization', authorizationFor(worker)).send(body).expect(403);
       await request(app).post('/api/jobs/clarify').set('Authorization', authorizationFor(customer)).send({ description: 'short' }).expect(400);
       const response = await request(app).post('/api/jobs/clarify').set('Authorization', authorizationFor(customer)).send(body).expect(200);
-      expect(response.body).toEqual({ source: 'guide', questions: [] });
+      expect(response.body).toEqual({ source: 'guide', reason: 'ai_unavailable', questions: [] });
     } finally {
       process.env.GEMINI_API_KEY = originalKey;
     }

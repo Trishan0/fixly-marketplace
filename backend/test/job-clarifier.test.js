@@ -61,9 +61,11 @@ describe('suggestClarifyingQuestions', () => {
   });
 
   test('falls back to the guide questions when the reply is unusable or the call fails', async () => {
-    expect(await suggestClarifyingQuestions(job, genAIReturning('The kitchen sink pipe burst.'))).toEqual({ source: 'guide', questions: [] });
+    const unusable = genAIReturning('The kitchen sink pipe burst.');
+    expect(await suggestClarifyingQuestions(job, unusable)).toEqual({ source: 'guide', reason: 'no_usable_questions', questions: [] });
+    expect(unusable.generateContent).toHaveBeenCalledTimes(2);
     const failing = { getGenerativeModel: () => ({ generateContent: async () => { throw new Error('503'); } }) };
-    expect(await suggestClarifyingQuestions(job, { genAI: failing })).toEqual({ source: 'guide', questions: [] });
+    expect(await suggestClarifyingQuestions(job, { genAI: failing })).toEqual({ source: 'guide', reason: 'ai_unavailable', questions: [] });
   });
 });
 

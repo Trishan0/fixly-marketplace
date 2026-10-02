@@ -17,8 +17,35 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // tracks whatever's current, so it leads the list to reduce how often this
 // needs a manual bump again; gemini-3.6-flash is what Google's own error
 // pointed at as of this fix.
-const MODEL_NAMES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.8-flash'];
+//
+// Availability shifts by the hour: under load Google returns 503 "high
+// demand" for the newest models while older and lite ones still answer
+// in a second or two. So the list mixes generations, ends on a lite model,
+// and GEMINI_MODELS (comma-separated) overrides it without a deploy.
+const DEFAULT_MODEL_NAMES = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
 const RETRY_BACKOFF_MS = 250;
+// Each model call gives up after this long, so one overloaded model can't
+// stall a run; failover moves on to the next.
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** The models to try, in order: an explicit list, GEMINI_MODELS, or the default. */
+function modelNames(override) {
+  const configured = (process.env.GEMINI_MODELS || '').split(',').map(name => name.trim()).filter(Boolean);
+  const names = override?.length ? override : configured.length ? configured : DEFAULT_MODEL_NAMES;
+  return [...new Set(names)];
+}
+
+// The model that last answered, remembered per model list for a while, so
+// the next run starts there instead of waiting out an overloaded model
+// again. Per list, so a small task's quick lite model never becomes the
+// match agent's first choice.
+const PREFERENCE_TTL_MS = 10 * 60 * 1000;
+const preferredModels = new Map(); // list key -> { name, at }
+function preferredModelFor(key) {
+  const entry = preferredModels.get(key);
+  return entry && Date.now() - entry.at < PREFERENCE_TTL_MS ? entry.name : null;
+}
+function resetModelPreference() { preferredModels.clear(); }
 
 function isGeminiKeyConfigured() {
   const key = process.env.GEMINI_API_KEY;
@@ -99,10 +126,12 @@ function sleep(ms) {
 // stopped ends within one step instead of finishing (and spending tokens).
 // With no `tools` it's a single plain generation; `timeoutMs` bounds each
 // model call (the SDK has no default timeout).
-async function runGeminiAgent({ systemInstruction, userPrompt, tools = [], toolHandlers = {}, onStep, shouldStop, maxIterations = 12, timeoutMs, genAI = getGenAI() }) {
+// `models` overrides the model list for one call (e.g. fast lite models
+// for a small task).
+async function runGeminiAgent({ systemInstruction, userPrompt, tools = [], toolHandlers = {}, onStep, shouldStop, maxIterations = 12, timeoutMs = DEFAULT_TIMEOUT_MS, models: modelOverride, genAI = getGenAI() }) {
   const startedAt = Date.now();
 
-  const models = MODEL_NAMES.map(name => {
+  const models = modelNames(modelOverride).map(name => {
     try {
       return {
         name,
@@ -120,8 +149,9 @@ async function runGeminiAgent({ systemInstruction, userPrompt, tools = [], toolH
 
   if (models.length === 0) throw new GeminiAgentError('Could not initialize any Gemini model', 'other');
 
-  let modelIndex = 0;
-  let modelUsed = models[0].name;
+  const listKey = models.map(m => m.name).join(',');
+  let modelIndex = Math.max(0, models.findIndex(m => m.name === preferredModelFor(listKey)));
+  let modelUsed = models[modelIndex].name;
 
   // Try each model in turn for a single generateContent call, backing off
   // between attempts. Sticks with whichever model last succeeded so later
@@ -135,6 +165,7 @@ async function runGeminiAgent({ systemInstruction, userPrompt, tools = [], toolH
         const res = await model.generateContent({ contents });
         modelIndex = idx;
         modelUsed = name;
+        preferredModels.set(listKey, { name, at: Date.now() });
         return res;
       } catch (err) {
         lastErr = err;
@@ -245,4 +276,4 @@ function parseJsonFromText(text) {
   return JSON.parse(raw.trim());
 }
 
-module.exports = { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured, GeminiAgentError, AgentRunCancelledError, classifyGeminiError };
+module.exports = { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured, GeminiAgentError, AgentRunCancelledError, classifyGeminiError, modelNames, resetModelPreference };

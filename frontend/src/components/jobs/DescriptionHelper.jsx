@@ -18,7 +18,7 @@ const GENERAL_QUESTIONS = ['What exactly needs doing?', 'Where in the house is i
  * @param {{ title: string, description: string, categoryId: string, urgency: string, hints: string[] | null, onChange: (description: string) => void }} props
  */
 export function DescriptionHelper({ title, description, categoryId, urgency, hints, onChange }) {
-  const [round, setRound] = useState(null) // { source, questions }
+  const [round, setRound] = useState(null) // { source, busy, questions }
   const [answers, setAnswers] = useState({})
   const [applied, setApplied] = useState(null) // { previous, result, added }
 
@@ -34,7 +34,7 @@ export function DescriptionHelper({ title, description, categoryId, urgency, hin
       const questions = fromAi
         ? data.questions
         : (hints || GENERAL_QUESTIONS).map((question, index) => ({ id: `g${index + 1}`, question, options: [] }))
-      setRound({ source: fromAi ? 'ai' : 'guide', questions })
+      setRound({ source: fromAi ? 'ai' : 'guide', busy: !fromAi && data.reason === 'ai_unavailable', questions })
       setAnswers({})
       setApplied(null)
     },
@@ -146,7 +146,11 @@ export function DescriptionHelper({ title, description, categoryId, urgency, hin
 
       <div className="mt-3.5 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[11px] text-fg-subtle">
-          {round.source === 'ai' ? 'Questions suggested by AI from what you wrote.' : 'Suggested questions for this kind of job.'}
+          {round.source === 'ai'
+            ? 'Questions suggested by AI from what you wrote.'
+            : round.busy
+              ? 'AI is busy right now, so these are standard questions for this kind of job. Close and try again in a minute.'
+              : 'Suggested questions for this kind of job.'}
         </p>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
