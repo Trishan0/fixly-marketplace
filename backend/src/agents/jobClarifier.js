@@ -23,6 +23,7 @@ const { runGeminiAgent, parseJsonFromText, isGeminiKeyConfigured } = require('./
 const { redactText } = require('./redact');
 const { textContainsInjectionMarker } = require('./schemas');
 const { PROMPT_SAFETY_NOTE } = require('./tools/getWorkerReviews');
+const { writingStyle } = require('./language');
 
 const MAX_QUESTIONS = 4;
 const MAX_OPTIONS = 4;
@@ -54,12 +55,20 @@ Rules:
 - Never assume a fact in a question. "Which pipe is broken?" is fine. "Since when has the sink pipe been leaking?" is NOT, unless the customer said it was the sink.
 - Each question may have up to 4 short answer choices (a few words each) that cover the common answers. Leave options empty when choices don't make sense.
 - Do not ask about price or budget, the district or address, phone numbers, or any contact or personal details. The form asks for location and budget separately.
-- Ask in the same language and script the customer wrote in: English, Sinhala, Tamil, or Sinhala/Tamil written in English letters.
+- Ask in the same language and script the customer wrote in: English, Sinhala, Tamil, or Sinhala/Tamil written in English letters ("Singlish"/"Tanglish"). Customers often write Singlish with loose spelling ("kedila", "kadila"); read it as Sinhala. The user message says which language to use.
 
 ${PROMPT_SAFETY_NOTE}
 
 Output ONLY valid JSON, exactly this shape and nothing else:
 {"questions":[{"question":"Which pipe is broken?","options":["Kitchen sink","Bathroom","Water tank","Outside tap"]}]}`;
+
+const STYLE_INSTRUCTIONS = {
+  sinhala_script: 'The customer writes in Sinhala script. Ask your questions and give the choices in Sinhala script.',
+  tamil_script: 'The customer writes in Tamil script. Ask your questions and give the choices in Tamil script.',
+  singlish: 'The customer writes Sinhala using English letters (Singlish), for example "bate kedila" means "the pipe is broken". Ask your questions and give the choices in the same Singlish style, not in English and not in Sinhala script.',
+  tanglish: 'The customer writes Tamil using English letters (Tanglish). Ask your questions and give the choices in the same Tanglish style, not in English and not in Tamil script.',
+  english: 'Ask in the language the customer wrote in.',
+};
 
 function cleanOption(option) {
   return option.replace(/\s+/g, ' ').trim();
@@ -95,7 +104,9 @@ function acceptQuestions(parsed) {
  */
 async function suggestClarifyingQuestions(job, opts = {}) {
   if (!opts.genAI && !isGeminiKeyConfigured()) return { source: 'guide', questions: [] };
+  const style = writingStyle(`${job.title} ${job.description}`);
   const userPrompt = [
+    `Language: ${STYLE_INSTRUCTIONS[style]}`,
     `Type of work: ${job.categoryName || 'not chosen'}`,
     `Needed: ${job.urgency || 'not given'}`,
     `Title: ${redactText(job.title)}`,
@@ -119,4 +130,4 @@ async function suggestClarifyingQuestions(job, opts = {}) {
   }
 }
 
-module.exports = { suggestClarifyingQuestions, acceptQuestions, MAX_QUESTIONS, MAX_OPTIONS };
+module.exports = { suggestClarifyingQuestions, acceptQuestions, writingStyle, MAX_QUESTIONS, MAX_OPTIONS };

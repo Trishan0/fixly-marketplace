@@ -157,7 +157,7 @@ describe('Phase 5 invitations and agent confirmation invariants', () => {
     const proposalResult = await confirmProposalAgent({
       runId: proposalRun.id,
       worker,
-      selections: [{ job_id: proposalJob.id, message: 'I can help tomorrow.', proposed_price: '2500.00' }],
+      selections: [{ job_id: proposalJob.id, message: 'I can help tomorrow.', proposed_price: '2500.00', availability: 'Tomorrow morning' }],
     });
     expect(proposalResult.results).toMatchObject([{ job_id: proposalJob.id, status: 'submitted' }]);
   });

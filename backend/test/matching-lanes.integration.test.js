@@ -107,3 +107,29 @@ describe('match run with lanes', () => {
     expect(shown[1].filter(id => shown[0].includes(id))).toEqual([]);
   });
 });
+
+describe('agent runs on a serverless host', () => {
+  test('a queued run is processed without the background loop, starting from the status poll', async () => {
+    for (let i = 0; i < 3; i += 1) await worker({ name: `Serverless proven ${i}`, jobsDone: 10, rating: 4.5 });
+    await worker({ name: 'Serverless newcomer' });
+    const { customer, job } = await plumbingJob();
+    const run = (await testPool.query(
+      "INSERT INTO agent_runs (user_id, agent_type, status, job_id, objective) VALUES ($1, 'match', 'pending', $2, 'test') RETURNING id",
+      [customer.id, job.id],
+    )).rows[0];
+
+    process.env.VERCEL = '1';
+    try {
+      const first = await request(app).get(`/api/agent/run/${run.id}`).set('Authorization', authorizationFor(customer)).expect(200);
+      expect(first.body.status).toBe('pending');
+      await vi.waitFor(async () => {
+        const status = (await testPool.query('SELECT status FROM agent_runs WHERE id = $1', [run.id])).rows[0].status;
+        expect(status).toBe('awaiting_confirmation');
+      }, { timeout: 10000, interval: 100 });
+    } finally {
+      delete process.env.VERCEL;
+    }
+    const done = await request(app).get(`/api/agent/run/${run.id}`).set('Authorization', authorizationFor(customer)).expect(200);
+    expect(done.body.recommendations.map(r => r.lane)).toEqual(['best_match', 'best_match', 'best_match', 'new_talent']);
+  });
+});

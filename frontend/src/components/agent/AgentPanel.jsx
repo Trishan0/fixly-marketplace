@@ -259,7 +259,27 @@ function WorkerLaneGroups({ recommendations, selectedIds, onToggle }) {
 }
 
 // ─── Job Recommendation Card ──────────────────────────────────────────────────
-function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
+// Same rules as the manual proposal form (and enforced by the server): a
+// price or "inspection needed", and when the worker can come.
+const PRICE_PATTERN = /^\d+(\.\d{1,2})?$/
+const MAX_PROPOSALS_PER_CONFIRM = 3
+
+function proposalDetailsValid(details) {
+  if (!details) return false
+  const priced = details.inspection_needed || (PRICE_PATTERN.test(details.proposed_price || '') && Number(details.proposed_price) > 0)
+  return priced && (details.availability || '').trim().length >= 3
+}
+
+/** Starting values from the job itself: its fixed budget, or inspection-first pricing. */
+function defaultProposalDetails(job) {
+  return {
+    proposed_price: job.pricing_mode === 'fixed' && job.fixed_budget ? String(Number(job.fixed_budget)) : '',
+    inspection_needed: job.pricing_mode === 'inspection',
+    availability: '',
+  }
+}
+
+function JobRecCard({ rec, selected, onToggle, onMessageChange, details, onDetailsChange }) {
   const [expanded, setExpanded] = useState(false)
   const [editingMessage, setEditingMessage] = useState(false)
   const [msg, setMsg] = useState(rec.proposal_draft || '')
@@ -310,11 +330,44 @@ function JobRecCard({ rec, selected, onToggle, onMessageChange }) {
 
         <p className="text-xs text-fg-subtle mt-2 leading-relaxed">{rec.rationale}</p>
 
+        {/* Your price and availability: the worker's own facts, never the AI's */}
+        {selected && details && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div>
+              <label htmlFor={`price-${j.id}`} className="text-xs font-semibold text-fg">Your price (LKR)</label>
+              <input
+                id={`price-${j.id}`}
+                inputMode="decimal"
+                value={details.inspection_needed ? '' : details.proposed_price}
+                disabled={details.inspection_needed}
+                onChange={e => onDetailsChange(j.id, { proposed_price: e.target.value })}
+                placeholder={details.inspection_needed ? 'After inspection' : 'e.g. 4500'}
+                className="mt-1 h-10 w-full rounded-control border border-line bg-surface px-3 text-sm text-fg disabled:opacity-60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+              />
+              <label className="mt-1.5 flex min-h-8 items-center gap-2 text-xs text-fg-muted">
+                <input type="checkbox" checked={details.inspection_needed} onChange={e => onDetailsChange(j.id, { inspection_needed: e.target.checked })} className="h-4 w-4 accent-violet-600" />
+                Inspection needed before I can price it
+              </label>
+            </div>
+            <div>
+              <label htmlFor={`availability-${j.id}`} className="text-xs font-semibold text-fg">When can you come?</label>
+              <input
+                id={`availability-${j.id}`}
+                value={details.availability}
+                maxLength={255}
+                onChange={e => onDetailsChange(j.id, { availability: e.target.value })}
+                placeholder="e.g. Tomorrow morning"
+                className="mt-1 h-10 w-full rounded-control border border-line bg-surface px-3 text-sm text-fg focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Draft message preview */}
         {selected && (
           <div className="mt-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 p-3">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Proposal Message</span>
+              <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Message (AI draft: check it’s all true)</span>
               <button type="button" onClick={() => setEditingMessage(e => !e)} className="min-h-11 px-2 text-xs font-semibold text-violet-600 hover:underline">
                 {editingMessage ? 'Done' : 'Edit'}
               </button>
@@ -385,6 +438,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
   const [runId, setRunId] = useState(null)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [customMessages, setCustomMessages] = useState({}) // jobId → message
+  const [proposalDetails, setProposalDetails] = useState({}) // jobId → { proposed_price, inspection_needed, availability }
+  const [limitReached, setLimitReached] = useState(false)
   const [showPlan, setShowPlan] = useState(false)
   const [confirmDone, setConfirmDone] = useState(null)
   // True when the panel picked up a run that was already going.
@@ -466,11 +521,17 @@ export default function AgentPanel({ mode, jobId, onClose }) {
           selections: [...selectedIds],
         }).then(r => r.data)
       } else {
-        const selections = [...selectedIds].map(jobId => ({
-          job_id: jobId,
-          message: customMessages[jobId] ||
-            runData.recommendations.find(r => r.job.id === jobId)?.proposal_draft || '',
-        }))
+        const selections = [...selectedIds].map(jobId => {
+          const details = proposalDetails[jobId]
+          return {
+            job_id: jobId,
+            message: customMessages[jobId] ||
+              runData.recommendations.find(r => r.job.id === jobId)?.proposal_draft || '',
+            proposed_price: details.inspection_needed ? null : details.proposed_price,
+            inspection_needed: details.inspection_needed,
+            availability: details.availability.trim(),
+          }
+        })
         return api.post(`/agent/run/${runData.run_id}/confirm`, {
           action_type: 'proposal',
           selections,
@@ -486,12 +547,26 @@ export default function AgentPanel({ mode, jobId, onClose }) {
   })
 
   const toggleSelect = (id) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    const next = new Set(selectedIds)
+    if (next.has(id)) {
+      next.delete(id)
+    } else if (!isMatch && next.size >= MAX_PROPOSALS_PER_CONFIRM) {
+      // Each proposal notifies a customer, so a few at a time.
+      setLimitReached(true)
+      return
+    } else {
+      next.add(id)
+    }
+    setSelectedIds(next)
+    setLimitReached(false)
+    if (!isMatch && !proposalDetails[id]) {
+      const job = runData?.recommendations?.find(r => r.job?.id === id)?.job
+      if (job) setProposalDetails(prev => ({ ...prev, [id]: defaultProposalDetails(job) }))
+    }
   }
+  const updateProposalDetails = (jobId, change) =>
+    setProposalDetails(prev => ({ ...prev, [jobId]: { ...prev[jobId], ...change } }))
+  const proposalsReady = isMatch || [...selectedIds].every(id => proposalDetailsValid(proposalDetails[id]))
 
   return (
     <div className="flex h-full max-h-full flex-col">
@@ -692,6 +767,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                     selected={selectedIds.has(rec.job.id)}
                     onToggle={toggleSelect}
                     onMessageChange={(jobId, msg) => setCustomMessages(prev => ({ ...prev, [jobId]: msg }))}
+                    details={proposalDetails[rec.job.id]}
+                    onDetailsChange={updateProposalDetails}
                   />
               ))}
               {(!runData.recommendations || runData.recommendations.length === 0) && (
@@ -715,17 +792,24 @@ export default function AgentPanel({ mode, jobId, onClose }) {
             <p className="font-semibold text-sm text-fg">
               {selectedIds.size} {isMatch ? `worker${selectedIds.size > 1 ? 's' : ''} selected` : `job${selectedIds.size > 1 ? 's' : ''} selected`}
             </p>
-            <p className="text-xs text-fg-subtle">
-              {isMatch ? 'Confirm to send invites' : 'Confirm to submit proposals'}
+            <p className={cn('text-xs', !proposalsReady || limitReached ? 'text-amber-700 dark:text-amber-300' : 'text-fg-subtle')} aria-live="polite">
+              {isMatch
+                ? 'Confirm to send invites'
+                : limitReached
+                  ? `You can send up to ${MAX_PROPOSALS_PER_CONFIRM} proposals at a time`
+                  : proposalsReady
+                    ? 'Confirm to submit proposals'
+                    : 'Add your price (or inspection) and when you can come for each job'}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
+            <Button variant="outline" size="sm" onClick={() => { setSelectedIds(new Set()); setLimitReached(false) }}>
               Deselect all
             </Button>
             <Button
               size="sm"
               loading={confirmMutation.isPending}
+              disabled={!proposalsReady}
               onClick={() => confirmMutation.mutate()}
               className={cn(isMatch ? '' : 'bg-violet-600 hover:bg-violet-700 text-white')}
             >

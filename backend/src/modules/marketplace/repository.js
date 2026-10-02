@@ -416,15 +416,33 @@ function listAgentOpenJobs({ district, categoryId, limit }) {
   `);
 }
 
-function listAgentOpenJobsForWorker(workerId, limit) {
+/**
+ * Open jobs for the proposal agent: in the worker's trades (their skills,
+ * or their primary skill for older profiles without structured skills),
+ * optionally in one district, filtered *before* the limit so a busy
+ * marketplace can't push the worker's own trade out of the list. Leaves
+ * out jobs they've already applied to or been invited to (an invite is
+ * answered from the invite itself).
+ * @param {string} workerId @param {number} limit
+ * @param {{ district?: string | null }} [options]
+ */
+function listAgentOpenJobsForWorker(workerId, limit, { district = null } = {}) {
   return rows(sql`
+    WITH me AS (SELECT wp.id AS profile_id, wp.primary_skill FROM worker_profiles wp WHERE wp.user_id = ${workerId})
     SELECT j.*, c.name AS category_name, c.icon AS category_icon,
            (SELECT COUNT(*) FROM proposals p2 WHERE p2.job_id = j.id AND p2.status = 'pending') AS proposal_count
     FROM jobs j
     LEFT JOIN categories c ON c.id = j.category_id
+    CROSS JOIN me
     WHERE j.status IN ('posted', 'proposals_received')
       AND j.is_active = true
+      AND (${district}::text IS NULL OR j.district ILIKE ${`%${district || ''}%`})
+      AND (
+        EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = me.profile_id AND ws.category_id IN (j.category_id, j.subcategory_id))
+        OR (NOT EXISTS (SELECT 1 FROM worker_skills ws WHERE ws.worker_id = me.profile_id) AND c.name ILIKE me.primary_skill)
+      )
       AND NOT EXISTS (SELECT 1 FROM proposals p WHERE p.job_id = j.id AND p.worker_id = ${workerId})
+      AND NOT EXISTS (SELECT 1 FROM invites i WHERE i.job_id = j.id AND i.worker_id = ${workerId})
     ORDER BY CASE j.urgency WHEN 'today' THEN 1 WHEN 'tomorrow' THEN 2 WHEN 'this_week' THEN 3 ELSE 4 END,
              j.created_at DESC
     LIMIT ${limit}

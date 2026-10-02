@@ -51,13 +51,21 @@ const inviteSelections = z.array(z.string().uuid()).min(1).superRefine((selectio
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'Worker selections must be unique' });
   }
 });
+// Proposals sent from the proposal agent. Same rule as the manual
+// proposal form: a price (or "inspection needed") and when the worker can
+// come, so customers can compare them with every other proposal. Capped
+// per confirm, since each one notifies a customer.
+const MAX_AGENT_PROPOSALS_PER_CONFIRM = 3;
 const proposalSelections = z.array(z.object({
   job_id: z.string().uuid(),
   proposed_price: decimal.optional().nullable(),
   inspection_needed: z.boolean().optional().default(false),
-  availability: z.string().trim().max(255).optional().nullable(),
+  availability: z.string().trim().min(3, 'Say when you could do each job').max(255),
   message: optionalText,
-})).min(1).superRefine((selections, context) => {
+}).refine(selection => selection.inspection_needed || selection.proposed_price, {
+  message: 'Enter a price for each job, or mark it as needing an inspection',
+  path: ['proposed_price'],
+})).min(1).max(MAX_AGENT_PROPOSALS_PER_CONFIRM, `You can send up to ${MAX_AGENT_PROPOSALS_PER_CONFIRM} proposals at a time`).superRefine((selections, context) => {
   const jobIds = selections.map(selection => selection.job_id);
   if (new Set(jobIds).size !== jobIds.length) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'Job selections must be unique' });
