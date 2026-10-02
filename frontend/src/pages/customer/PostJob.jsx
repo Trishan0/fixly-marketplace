@@ -5,7 +5,7 @@ import { CalendarClock, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, F
 import { AppShell } from "../../components/layout/AppShell";
 import { Button, Input, Textarea, Select, Card, Spinner } from "../../components/shared/UI";
 import { EmailVerificationNotice } from "../../components/shared/EmailVerificationNotice";
-import { DescriptionHelper } from "../../components/jobs/DescriptionHelper";
+import { useDescriptionHelper } from "../../components/jobs/DescriptionHelper";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../context/AuthContext";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -272,6 +272,20 @@ function PostJobForm({ user }) {
     else createJob.mutate();
   };
 
+  // "Help me add details": the button sits beside the description's label,
+  // the questions open under the text box.
+  const descriptionHelper = useDescriptionHelper({
+    title: form.title,
+    description: form.description,
+    categoryId: form.category_id,
+    urgency: form.urgency,
+    hints,
+    onChange: (description) => {
+      setForm((current) => ({ ...current, description }));
+      setErrors((current) => ({ ...current, description: "" }));
+    },
+  });
+
   const urgency = URGENCIES.find((u) => u.value === form.urgency);
   const pricing = PRICING_MODES.find((p) => p.value === form.pricing_mode);
 
@@ -352,9 +366,12 @@ function PostJobForm({ user }) {
                 </div>
               </fieldset>
               <div className="space-y-2">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <label htmlFor="job-description" className="block text-sm font-medium text-fg">Describe the job</label>
+                  {descriptionHelper.trigger}
+                </div>
                 <Textarea
                   id="job-description"
-                  label="Describe the job"
                   placeholder="What needs doing, where, and what result you expect."
                   value={form.description}
                   onChange={set("description")}
@@ -363,6 +380,7 @@ function PostJobForm({ user }) {
                   error={errors.description}
                 />
                 <p className="text-right text-xs text-fg-subtle">{form.description.length}/4000</p>
+                {descriptionHelper.panel}
                 <div className="rounded-control border border-amber-200/70 bg-amber-50 p-3.5 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
                   <p className="flex items-center gap-1.5 font-semibold"><Lightbulb className="h-4 w-4" aria-hidden="true" />{hints ? `Helpful details for ${category.name.toLowerCase()} jobs` : "What makes a good description"}</p>
                   <ul className="mt-1 list-disc space-y-0.5 pl-5 text-amber-800 dark:text-amber-200">
@@ -370,17 +388,6 @@ function PostJobForm({ user }) {
                   </ul>
                   <p className="mt-1.5 text-xs text-amber-800 dark:text-amber-300">Don’t include your phone number — you can share it once you hire someone.</p>
                 </div>
-                <DescriptionHelper
-                  title={form.title}
-                  description={form.description}
-                  categoryId={form.category_id}
-                  urgency={form.urgency}
-                  hints={hints}
-                  onChange={(description) => {
-                    setForm((current) => ({ ...current, description }));
-                    setErrors((current) => ({ ...current, description: "" }));
-                  }}
-                />
               </div>
             </div>
           )}

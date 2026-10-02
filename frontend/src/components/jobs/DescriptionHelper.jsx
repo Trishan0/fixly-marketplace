@@ -15,9 +15,14 @@ const GENERAL_QUESTIONS = ['What exactly needs doing?', 'Where in the house is i
  * suggests questions and answer choices; it never writes description text
  * (see lib/jobDetails.js and the backend's agents/jobClarifier.js).
  *
+ * Returns two pieces so the form can place them apart: `trigger`, the
+ * button (beside the field's label), and `panel`, the questions and status
+ * (under the text box, where the answers are added).
+ *
  * @param {{ title: string, description: string, categoryId: string, urgency: string, hints: string[] | null, onChange: (description: string) => void }} props
+ * @returns {{ trigger: React.ReactNode, panel: React.ReactNode }}
  */
-export function DescriptionHelper({ title, description, categoryId, urgency, hints, onChange }) {
+export function useDescriptionHelper({ title, description, categoryId, urgency, hints, onChange }) {
   const [round, setRound] = useState(null) // { source, busy, questions }
   const [answers, setAnswers] = useState({})
   const [applied, setApplied] = useState(null) // { previous, result, added }
@@ -61,15 +66,25 @@ export function DescriptionHelper({ title, description, categoryId, urgency, hin
 
   const tooShort = description.trim().length < 10
 
+  const trigger = round ? null : (
+    <Button variant="secondary" size="sm" onClick={() => suggest.mutate()} loading={suggest.isPending} disabled={tooShort} title={tooShort ? 'Write a sentence first, then we’ll suggest questions.' : undefined}>
+      <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden="true" /> Help me add details
+    </Button>
+  )
+
   if (!round) {
-    return (
+    const showUndo = applied && applied.result === description
+    if (!showUndo && !suggest.isError && !tooShort) return { trigger, panel: null }
+    return { trigger, panel: (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button variant="secondary" size="sm" onClick={() => suggest.mutate()} loading={suggest.isPending} disabled={tooShort}>
-          <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" aria-hidden="true" /> Help me add details
-        </Button>
-        {tooShort && <span className="text-xs text-fg-subtle">Write a sentence first, then we’ll suggest questions.</span>}
+        {tooShort && !showUndo && (
+          <span className="flex items-center gap-1.5 text-xs text-fg-subtle">
+            <Sparkles className="h-3.5 w-3.5 text-violet-500" aria-hidden="true" />
+            Write a sentence, then use “Help me add details” for questions workers would ask.
+          </span>
+        )}
         {/* Undo only while the text is untouched since, so it can't discard later edits. */}
-        {applied && applied.result === description && (
+        {showUndo && (
           <span className="flex items-center gap-2 text-xs text-fg-muted" role="status">
             <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
             Added {applied.added} {applied.added === 1 ? 'detail' : 'details'}
@@ -80,10 +95,10 @@ export function DescriptionHelper({ title, description, categoryId, urgency, hin
         )}
         {suggest.isError && <span className="text-xs text-red-600 dark:text-red-400" role="alert">{errorMessage(suggest.error)}</span>}
       </div>
-    )
+    ) }
   }
 
-  return (
+  return { trigger, panel: (
     <section aria-label="Add details to your description" className="rounded-control border border-violet-200 bg-violet-50/60 p-3.5 dark:border-violet-500/25 dark:bg-violet-500/10 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -158,5 +173,5 @@ export function DescriptionHelper({ title, description, categoryId, urgency, hin
         </div>
       </div>
     </section>
-  )
+  ) }
 }
