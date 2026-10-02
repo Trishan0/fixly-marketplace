@@ -8,6 +8,11 @@
  * service is used — the backend is a persistent Express process (see
  * app.js's app.listen), so a setInterval loop in the same process is
  * enough, and is safe under multiple instances via FOR UPDATE SKIP LOCKED.
+ *
+ * On serverless hosts (Vercel) there is no long-lived process, so the
+ * interval loop never starts. There, the route that queues a run (and the
+ * status poll, as a safety net) calls processNextRun() and hands it to
+ * waitUntil, so the same function keeps working after the response is sent.
  */
 
 'use strict';
@@ -16,6 +21,7 @@ const repository = require('../modules/agents/repository');
 const { executeMatchRun } = require('./matchAgent');
 const { executeProposalRun } = require('./proposalAgent');
 const { AgentRunCancelledError } = require('./gemini');
+const { waitUntil } = require('@vercel/functions');
 
 const POLL_INTERVAL_MS = 3000;
 const STALE_MINUTES = 5;
@@ -78,6 +84,47 @@ async function tick() {
   executeRun(run);
 }
 
+/**
+ * Claim and fully execute one pending run, resolving when it's done (or
+ * when there was nothing to claim). The same claim as the loop, so it's
+ * safe to call from several requests at once.
+ * @returns {Promise<string | null>} the run id processed, if any
+ */
+async function processNextRun() {
+  try {
+    await repository.reclaimOrphanedRuns(STALE_MINUTES);
+  } catch (err) {
+    console.error('[agent/worker] failed to reclaim orphaned runs:', err.message);
+  }
+  let run;
+  try {
+    run = await repository.claimPendingRun(GLOBAL_CONCURRENT_RUN_CAP);
+  } catch (err) {
+    console.error('[agent/worker] failed to claim a pending run:', err.message);
+    return null;
+  }
+  if (!run) return null;
+  inFlight++;
+  await executeRun(run);
+  return run.id;
+}
+
+const isServerless = () => Boolean(process.env.VERCEL);
+
+/**
+ * Serverless only: process the next pending run in the background of the
+ * current request. A no-op where the interval loop runs.
+ */
+function processInBackground() {
+  if (!isServerless()) return;
+  const work = processNextRun().catch(err => console.error('[agent/worker] background run failed:', err.message));
+  try {
+    waitUntil(work);
+  } catch (err) {
+    console.error('[agent/worker] waitUntil unavailable:', err.message);
+  }
+}
+
 let intervalHandle = null;
 
 /** @param {{ intervalMs?: number }} [opts] */
@@ -97,4 +144,4 @@ function stopAgentWorker() {
   }
 }
 
-module.exports = { startAgentWorker, stopAgentWorker, tick };
+module.exports = { startAgentWorker, stopAgentWorker, tick, processNextRun, processInBackground };
