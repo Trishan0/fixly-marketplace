@@ -18,6 +18,7 @@ const { createProposalRun, confirmProposalAgent } = require('../agents/proposalA
 const { MarketplaceError } = require('../modules/marketplace/errors');
 const { getJobDetails } = require('../agents/tools/getJobDetails');
 const { priceNote } = require('../agents/scoring');
+const { processInBackground } = require('../agents/worker');
 const { createRateLimiter } = require('../middleware/rateLimit');
 
 // Each run can drive up to 12 Gemini tool-calling round trips, so these are
@@ -58,6 +59,7 @@ router.post('/match/run', verifyToken, requireRole('customer'), matchRunLimiter,
 
     const result = await createMatchRun(job_id, req.user.id);
     res.status(202).json(result);
+    processInBackground();
   } catch (err) {
     console.error('[agent/match/run]', err.message);
     if (err.message === 'Job not found') return res.status(404).json({ error: err.message });
@@ -85,6 +87,7 @@ router.post('/proposal/run', verifyToken, requireRole('worker'), proposalRunLimi
 
     const result = await createProposalRun(req.user.id);
     res.status(202).json(result);
+    processInBackground();
   } catch (err) {
     console.error('[agent/proposal/run]', err.message);
     if (err.message === 'Worker profile not found') return res.status(404).json({ error: err.message });
@@ -149,6 +152,9 @@ router.get('/run/:id', verifyToken, async (req, res) => {
   try {
     const run = await repository.runDetail(runId, req.user.id);
     if (!run) return res.status(404).json({ error: 'Run not found' });
+    // Serverless safety net: a run still queued (e.g. the request that
+    // queued it was cut short) gets picked up by the next status poll.
+    if (run.status === 'pending') processInBackground();
     const [steps, recommendations, queue, job] = await Promise.all([
       repository.runSteps(runId),
       repository.runRecommendations(runId),

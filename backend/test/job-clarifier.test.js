@@ -1,6 +1,6 @@
 'use strict';
 
-const { acceptQuestions, suggestClarifyingQuestions } = require('../src/agents/jobClarifier');
+const { acceptQuestions, suggestClarifyingQuestions, writingStyle } = require('../src/agents/jobClarifier');
 
 function genAIReturning(text) {
   const generateContent = vi.fn(async () => ({
@@ -64,5 +64,28 @@ describe('suggestClarifyingQuestions', () => {
     expect(await suggestClarifyingQuestions(job, genAIReturning('The kitchen sink pipe burst.'))).toEqual({ source: 'guide', questions: [] });
     const failing = { getGenerativeModel: () => ({ generateContent: async () => { throw new Error('503'); } }) };
     expect(await suggestClarifyingQuestions(job, { genAI: failing })).toEqual({ source: 'guide', questions: [] });
+  });
+});
+
+describe('writingStyle', () => {
+  test('recognizes Sinhala and Tamil typed in English letters', () => {
+    expect(writingStyle('bate kedila')).toBe('singlish');
+    expect(writingStyle('kamare light eka wada karanne na')).toBe('singlish');
+    expect(writingStyle('pipe udanchiduchu thanni varuthu')).toBe('tanglish');
+  });
+
+  test('recognizes scripts, and leaves plain English alone', () => {
+    expect(writingStyle('නළය කැඩිලා')).toBe('sinhala_script');
+    expect(writingStyle('குழாய் உடைந்துவிட்டது')).toBe('tamil_script');
+    expect(writingStyle('Pipe is broken, water everywhere')).toBe('english');
+    expect(writingStyle('need one tap')).toBe('english');
+    expect(writingStyle('Need one new socket in the hall')).toBe('english');
+  });
+
+  test('tells the model to ask in Singlish when the customer writes Singlish', async () => {
+    const { genAI, generateContent } = genAIReturning('{"questions":[{"question":"Bate kedila thiyenne kohedadi?","options":["Kussiye","Washroom eke"]}]}');
+    const result = await suggestClarifyingQuestions({ title: 'bate kedila', description: 'bate kedila wathura enawa', categoryName: 'Plumbing' }, { genAI });
+    expect(JSON.stringify(generateContent.mock.calls[0][0])).toContain('Singlish');
+    expect(result.questions[0].question).toBe('Bate kedila thiyenne kohedadi?');
   });
 });

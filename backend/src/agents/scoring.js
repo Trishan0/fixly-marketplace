@@ -404,21 +404,25 @@ function buildProposalRationale(job, worker, factors, _total) {
 /**
  * Draft a proposal message using templated text.
  */
+/**
+ * The plain, factual draft: used when the AI is unavailable or its own
+ * draft fails the checks in proposalDrafts.js. States only profile facts.
+ * No promises about timing: the worker sets availability themselves.
+ */
 function draftProposalMessage(job, worker) {
   const skill = worker.primary_skill || 'my services';
   const district = worker.district || 'your area';
-  const urgencyLine =
-    job.urgency === 'today' ? "I'm available today and can start immediately." :
-    job.urgency === 'tomorrow' ? "I can be there tomorrow." :
-    "I can work around your schedule.";
+  const done = parseInt(worker.total_jobs_done) || 0;
+  const record = done > 0
+    ? `I have ${done} completed job${done === 1 ? '' : 's'} on Fixly` + (Number(worker.avg_rating) > 0 ? ` with an average rating of ${worker.avg_rating}/5.` : '.')
+    : 'I’m new on Fixly.';
+  const verified = worker.is_nic_verified ? ' My ID is verified by Fixly.' : '';
 
   return (
-    `Hi, I'm ${worker.full_name} — a ${skill} specialist based in ${district}. ` +
-    `I noticed your job posting for "${job.title}" and I'd love to help. ` +
-    urgencyLine +
-    ` I have ${worker.total_jobs_done || 0} completed jobs on Fixly` +
-    (worker.avg_rating > 0 ? ` with an average rating of ${worker.avg_rating}/5` : '') +
-    `. Please feel free to reach out if you have any questions.`
+    `Hi, I'm ${worker.full_name}, a ${skill} worker based in ${district}. ` +
+    `I saw your job "${job.title}" and I'd like to help. ` +
+    `${record}${verified} ` +
+    `My price and when I can come are in this proposal. Please message me if you have any questions.`
   );
 }
 
