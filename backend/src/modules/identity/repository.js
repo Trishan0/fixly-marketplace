@@ -138,24 +138,35 @@ function setAiMatchingOptIn(userId, optIn) { return one(sql`UPDATE worker_profil
 function portfolioCount(workerId, client) { return one(sql`SELECT COUNT(*)::int AS count FROM worker_portfolio_photos WHERE worker_id = ${workerId}`, client); }
 function insertPortfolioPhoto(workerId, path, client) { return one(sql`WITH touched AS (UPDATE worker_profiles SET updated_at = NOW() WHERE id = ${workerId}) INSERT INTO worker_portfolio_photos (worker_id, path) VALUES (${workerId}, ${path}) RETURNING *`, client); }
 function deletePortfolioPhoto(photoId, workerId, client) { return one(sql`DELETE FROM worker_portfolio_photos WHERE id = ${photoId} AND worker_id = ${workerId} RETURNING path`, client); }
-function listWorkers({ category, district, minRating, verified, search, limit, offset }) { return rows(sql`
-  SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.created_at,
-    wp.primary_skill, wp.starting_price, wp.total_jobs_done, wp.avg_rating, wp.bio
-  FROM users u LEFT JOIN worker_profiles wp ON wp.user_id = u.id
-  WHERE u.role = 'worker' AND u.is_suspended = false
+// Catalog sorts, whitelisted (the client sends a name, never SQL). Each
+// ends on u.id so "Load more" pages never repeat or skip a worker.
+const WORKER_SORTS = {
+  recommended: sql`wp.avg_rating DESC NULLS LAST, wp.total_jobs_done DESC NULLS LAST, u.id`,
+  // Same Bayesian rating as the match agent (prior weight 3, platform
+  // average as the prior): one 5-star review doesn't outrank 30 reviews at 4.9.
+  rating: sql`(3 * COALESCE((SELECT AVG(rating) FROM reviews), 4.0) + (SELECT COUNT(*) FROM reviews r WHERE r.worker_id = u.id) * COALESCE(wp.avg_rating, 0)) / (3 + (SELECT COUNT(*) FROM reviews r WHERE r.worker_id = u.id)) DESC, wp.avg_rating DESC NULLS LAST, u.id`,
+  jobs: sql`wp.total_jobs_done DESC NULLS LAST, wp.avg_rating DESC NULLS LAST, u.id`,
+  newest: sql`u.created_at DESC, u.id`,
+};
+function workerFilters({ category, district, minRating, verified, newOnly, newMaxJobs, search }) { return sql`
+  u.role = 'worker' AND u.is_suspended = false
     AND (${category}::text IS NULL OR EXISTS (SELECT 1 FROM worker_skills ws JOIN categories c ON c.id = ws.category_id WHERE ws.worker_id = wp.id AND c.name ILIKE ${`%${category || ''}%`}))
     AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`})
     AND (${minRating}::numeric IS NULL OR wp.avg_rating >= ${minRating})
     AND (${verified}::boolean = false OR u.is_nic_verified = true)
+    AND (${newOnly}::boolean = false OR COALESCE(wp.total_jobs_done, 0) < ${newMaxJobs})
     AND (${search}::text IS NULL OR u.full_name ILIKE ${`%${search || ''}%`} OR wp.primary_skill ILIKE ${`%${search || ''}%`})
-  ORDER BY wp.avg_rating DESC NULLS LAST, wp.total_jobs_done DESC LIMIT ${limit} OFFSET ${offset}
+`; }
+function listWorkers({ sort = 'recommended', limit, offset, ...filters }) { return rows(sql`
+  SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.created_at,
+    wp.primary_skill, wp.starting_price, wp.total_jobs_done, wp.avg_rating, wp.bio
+  FROM users u LEFT JOIN worker_profiles wp ON wp.user_id = u.id
+  WHERE ${workerFilters(filters)}
+  ORDER BY ${WORKER_SORTS[sort] || WORKER_SORTS.recommended} LIMIT ${limit} OFFSET ${offset}
 `); }
-function countWorkers({ category, district, minRating, verified, search }) { return one(sql`
+function countWorkers(filters) { return one(sql`
   SELECT COUNT(*)::int AS count FROM users u LEFT JOIN worker_profiles wp ON wp.user_id = u.id
-  WHERE u.role = 'worker' AND u.is_suspended = false
-    AND (${category}::text IS NULL OR EXISTS (SELECT 1 FROM worker_skills ws JOIN categories c ON c.id = ws.category_id WHERE ws.worker_id = wp.id AND c.name ILIKE ${`%${category || ''}%`}))
-    AND (${district}::text IS NULL OR u.district ILIKE ${`%${district || ''}%`}) AND (${minRating}::numeric IS NULL OR wp.avg_rating >= ${minRating})
-    AND (${verified}::boolean = false OR u.is_nic_verified = true) AND (${search}::text IS NULL OR u.full_name ILIKE ${`%${search || ''}%`} OR wp.primary_skill ILIKE ${`%${search || ''}%`})
+  WHERE ${workerFilters(filters)}
 `); }
 function publicWorker(id) { return one(sql`SELECT u.id, u.full_name, u.district, u.area, u.profile_photo, u.is_nic_verified, u.phone, u.created_at, wp.bio, wp.starting_price, wp.primary_skill, wp.total_jobs_done, wp.avg_rating, (SELECT COUNT(*)::int FROM reviews r WHERE r.worker_id=u.id) AS review_count FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.id WHERE u.id=${id} AND u.role='worker' AND u.is_suspended=false`); }
 function publicMarketplaceStats() { return one(sql`

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, Briefcase, CalendarClock, MapPin, MessagesSquare, Star } from 'lucide-react'
+import { BadgeCheck, Briefcase, CalendarClock, MapPin, MessagesSquare, Star, Sparkles } from 'lucide-react'
 import { Avatar, Badge } from './UI'
 import { buttonClasses } from '../ui/buttonClasses'
 import { IconChip } from '../ui/IconChip'
@@ -42,6 +42,12 @@ export function WorkerCard({ worker, onInvite }) {
               </Link>
             </h3>
             {worker.is_nic_verified && <VerifiedBadge />}
+            {/* Same cut-off as the match agent's new-talent lane. */}
+            {Number(worker.total_jobs_done || 0) < 3 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/15 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-400/20">
+                <Sparkles className="h-3 w-3" aria-hidden="true" /> New on Fixly
+              </span>
+            )}
           </div>
           {worker.primary_skill && (
             <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted">

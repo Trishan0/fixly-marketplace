@@ -277,3 +277,46 @@ describe('suggested questions for a job draft', () => {
     }
   });
 });
+
+describe('worker catalog filters and sort', () => {
+  test('filters by rating and new workers, sorts, and pages without repeats', async () => {
+    const make = async (email, name, jobs, rating) => {
+      const w = await createUser(testPool, { email, fullName: name, role: 'worker' });
+      await testPool.query('UPDATE worker_profiles SET total_jobs_done = $1, avg_rating = $2 WHERE id = $3', [jobs, rating, w.worker_profile_id]);
+      return w;
+    };
+    await make('cat-top@fixly-test.local', 'Top Rated', 10, 4.9);
+    await make('cat-busy@fixly-test.local', 'Most Jobs', 40, 4.2);
+    await make('cat-new@fixly-test.local', 'Brand New', 0, 0);
+    await make('cat-two@fixly-test.local', 'Two Jobs', 2, 5);
+    const names = (res) => res.body.workers.map(w => w.full_name);
+
+    expect(names(await request(app).get('/api/workers?min_rating=4.5').expect(200))).toEqual(['Two Jobs', 'Top Rated']);
+    const fresh = await request(app).get('/api/workers?new_only=true').expect(200);
+    expect(fresh.body.total).toBe(2);
+    expect(names(fresh).sort()).toEqual(['Brand New', 'Two Jobs']);
+    expect(names(await request(app).get('/api/workers?sort=jobs').expect(200))[0]).toBe('Most Jobs');
+    expect(names(await request(app).get('/api/workers?sort=newest').expect(200))[0]).toBe('Two Jobs');
+
+    // One 5-star review doesn't outrank many reviews at 4.9.
+    const customer = await createUser(testPool, { email: 'cat-reviewer@fixly-test.local', fullName: 'Reviewer', role: 'customer' });
+    const reviewed = async (workerName, ratings) => {
+      const worker = (await testPool.query('SELECT id FROM users WHERE full_name = $1', [workerName])).rows[0];
+      for (const rating of ratings) {
+        const job = await createJob(testPool, { customerId: customer.id });
+        await testPool.query("UPDATE jobs SET assigned_worker_id = $1, status = 'reviewed' WHERE id = $2", [worker.id, job.id]);
+        await testPool.query('INSERT INTO reviews (job_id, customer_id, worker_id, rating) VALUES ($1, $2, $3, $4)', [job.id, customer.id, worker.id, rating]);
+      }
+    };
+    // Platform average ends up around 4.3, a realistic spread.
+    await reviewed('Most Jobs', [4, 4, 3, 4, 3, 4]);
+    await reviewed('Two Jobs', [5]);
+    await reviewed('Top Rated', [5, 5, 5, 5, 5, 5, 5, 5, 5, 4]);
+    expect(names(await request(app).get('/api/workers?sort=rating').expect(200)).slice(0, 2)).toEqual(['Top Rated', 'Two Jobs']);
+    await request(app).get('/api/workers?sort=price; DROP TABLE users').expect(400);
+
+    const pages = [];
+    for (let page = 1; page <= 4; page += 1) pages.push(...names(await request(app).get(`/api/workers?limit=1&page=${page}`).expect(200)));
+    expect(new Set(pages).size).toBe(4);
+  });
+});
