@@ -39,7 +39,7 @@ export default function WorkerCatalog({ embedded, onInvite }) {
   const [params] = useSearchParams()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState(() => params.get('category') || '')
-  const [district, setDistrict] = useState('')
+  const [district, setDistrict] = useState(() => params.get('district') || '')
   const [verified, setVerified] = useState(false)
   const [minRating, setMinRating] = useState('')
   const [newOnly, setNewOnly] = useState(() => params.get('new') === '1')
