@@ -241,6 +241,8 @@ describe('stopping a run mid-way', () => {
     const { executeProposalRun } = require('../src/agents/proposalAgent');
     const { AgentRunCancelledError } = require('../src/agents/gemini');
     const worker = await createUser(testPool, { email: 'stop-midway@fixly-test.local', fullName: 'Stop Midway', role: 'worker', primarySkill: 'Plumbing' });
+    const customer = await createUser(testPool, { email: 'stop-midway-customer@fixly-test.local', fullName: 'Stop Customer', role: 'customer' });
+    await createJob(testPool, { customerId: customer.id });
     const run = (await testPool.query(
       "INSERT INTO agent_runs (user_id, agent_type, status, objective) VALUES ($1, 'proposal', 'running', 'test') RETURNING id, user_id",
       [worker.id],
@@ -261,5 +263,25 @@ describe('stopping a run mid-way', () => {
     expect(after.rows[0]).toMatchObject({ status: 'cancelled', plan_json: null });
     const recs = await testPool.query('SELECT COUNT(*)::int AS n FROM agent_recommendations WHERE run_id = $1', [run.id]);
     expect(recs.rows[0].n).toBe(0);
+  });
+});
+
+describe('nothing to rank', () => {
+  test('a worker with no open jobs in their trade gets an honest empty result, without calling Gemini', async () => {
+    const { executeProposalRun } = require('../src/agents/proposalAgent');
+    const worker = await createUser(testPool, { email: 'no-jobs@fixly-test.local', fullName: 'No Jobs', role: 'worker', primarySkill: 'Plumbing' });
+    const run = (await testPool.query(
+      "INSERT INTO agent_runs (user_id, agent_type, status, objective) VALUES ($1, 'proposal', 'running', 'test') RETURNING id, user_id",
+      [worker.id],
+    )).rows[0];
+    const generateContent = vi.fn();
+
+    const result = await executeProposalRun(run, { genAI: { getGenerativeModel: () => ({ generateContent }) } });
+
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(result.recommendations).toEqual([]);
+    const after = (await testPool.query('SELECT status, engine, overall_reasoning FROM agent_runs WHERE id = $1', [run.id])).rows[0];
+    expect(after).toMatchObject({ status: 'awaiting_confirmation', engine: null });
+    expect(after.overall_reasoning).toContain('no open jobs in your trades');
   });
 });

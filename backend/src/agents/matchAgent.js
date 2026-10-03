@@ -367,6 +367,15 @@ async function executeMatchRun(run) {
     const pools = await loadLanePools(job);
     sendMatchingTips(pools.newcomers).catch(err => console.error(`[match-agent] run ${runId} matching tips failed:`, err.message));
 
+    // Nobody eligible in this trade: say so plainly instead of calling Gemini.
+    if (pools.bestPool.length === 0 && pools.shortlist.length === 0) {
+      await logStep(1, 'no_candidates', { category: job.category_name, district: job.district }, { count: 0 });
+      const plan = ['Load job details', 'Find workers in this trade', 'No workers available right now'];
+      const reasoning = `No workers who do ${job.category_name || 'this kind of work'} are available to match right now. Try again later, or browse workers yourself.`;
+      await repository.awaitConfirmation(runId, plan, reasoning);
+      return { run_id: runId, status: 'awaiting_confirmation', plan, steps: loggedSteps, overall_reasoning: reasoning, engine: null, model_used: null, job: { id: job.id, title: job.title, category: job.category_name }, recommendations: [] };
+    }
+
     try {
       const workerCache = {};
       const jobCache = { current: job };

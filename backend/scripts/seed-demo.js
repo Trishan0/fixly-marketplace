@@ -56,6 +56,13 @@ const JOBS = [
   ['Clear Blocked Kitchen Drain', 'Kitchen drain was cleared and the waste pipe was resealed.', 'Plumbing', 'Colombo', 'Nawala', 'today', 'fixed', 4000, 'posted'],
   ['Repaint Front Boundary Wall', 'Cleaned, primed and repainted the front boundary wall.', 'Painting', 'Colombo', 'Mount Lavinia', 'this_week', 'fixed', 14000, 'posted'],
   ['Deep Clean Apartment Before Move-in', 'Full move-in clean for a two-bedroom apartment.', 'Cleaning', 'Colombo', 'Wellawatte', 'flexible', 'fixed', 11000, 'posted'],
+  // Open jobs for the proposal agent to rank, in the languages customers
+  // actually write in, so drafts come back in English, Singlish and Sinhala.
+  ['Bathroom Shower Mixer Replacement', 'Replace an old shower mixer and fix a slow drip from the shower head. I have already bought the new mixer.', 'Plumbing', 'Colombo', 'Maharagama', 'this_week', 'fixed', 6500, 'posted'],
+  ['Kussiye sink pipe eka kadila', 'Kussiye sink eka yata pipe eka kadila, wathura galanawa. Ikmanata hadanna ona.', 'Plumbing', 'Colombo', 'Dehiwala', 'today', 'ask_quotes', null, 'posted'],
+  ['නාන කාමරයේ කරාමය කැඩිලා', 'නාන කාමරයේ කරාමය කැඩිලා. වතුර නවතින්නේ නැහැ. හෙට එන්න පුළුවන් නම් හොඳයි.', 'Plumbing', 'Colombo', 'Nugegoda', 'tomorrow', 'inspection', null, 'posted'],
+  ['Sala kamare light eka wada karanne na', 'Sala kamare light eka saha fan eka wada karanne na. Breaker eka trip wenawa.', 'Electrical', 'Colombo', 'Maharagama', 'today', 'ask_quotes', null, 'posted'],
+  ['Repaint One Bedroom', 'Repaint one 12x10 ft bedroom in a light colour. A few small cracks need filling first.', 'Painting', 'Colombo', 'Dehiwala', 'flexible', 'fixed', 9000, 'posted'],
 ];
 
 function requireSeedPermission() {
@@ -281,7 +288,7 @@ async function seedDemoDatabase({ connectionString } = {}) {
     );
 
     await client.query('COMMIT');
-    console.log('Demo seed complete: admin, 2 customers, 9 workers + 6 new verified workers, 13 jobs across the full lifecycle, proposals, payment, review, invite and report.');
+    console.log('Demo seed complete: admin, 2 customers, 9 workers + 6 new verified workers, 18 jobs across the full lifecycle, proposals, payment, review, invite and report.');
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

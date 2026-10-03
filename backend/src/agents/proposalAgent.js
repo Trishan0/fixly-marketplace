@@ -274,6 +274,16 @@ async function executeProposalRun(run, opts = {}) {
     if (!worker) throw new Error('Worker profile not found');
     const [jobs, reviews] = await Promise.all([loadJobPool(worker), getWorkerReviews(workerId, REVIEW_LIMIT)]);
 
+    // Nothing to rank: say so plainly instead of calling Gemini (and then
+    // reporting an empty answer as "AI unavailable").
+    if (jobs.length === 0) {
+      await logStep(1, 'no_open_jobs', { trades: worker.primary_skill, district: worker.district }, { count: 0 });
+      const plan = ['Load worker profile', 'Find open jobs in your trades', 'No open jobs right now'];
+      const reasoning = 'There are no open jobs in your trades right now, apart from ones you have already applied to or been invited to. Invites are answered from your Invites page. Try again later.';
+      await repository.awaitConfirmation(runId, plan, reasoning);
+      return { run_id: runId, status: 'awaiting_confirmation', plan, steps: loggedSteps, overall_reasoning: reasoning, engine: null, model_used: null, recommendations: [] };
+    }
+
     try {
       const workerCache = { current: worker };
       const jobCache = {};

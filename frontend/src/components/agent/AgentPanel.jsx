@@ -735,7 +735,8 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                     : 'bg-violet-50/80 border-violet-200 text-violet-800 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300'
                 )}>
                   <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-3 py-2 [&::-webkit-details-marker]:hidden">
-                    {runData.engine === 'degraded' ? (
+                    {/* No engine: nothing to rank, so the AI wasn't called. */}
+                    {!runData.engine ? null : runData.engine === 'degraded' ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                         Rating-based (AI unavailable)
                       </span>
@@ -744,7 +745,7 @@ export default function AgentPanel({ mode, jobId, onClose }) {
                         {runData.model_used || 'Gemini'}
                       </span>
                     )}
-                    <span className="font-semibold">{runData.engine === 'degraded' ? 'How these were chosen' : isMatch ? 'Why these workers' : 'Why these jobs'}</span>
+                    <span className="font-semibold">{!runData.engine ? 'Details' : runData.engine === 'degraded' ? 'How these were chosen' : isMatch ? 'Why these workers' : 'Why these jobs'}</span>
                     <ChevronDown className="ml-auto w-4 h-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
                   </summary>
                   <p className="px-3 pb-3">{runData.overall_reasoning}</p>
@@ -774,7 +775,12 @@ export default function AgentPanel({ mode, jobId, onClose }) {
               {(!runData.recommendations || runData.recommendations.length === 0) && (
                 <div className="text-center py-8 text-fg-subtle">
                   <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No results found. Try again later.</p>
+                  <p className="text-sm font-semibold text-fg-muted">{isMatch ? 'No workers available for this job right now' : 'No open jobs in your trades right now'}</p>
+                  <p className="mt-1 text-xs">
+                    {isMatch
+                      ? 'Try again later, or browse workers yourself.'
+                      : 'Jobs you’ve been invited to are answered from your Invites page. New jobs appear here as customers post them.'}
+                  </p>
                 </div>
               )}
             </div>
